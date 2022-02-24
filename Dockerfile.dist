@@ -1,6 +1,6 @@
 FROM ubuntu:20.04
 RUN apt-get update && apt-get install -y libssl-dev
 
-COPY artifact .
 WORKDIR /usr/sbin
+COPY target/release/neon-tracer .
 CMD ["./neon-tracer"]
