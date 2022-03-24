@@ -3,13 +3,13 @@ use std::iter;
 
 use tracing::warn;
 
-use evm::{backend::Apply, Transfer, H160, U256};
-use evm_loader::solana_backend::AccountStorage;
+use evm::{backend::Apply, Transfer, H160, U256, H256};
 
 use super::{account_storage::EmulatorAccountStorage, provider::Provider, To};
 use crate::types::ec::account_diff::AccountDiff;
 use crate::types::ec::pod_account::{diff_pod, PodAccount};
 use crate::types::ec::state_diff::StateDiff;
+use evm_loader::account_storage::AccountStorage;
 
 #[derive(Debug, Clone, Copy)]
 enum Sign {
@@ -63,7 +63,7 @@ where
             }
         };
         if let Some((address, diff)) = diff {
-            state_diff.raw.insert(address.to(), diff);
+            state_diff.raw.insert(address, diff);
         }
     }
 
@@ -76,13 +76,13 @@ where
             let diff = modify(
                 accounts,
                 address,
-                old.nonce.to(),
+                old.nonce,
                 old.code.map(|code| (code, Vec::new())),
                 Some(balance),
                 iter::empty(),
             );
             if let Some(diff) = diff {
-                state_diff.raw.insert(address.to(), diff);
+                state_diff.raw.insert(address, diff);
             }
         } else {
             warn!("could not apply balance update to {}", address);
@@ -133,32 +133,20 @@ where
     P: Provider,
 {
     let balance = accounts.balance(&address);
-    accounts.apply_to_account(
-        &address,
-        || None,
-        |account| {
-            let nonce = account.get_nonce();
-            let storage = keys
-                .into_iter()
-                .map(|key| (key.to(), account.get_storage(&key).to()))
-                .collect();
+    let nonce = accounts.nonce(&address);
+    let code = accounts.code(&address);
+    let storage = keys
+        .into_iter()
+        .map(|key| (H256::from(key), H256::from(accounts.storage(&address, &key))))
+        .collect();
 
-            let pod = PodAccount {
-                balance: balance.to(),
-                nonce: nonce.into(),
-                code: {
-                    let code = account.get_code();
-                    if code.is_empty() {
-                        None
-                    } else {
-                        Some(code)
-                    }
-                },
-                storage,
-            };
-            Some(pod)
-        },
-    )
+    let pod = PodAccount {
+        balance: balance,
+        nonce: nonce,
+        code: Some(code),
+        storage: storage,
+    };
+    Some(pod)
 }
 
 fn modify<P, I>(
@@ -177,17 +165,17 @@ where
     let mut old_pod = get_account(accounts, address, storage.keys().copied());
     let old_balance = old_pod
         .as_ref()
-        .map_or(U256::zero(), |pod| pod.balance.to());
+        .map_or(U256::zero(), |pod| pod.balance);
     let balance = balance.map_or(old_balance, |(sign, value)| match sign {
         Sign::Pos => old_balance + value,
         Sign::Neg => old_balance - value,
     });
 
     let mut new_pod = PodAccount {
-        balance: balance.to(),
-        nonce: nonce.to(),
-        storage: storage.into_iter().map(|(k, v)| (k.to(), v.to())).collect(),
-        code: code_and_valids.map(|(code, _valids)| code), // TODO: wtf is valids
+        balance: balance,
+        nonce: nonce,
+        storage: storage.into_iter().map(|(k, v)| (H256::from(k), H256::from(v))).collect(),
+        code: code_and_valids.map(|(code, _valids)| code),
     };
 
     diff_pod(old_pod.as_ref(), Some(&new_pod))

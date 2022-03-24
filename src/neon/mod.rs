@@ -2,6 +2,7 @@ mod account_storage;
 mod diff;
 pub mod provider;
 mod tracer;
+pub mod tools;
 
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -15,19 +16,17 @@ use tracing::{debug, info, warn};
 use evm::backend::Apply;
 use evm::{ExitReason, Transfer, H160, H256, U256};
 use evm_loader::instruction::EvmInstruction;
-use evm_loader::UnsignedTransaction;
+use evm_loader::transaction::UnsignedTransaction;
 use evm_loader::{
-    account_data::AccountData,
-    config::token_mint,
     executor::Machine,
     executor_state::{ExecutorState, ExecutorSubstate},
-    solana_backend::AccountStorage,
 };
+
+use evm_loader::account::{EthereumAccount, EthereumContract};
 
 //use solana_client::rpc_client::RpcClient;
 use solana_program::keccak::hash;
 use solana_sdk::message::Message as SolanaMessage;
-use solana_sdk::pubkey::Pubkey;
 
 use crate::db::DbClient as RpcClient;
 use crate::types::ec::pod_account::{diff_pod, PodAccount};
@@ -35,38 +34,50 @@ use crate::types::ec::state_diff::StateDiff;
 use crate::types::ec::trace::{FlatTrace, FullTraceData, VMTrace};
 use crate::types::TxMeta;
 
-use account_storage::{make_solana_program_address, EmulatorAccountStorage};
+use account_storage::EmulatorAccountStorage;
 use diff::prepare_state_diff;
 use provider::{DbProvider, MapProvider, Provider};
 use tracer::Tracer;
+use solana_sdk::{account::Account, pubkey::Pubkey};
+use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
+
+pub enum EvmAccount<'a> {
+    User(EthereumAccount<'a>),
+    Contract(EthereumAccount<'a>, EthereumContract<'a>),
+}
+
+use solana_sdk::account_info::AccountInfo;
+use arrayref::{array_ref};
+use evm_loader::account::{ACCOUNT_SEED_VERSION};
 
 pub trait To<T> {
     fn to(self) -> T;
 }
-
-macro_rules! impl_to {
-    ($x:ty => $y:ty; $n:literal) => {
-        impl To<$y> for $x {
-            fn to(self) -> $y {
-                let arr: [u8; $n] = self.into();
-                <$y>::from(arr)
-            }
-        }
-
-        impl To<$x> for $y {
-            fn to(self) -> $x {
-                let arr: [u8; $n] = self.into();
-                <$x>::from(arr)
-            }
-        }
-    };
-}
-impl_to!(U256 => ethereum_types::H256; 32);
-impl_to!(U256 => ethereum_types::U256; 32);
-impl_to!(H256 => ethereum_types::H256; 32);
-impl_to!(H160 => ethereum_types::H160; 20);
+//
+// macro_rules! impl_to {
+//     ($x:ty => $y:ty; $n:literal) => {
+//         impl To<$y> for $x {
+//             fn to(self) -> $y {
+//                 let arr: [u8; $n] = self.into();
+//                 <$y>::from(arr)
+//             }
+//         }
+//
+//         impl To<$x> for $y {
+//             fn to(self) -> $x {
+//                 let arr: [u8; $n] = self.into();
+//                 <$x>::from(arr)
+//             }
+//         }
+//     };
+// }
+// impl_to!(U256 => evm::H256; 32);
+// impl_to!(U256 => evm::U256; 32);
+// impl_to!(H256 => evm::H256; 32);
+// impl_to!(H160 => evm::H160; 20);
 
 type Error = anyhow::Error;
+
 
 #[derive(Clone)]
 pub struct Config {
@@ -215,39 +226,40 @@ fn replay_transaction(
         match program {
             program if program == &config.evm_loader => {
                 info!("instruction for neon program");
+                let (tag, instruction_data) = instruction.data.split_first().unwrap();
 
-                let evm_instruction = EvmInstruction::unpack(&instruction.data)?;
-                let (from, transaction) = match evm_instruction {
-                    EvmInstruction::CallFromRawEthereumTX {
-                        from_addr,
-                        unsigned_msg,
-                        ..
-                    }
-                    | EvmInstruction::PartialCallOrContinueFromRawEthereumTX {
-                        from_addr,
-                        unsigned_msg,
-                        ..
-                    } => {
-                        let mut addr = [0; 20];
-                        addr.copy_from_slice(from_addr);
-                        (
-                            H160::from(addr),
-                            rlp::decode::<UnsignedTransaction>(unsigned_msg),
-                        )
-                    }
-                    EvmInstruction::ExecuteTrxFromAccountDataIterativeV02 { .. }
-                    | EvmInstruction::ExecuteTrxFromAccountDataIterativeOrContinue { .. } => {
-                        let key = idx_to_key.get(&instruction.accounts[0]).unwrap();
-                        let holder = processed.accounts().get(key).unwrap();
-                        let (trx, sign) = get_transaction_from_holder(&holder.data)?;
+                let evm_instruction = EvmInstruction::parse(tag)?;
+                let (from, transaction) =
+                    match evm_instruction {
+                        EvmInstruction::CallFromRawEthereumTX => {
+                            let caller = H160::from(*array_ref![instruction_data, 4, 20]);
+                            let unsigned_msg = &instruction_data[4 + 20 + 65..];
+                            (
+                                caller,
+                                rlp::decode::<UnsignedTransaction>(unsigned_msg),
+                            )
+                        }
+                        EvmInstruction::PartialCallOrContinueFromRawEthereumTX => {
+                            let caller = H160::from(*array_ref![instruction_data, 4 + 8, 20]);
+                            let unsigned_msg = &instruction_data[4 + 8 + 20 + 65..];
+                            (
+                                caller,
+                                rlp::decode::<UnsignedTransaction>(unsigned_msg),
+                            )
+                        }
+                        //with holder
+                        EvmInstruction::ExecuteTrxFromAccountDataIterativeV02 | EvmInstruction::ExecuteTrxFromAccountDataIterativeOrContinue => {
+                            let key = idx_to_key.get(&instruction.accounts[0]).unwrap();
+                            let holder = processed.accounts().get(key).unwrap();
+                            let (trx, sign) = get_transaction_from_holder(&holder.data)?;
 
-                        (meta.from, rlp::decode::<UnsignedTransaction>(trx))
-                    }
-                    _ => {
-                        // TODO: handle it somehow
-                        warn!("unhandled neon instruction {:?}", evm_instruction);
-                        continue;
-                    }
+                            (meta.from, rlp::decode::<UnsignedTransaction>(trx))
+                        }
+                        _ => {
+                            // TODO: handle it somehow
+                            warn!("unhandled neon instruction {:?}", evm_instruction);
+                            continue;
+                        }
                 };
                 debug!("{:?}", instruction);
                 debug!("{:?}", transaction);
@@ -293,10 +305,37 @@ pub fn command_replay_transaction(
     ))
 }
 
+
+fn deployed_contract_id<P>(
+    provider: &P,
+    caller_id: &H160,
+    block_number: Option<u64>) -> Result<H160, Error>
+where
+    P: Provider
+{
+    let (caller_sol, _) =  Pubkey::find_program_address(
+        &[&[ACCOUNT_SEED_VERSION], caller_id.as_bytes()], provider.evm_loader(),
+    );
+
+    let mut acc = match provider.get_account_at_slot(&caller_sol, block_number.unwrap())? {
+        Some(acc) => acc,
+        None => return Ok(H160::default())
+    };
+
+    let info = account_info(&caller_sol, &mut acc);
+    let account = EthereumAccount::from_account(provider.evm_loader(), &info)?;
+
+    let trx_count = account.trx_count;
+    let program_id = get_program_ether(caller_id, trx_count);
+
+    Ok(program_id)
+}
+
+
 #[allow(clippy::too_many_lines)]
 pub fn command_trace_call<P>(
     provider: P,
-    contract_id: Option<H160>,
+    contract: Option<H160>,
     caller_id: H160,
     data: Option<Vec<u8>>,
     value: Option<U256>,
@@ -308,41 +347,23 @@ where
     P: Provider,
 {
     info!(
-        "command_emulate(contract_id={:?}, caller_id={:?}, data={:?}, value={:?})",
-        contract_id,
+        "command_emulate(contract= {:?}, caller_id={:?}, data={:?}, value={:?})",
+        contract,
         caller_id,
         &hex::encode(data.clone().unwrap_or_default()),
         value
     );
 
-    let storage = match &contract_id {
-        Some(program_id) => {
-            debug!("program_id to call: {:?}", *program_id);
-            EmulatorAccountStorage::new(provider, *program_id, caller_id, block_number)
-        }
-        None => {
-            let (solana_address, _nonce) =
-                make_solana_program_address(&caller_id, &provider.evm_loader());
-            let trx_count = get_ether_account_nonce(
-                &provider,
-                &solana_address,
-                block_number.unwrap_or(u64::MAX),
-            )?;
-            let trx_count = trx_count.0;
-            let program_id = get_program_ether(&caller_id, trx_count);
-            debug!("program_id to deploy: {:?}", program_id);
-            EmulatorAccountStorage::new(provider, program_id, caller_id, block_number)
-        }
-    };
+    let new_contract_id: Option<H160> = contract.map_or_else(|| deployed_contract_id(&provider,  &caller_id, block_number).ok(), |_| None);
+
+    let storage = EmulatorAccountStorage::new(provider, block_number);
 
     // u64::MAX is too large, remix gives this error:
     // Gas estimation errored with the following message (see below).
     // Number can only safely store up to 53 bits
-    let gas_limit = gas.unwrap_or(50_000_000);
+    let gas_limit = U256::from(gas.unwrap_or(50_000_000));
 
-    let executor_substate = Box::new(ExecutorSubstate::new(gas_limit, &storage));
-    let executor_state = ExecutorState::new(executor_substate, &storage);
-    let mut executor = Machine::new(executor_state);
+    let mut executor = Machine::new(caller_id, &storage)?;
     debug!("Executor initialized");
 
     let js_tracer = trace_code
@@ -352,38 +373,53 @@ where
 
     let mut tracer = Tracer::new(js_tracer);
 
-    let (_, exit_reason) = tracer.using(|| match &contract_id {
-        Some(_) => {
+    let (_, exit_reason) = tracer.using(|| match &contract {
+        Some(contract_id) => {
             debug!(
-                "call_begin(storage.origin()={:?}, storage.contract()={:?}, data={:?}, value={:?})",
-                storage.origin(),
-                storage.contract(),
+                "call_begin(caller_id={:?}, contract_id={:?}, data={:?}, value={:?})",
+                caller_id,
+                contract_id,
                 &hex::encode(data.clone().unwrap_or_default()),
                 value
             );
             executor.call_begin(
-                storage.origin(),
-                storage.contract(),
+                caller_id,
+                *contract_id,
                 data.unwrap_or_default(),
                 value.unwrap_or_default(),
                 gas_limit,
             )?;
-            Ok::<_, solana_program::program_error::ProgramError>(executor.execute())
+
+            match executor.execute_n_steps(100_000){
+                Ok(()) => {
+                    info!("too many steps");
+                    return Err(anyhow!("bad account kind: "))
+                },
+                Err(result) => Ok(result)
+            }
+            // Ok::<_, solana_program::program_error::ProgramError>(executor.execute())
         }
         None => {
+            let new_contract_id = new_contract_id.unwrap();
             debug!(
-                "create_begin(storage.origin()={:?}, data={:?}, value={:?})",
-                storage.origin(),
+                "create_begin(contract_id={:?}, data={:?}, value={:?})",
+                new_contract_id,
                 &hex::encode(data.clone().unwrap_or_default()),
                 value
             );
             executor.create_begin(
-                storage.origin(),
+                new_contract_id,
                 data.unwrap_or_default(),
                 value.unwrap_or_default(),
                 gas_limit,
             )?;
-            Ok(executor.execute())
+            match executor.execute_n_steps(100_000){
+                Ok(()) => {
+                    info!("too many steps");
+                    return Err(anyhow!("bad account kind: "))
+                },
+                Err(result) => Ok(result)
+            }
         }
     })?;
 
@@ -393,21 +429,10 @@ where
         "Execute done, exit_reason={:?}, result={:?}, vm_trace={:?}",
         exit_reason, result, vm_trace
     );
-
+    let used_gas = executor.used_gas().as_u64();
     let executor_state = executor.into_state();
-    let used_gas = executor_state.substate().metadata().gasometer().used_gas() + 1; // "+ 1" because of https://github.com/neonlabsorg/neon-evm/issues/144
-    let refunded_gas = executor_state
-        .substate()
-        .metadata()
-        .gasometer()
-        .refunded_gas();
-    let needed_gas = used_gas
-        + (if refunded_gas > 0 {
-            u64::try_from(refunded_gas)?
-        } else {
-            0
-        });
-    debug!("used_gas={:?} refunded_gas={:?}", used_gas, refunded_gas);
+
+    debug!("used_gas={:?}", used_gas);
     let applies_logs = if exit_reason.is_succeed() {
         debug!("Succeed execution");
         Some(executor_state.deconstruct())
@@ -418,8 +443,13 @@ where
     debug!("Call done");
     let state_diff = match exit_reason {
         ExitReason::Succeed(_) => {
-            let (applies, _logs, transfers, spl_transfers, spl_approves, erc20_approves) =
-                applies_logs.unwrap();
+            let (applies,
+                _logs,
+                transfers,
+                spl_transfers,
+                spl_approves,
+                withdrawals,
+                erc20_approves) = applies_logs.unwrap();
 
             Some(prepare_state_diff(
                 &storage,
@@ -479,47 +509,39 @@ pub fn command_trace_raw(
 
     command_trace_call(
         provider,
-        contract_id.map(To::to),
-        caller_id.to(),
+        contract_id,
+        caller_id,
         Some(data.clone()),
-        Some(value.to()),
+        Some(value),
         Some(gas.as_u128() as u64),
         block_number,
         None,
     )
 }
 
-fn get_ether_account_nonce<P: Provider>(
-    provider: &P,
-    caller_sol: &Pubkey,
-    slot: u64,
-) -> Result<(u64, H160, Pubkey), Error> {
-    let data: Vec<u8>;
-    match provider.get_account_at_slot(caller_sol, slot)? {
-        Some(acc) => data = acc.data,
-        None => return Ok((u64::default(), H160::default(), Pubkey::default())),
-    }
 
-    let trx_count: u64;
-    debug!("get_ether_account_nonce data = {:?}", data);
-    let account = match evm_loader::account_data::AccountData::unpack(&data) {
-        Ok(acc_data) => match acc_data {
-            AccountData::Account(acc) => acc,
-            _ => anyhow::bail!("Caller has incorrect type"),
-        },
-        Err(_) => anyhow::bail!("Caller unpack error"),
-    };
-    trx_count = account.trx_count;
-    let caller_ether = account.ether;
-    let caller_token =
-        spl_associated_token_account::get_associated_token_address(caller_sol, &token_mint::id());
-
-    debug!("Caller: ether {}, solana {}", caller_ether, caller_sol);
-    debug!("Caller trx_count: {} ", trx_count);
-    debug!("caller_token = {}", caller_token);
-
-    Ok((trx_count, caller_ether, caller_token))
-}
+// fn get_ether_account_nonce<P: Provider>(
+//     provider: &P,
+//     caller_sol: &Pubkey,
+//     slot: u64,
+// ) -> Result<(u64, H160, Pubkey), Error> {
+//     // let data: Vec<u8>;
+//     let info=   match provider.get_account_at_slot(caller_sol, slot)? {
+//         Some(acc) => AccountInfo::from(&acc),
+//         None => return Ok((u64::default(), H160::default(), Pubkey::default())),
+//     };
+//
+//     let ether_account = EthereumAccount::from_account(provider.evm_loader(), &info)
+//         .unwrap_or_else(
+//             // anyhow::bail!("Caller has incorrect type")
+//         );
+//
+//     debug!("Caller: ether {}, solana {}", ether_account.ether, ether_account.info.key);
+//     debug!("Caller trx_count: {} ", ether_account.trx_count);
+//     debug!("caller_token = {}", ether_account.eth_token_account);
+//
+//     Ok((ether_account.trx_count, ether_account.ether, ether_account.eth_token_account))
+// }
 
 fn get_program_ether(caller_ether: &H160, trx_count: u64) -> H160 {
     let trx_count_256: U256 = U256::from(trx_count);
@@ -533,3 +555,18 @@ fn get_program_ether(caller_ether: &H160, trx_count: u64) -> H160 {
 pub fn keccak256_h256(data: &[u8]) -> H256 {
     H256::from(hash(data).to_bytes())
 }
+
+/// Creates new instance of `AccountInfo` from `Account`.
+pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInfo<'a> {
+    AccountInfo {
+        key,
+        is_signer: false,
+        is_writable: false,
+        lamports: Rc::new(RefCell::new(&mut account.lamports)),
+        data: Rc::new(RefCell::new(&mut account.data)),
+        owner: &account.owner,
+        executable: account.executable,
+        rent_epoch: account.rent_epoch,
+    }
+}
+

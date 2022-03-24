@@ -17,7 +17,7 @@
 //! State diff module.
 
 use crate::types::ec::account_diff::*;
-use ethereum_types::Address;
+use evm::H160;
 use std::{collections::BTreeMap, fmt, ops::*};
 
 /// Expression for the delta between two system states. Encoded the
@@ -25,12 +25,12 @@ use std::{collections::BTreeMap, fmt, ops::*};
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct StateDiff {
     /// Raw diff key-value
-    pub raw: BTreeMap<Address, AccountDiff>,
+    pub raw: BTreeMap<H160, AccountDiff>,
 }
 
 impl StateDiff {
     /// Get the actual data.
-    pub fn get(&self) -> &BTreeMap<Address, AccountDiff> {
+    pub fn get(&self) -> &BTreeMap<H160, AccountDiff> {
         &self.raw
     }
 }
@@ -45,7 +45,7 @@ impl fmt::Display for StateDiff {
 }
 
 impl Deref for StateDiff {
-    type Target = BTreeMap<Address, AccountDiff>;
+    type Target = BTreeMap<H160, AccountDiff>;
 
     fn deref(&self) -> &Self::Target {
         &self.raw

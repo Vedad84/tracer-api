@@ -1,5 +1,4 @@
-use ethereum_types::Address;
-use evm::gasometer::{tracing as gas_tracing, Snapshot};
+// use evm::gasometer::{tracing as gas_tracing, Snapshot};
 use evm::{Capture, ExitReason, ExitSucceed, Memory, H160, H256, U256};
 use evm::{Opcode, Stack};
 use evm_loader::tracing as transaction_tracing;
@@ -54,11 +53,10 @@ impl Tracer {
             }
 
             impl_proxy!(Proxy, vm_tracing);
-            impl_proxy!(Proxy, gas_tracing);
             impl_proxy!(Proxy, transaction_tracing);
 
             transaction_tracing::using(&mut Proxy, || {
-                gas_tracing::using(&mut Proxy, || vm_tracing::using(&mut Proxy, || f()))
+                vm_tracing::using(&mut Proxy, || f())
             })
         })
     }
@@ -96,13 +94,13 @@ impl vm_tracing::EventListener for Tracer {
         {
             if let Some((index, value)) = self.vm.storage_accessed.take() {
                 if let Some(data) = self.data.last_mut() {
-                    data.storage = Some((index.to(), value.to()));
+                    data.storage = Some((index, value));
                 }
             }
 
             let stack = (0..stack.len())
                 .rev()
-                .map(|i| stack.peek(i).unwrap().to())
+                .map(|i| stack.peek(i).unwrap())
                 .collect::<Vec<_>>();
             let memory = memory.data().to_vec();
             self.data.push(FullTraceData {
@@ -114,7 +112,7 @@ impl vm_tracing::EventListener for Tracer {
             let pc = position.unwrap();
             let depth = self.vm.tracer.depth as i32;
             self.with_js(move |js| {
-                let stack = stack.into_iter().map(|x| x.to()).collect();
+                let stack = stack.into_iter().map(|x| x).collect();
                 let contract = js::Contract {
                     address: context.address.into(),
                     caller: context.caller.into(),
@@ -133,45 +131,45 @@ impl vm_tracing::EventListener for Tracer {
     }
 }
 
-// TODO: Make this a method of `Event`
-fn get_snapshot_from_event(event: &gas_tracing::Event) -> Snapshot {
-    use gas_tracing::Event::*;
+// // TODO: Make this a method of `Event`
+// fn get_snapshot_from_event(event: &gas_tracing::Event) -> Snapshot {
+//     use gas_tracing::Event::*;
+//
+//     let snapshot = match event {
+//         RecordCost { snapshot, .. } => snapshot,
+//         RecordRefund { snapshot, .. } => snapshot,
+//         RecordStipend { snapshot, .. } => snapshot,
+//         RecordDynamicCost { snapshot, .. } => snapshot,
+//         RecordTransaction { snapshot, .. } => snapshot,
+//     };
+//     *snapshot
+// }
 
-    let snapshot = match event {
-        RecordCost { snapshot, .. } => snapshot,
-        RecordRefund { snapshot, .. } => snapshot,
-        RecordStipend { snapshot, .. } => snapshot,
-        RecordDynamicCost { snapshot, .. } => snapshot,
-        RecordTransaction { snapshot, .. } => snapshot,
-    };
-    *snapshot
-}
-
-impl gas_tracing::EventListener for Tracer {
-    fn event(&mut self, ev: gas_tracing::Event) {
-        debug!("gas event: {:?}", ev);
-        use gas_tracing::Event::*;
-
-        let snapshot = get_snapshot_from_event(&ev);
-        self.tracer.set_snapshot(snapshot);
-
-        match ev {
-            RecordCost { cost, snapshot } => {
-                self.vm.gas(cost, snapshot.gas());
-            }
-            RecordDynamicCost {
-                gas_cost,
-                memory_gas: _,
-                snapshot,
-                ..
-            } => {
-                // TODO: figure out wtf is memory gas and how to handle it properly
-                self.vm.gas(gas_cost, snapshot.gas())
-            }
-            _ => {}
-        }
-    }
-}
+// impl gas_tracing::EventListener for Tracer {
+//     fn event(&mut self, ev: gas_tracing::Event) {
+//         debug!("gas event: {:?}", ev);
+//         use gas_tracing::Event::*;
+//
+//         let snapshot = get_snapshot_from_event(&ev);
+//         self.tracer.set_snapshot(snapshot);
+//
+//         match ev {
+//             RecordCost { cost, snapshot } => {
+//                 self.vm.gas(cost, snapshot.gas());
+//             }
+//             RecordDynamicCost {
+//                 gas_cost,
+//                 memory_gas: _,
+//                 snapshot,
+//                 ..
+//             } => {
+//                 // TODO: figure out wtf is memory gas and how to handle it properly
+//                 self.vm.gas(gas_cost, snapshot.gas())
+//             }
+//             _ => {}
+//         }
+//     }
+// }
 
 impl transaction_tracing::EventListener for Tracer {
     fn event(&mut self, ev: transaction_tracing::Event) {
@@ -196,19 +194,19 @@ impl transaction_tracing::EventListener for Tracer {
 
                 let call_type = CallType::Call; // TODO: Add CallScheme to event
 
-                let gas = target_gas.map_or_else(Default::default, Into::into);
+                let gas: U256 = target_gas.map_or_else(Default::default, Into::into);
 
                 let params = Call {
-                    from: context.caller.to(), // TODO: Maybe address?
-                    to: to.to(),
+                    from: context.caller, // TODO: Maybe address?
+                    to: to,
                     input: From::from(input),
                     call_type,
-                    value: value.to(),
+                    value: value,
                     gas,
                 };
 
                 self.with_js(|js| {
-                    js.capture_start(context.caller, to, false, input, gas.to(), Some(value));
+                    js.capture_start(context.caller, to, false, input, gas, Some(value));
                 });
 
                 self.tracer.prepare_trace_call(params, 1, false);
@@ -224,18 +222,18 @@ impl transaction_tracing::EventListener for Tracer {
                 let gas = target_gas.map_or_else(Default::default, Into::into);
 
                 let params = Create {
-                    from: caller.to(),
-                    value: value.to(),
+                    from: caller,
+                    value: value,
                     gas,
                     init: From::from(init_code),
                 };
 
                 self.with_js(|js| {
-                    js.capture_start(caller, address, true, &[], gas.to(), Some(value));
+                    js.capture_start(caller, address, true, &[], gas, Some(value));
                 });
 
                 // TODO: add address to create
-                self.tracer.prepare_trace_create(params, address.to());
+                self.tracer.prepare_trace_create(params, address);
             }
             Event::Suicide {
                 address,
@@ -243,7 +241,7 @@ impl transaction_tracing::EventListener for Tracer {
                 balance,
             } => {
                 self.tracer
-                    .trace_suicide(address.to(), balance.to(), target.to());
+                    .trace_suicide(address, balance, target);
             }
             Event::Exit {
                 reason,
@@ -261,10 +259,10 @@ impl transaction_tracing::EventListener for Tracer {
                     match self.tracer.last_action_type() {
                         ActionType::Call => self
                             .tracer
-                            .done_trace_call(U256::zero().to() /* TODO */, return_value),
+                            .done_trace_call(U256::zero() /* TODO */, return_value),
                         ActionType::Create => self
                             .tracer
-                            .done_trace_create(U256::zero().to(), return_value),
+                            .done_trace_create(U256::zero(), return_value),
                         // Must not happen
                         _ => todo!(),
                     }
@@ -284,16 +282,16 @@ impl transaction_tracing::EventListener for Tracer {
                 let call_type = CallType::Call; // TODO: Add CallScheme to event
 
                 let params = Call {
-                    from: caller.to(), // TODO: Maybe address?
-                    to: to.to(),
+                    from: caller, // TODO: Maybe address?
+                    to: to,
                     input: From::from(data),
                     call_type,
-                    value: value.to(),
-                    gas: gas_limit.into(),
+                    value: value,
+                    gas: gas_limit,
                 };
 
                 self.with_js(|js| {
-                    js.capture_enter(evm::Opcode::CALL, caller, to, data, gas_limit, Some(value));
+                    js.capture_enter(evm::Opcode::CALL, caller, to, data, gas_limit.as_u64(), Some(value));
                 });
                 self.tracer.prepare_trace_call(params, 1, false);
             }
@@ -305,9 +303,9 @@ impl transaction_tracing::EventListener for Tracer {
                 address,
             } => {
                 let params = Create {
-                    from: caller.to(),
-                    value: value.to(),
-                    gas: gas_limit.into(),
+                    from: caller,
+                    value: value,
+                    gas: gas_limit,
                     init: From::from(init_code),
                 };
 
@@ -317,11 +315,11 @@ impl transaction_tracing::EventListener for Tracer {
                         caller,
                         address,
                         init_code,
-                        gas_limit,
+                        gas_limit.as_u64(),
                         None,
                     );
                 });
-                self.tracer.prepare_trace_create(params, address.to());
+                self.tracer.prepare_trace_create(params, address);
             }
             Event::TransactCreate2 {
                 caller,
@@ -332,8 +330,8 @@ impl transaction_tracing::EventListener for Tracer {
                 address,
             } => {
                 let params = Create {
-                    from: caller.to(),
-                    value: value.to(),
+                    from: caller,
+                    value: value,
                     gas: gas_limit.into(),
                     init: From::from(init_code),
                 };
@@ -344,12 +342,12 @@ impl transaction_tracing::EventListener for Tracer {
                         caller,
                         address,
                         init_code,
-                        gas_limit,
+                        gas_limit.as_u64(),
                         None,
                     );
                 });
 
-                self.tracer.prepare_trace_create(params, address.to());
+                self.tracer.prepare_trace_create(params, address);
             }
         }
     }
@@ -396,9 +394,9 @@ impl VmTracer {
             self.tracer.trace_prepare_execute(
                 processed.pc,
                 processed.instruction,
-                U256::from(cost).to(),
+                U256::from(cost),
                 processed.mem_written,
-                processed.store_written.map(|(a, b)| (a.to(), b.to())),
+                processed.store_written.map(|(a, b)| (a, b)),
             );
         }
         self.gas = gas;
@@ -457,10 +455,10 @@ impl VmTracer {
         let gas_used = U256::from(self.gas);
         let mut stack_push = vec![];
         for i in (0..pushed).rev() {
-            stack_push.push(stack.peek(i).unwrap().to());
+            stack_push.push(stack.peek(i).unwrap());
         }
         let mem = &mem.data();
-        self.tracer.trace_executed(gas_used.to(), &stack_push, mem);
+        self.tracer.trace_executed(gas_used, &stack_push, mem);
     }
 }
 
@@ -589,7 +587,7 @@ impl vm_tracing::EventListener for VmTracer {
                                 match err {
                                     // RETURN, STOP as SUICIDE opcodes
                                     ExitReason::Succeed(success) => {
-                                        self.tracer.trace_executed(U256::zero().to(), &[], &[])
+                                        self.tracer.trace_executed(U256::zero(), &[], &[])
                                     }
                                     ExitReason::Error(_)
                                     | ExitReason::Fatal(_)
@@ -610,7 +608,7 @@ impl vm_tracing::EventListener for VmTracer {
             } => {
                 self.storage_accessed = Some((index, value));
                 self.tracer
-                    .trace_executed(U256::zero().to(), &[value.to()], &[]);
+                    .trace_executed(U256::zero(), &[value], &[]);
 
                 //println!("sload called {} {} {}", address, index, value);
             }
@@ -620,7 +618,7 @@ impl vm_tracing::EventListener for VmTracer {
                 value,
             } => {
                 self.storage_accessed = Some((index, value));
-                self.tracer.trace_executed(U256::zero().to(), &[], &[]);
+                self.tracer.trace_executed(U256::zero(), &[], &[]);
                 /* TODO */
             }
         }
