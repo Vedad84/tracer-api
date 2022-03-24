@@ -21,15 +21,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-log = "0.1"
 
-# local
-evm-loader = { path = "../program", default_features = false, features = ["tracing"] }
-evm = { path = "../rust-evm", version = "0.18.0", default_features = false, features = ["tracing"] }
-evm-runtime = { version = "0.18", path = "../rust-evm/runtime", default-features = false, features = ["tracing"] }
-
-# for ci
-#evm-loader = { git = "https://github.com/zubr-exchange/neon-evm", rev = "7468944", default_features = false, features = ["tracing"] }
-#evm = { git = "https://github.com/zubr-exchange/neon-evm", rev = "7468944",  default_features = false, features = ["tracing"] }
-#evm-runtime = { git = "https://github.com/zubr-exchange/neon-evm", rev = "7468944", default-features = false, features = ["tracing"] }
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "586_add_trace_api", default_features = false, features = ["tracing"] }
+evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "586_add_trace_api",  default_features = false, features = ["tracing"] }
+evm-runtime = { git = "https://github.com/neonlabsorg/neon-evm", branch = "586_add_trace_api", default-features = false, features = ["tracing"] }
 
 solana-sdk = "=1.8.12"
 solana-client = "=1.8.12"
