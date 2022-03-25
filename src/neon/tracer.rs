@@ -2,7 +2,7 @@
 use evm::{Capture, ExitReason, ExitSucceed, Memory, H160, H256, U256};
 use evm::{Opcode, Stack};
 use evm_loader::tracing as transaction_tracing;
-use evm_runtime::tracing as vm_tracing;
+use evm::tracing as vm_tracing;
 
 use tracing::{debug, warn};
 

@@ -2,7 +2,6 @@ mod account_storage;
 mod diff;
 pub mod provider;
 mod tracer;
-pub mod tools;
 
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap, HashSet};
