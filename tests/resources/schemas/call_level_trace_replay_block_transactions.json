@@ -1,0 +1,85 @@
+{
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer"
+        },
+        "jsonrpc": {
+            "type": "string"
+        },
+        "result": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "output": {
+                        "type": "string"
+                    },
+                    "stateDiff": {
+                        "type": "null"
+                    },
+                    "trace": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "action": {
+                                    "type": "object",
+                                    "properties": {
+                                        "callType": {
+                                            "type": "string"
+                                        },
+                                        "from": {
+                                            "type": "string"
+                                        },
+                                        "gas": {
+                                            "type": "string"
+                                        },
+                                        "input": {
+                                            "type": "string"
+                                        },
+                                        "to": {
+                                            "type": "string"
+                                        },
+                                        "value": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "result": {
+                                    "type": "object",
+                                    "properties": {
+                                        "gasUsed": {
+                                            "type": "string"
+                                        },
+                                        "output": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "subtraces": {
+                                    "type": "integer"
+                                },
+                                "traceAddress": {
+                                    "type": "array",
+                                    "items": {
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": {
+                                    "type": "string"
+                                }
+                            }
+                        }
+                    },
+                    "transactionHash": {
+                        "type": "string"
+                    },
+                    "vmTrace": {
+                        "type": "null"
+                    }
+                }
+            }
+        }
+    }
+}

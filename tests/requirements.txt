@@ -1,0 +1,8 @@
+web3==5.23.1
+py-solc-x
+python-dotenv~=0.19.2
+betterconf==2.6.1
+pytest==7.0.1
+termcolor==1.1.0
+parameterized==0.8.1
+simplejson==3.17.6
