@@ -5,6 +5,8 @@ use serde::{self, Deserialize, Serialize};
 
 use crate::neon;
 use crate::types::ec::trace;
+use serde::de;
+use std::fmt;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlockNumber(#[serde(with = "string")] u64);
@@ -265,20 +267,28 @@ pub enum TraceResult {
 /// Represents the arguments to construct a new transaction or a message call
 pub struct TransactionArgs {
     /// From
+    #[serde(deserialize_with = "deserialize_hex_h160")]
     pub from: Option<H160>,
     /// To
+    #[serde(deserialize_with = "deserialize_hex_h160")]
     pub to: Option<H160>,
     /// Gas
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub gas: Option<U256>,
     /// Gas Price
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub gas_price: Option<U256>,
     /// Max fee per gas
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub max_fee_per_gas: Option<U256>,
     /// Miner bribe
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub max_priority_fee_per_gas: Option<U256>,
     /// Value
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub value: Option<U256>,
     /// Nonce
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub nonce: Option<U256>,
     /// Input
     #[serde(alias = "data")]
@@ -287,5 +297,75 @@ pub struct TransactionArgs {
     //#[serde(skip_serializing_if = "Option::is_none")]
     //pub access_list: Option<AccessList>,
     /// Chain id
+    #[serde(deserialize_with = "deserialize_hex_u256")]
     pub chain_id: Option<U256>,
+}
+
+fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+{
+    struct Visitor;
+
+    impl<'de> de::Visitor<'de> for Visitor {
+        type Value = Option<H160>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string containing json data")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+        {
+            if v.is_empty() {
+                return Ok(None);
+            }
+
+            match hex::decode(v.split_at(2).1){
+                Ok(a) =>  {
+                    let address = H160::from_slice(a.as_slice());
+                    Ok(Some(address))
+                }
+                Err(e) => Err(E::custom(e))
+            }
+        }
+    }
+
+    deserializer.deserialize_any(Visitor)
+}
+
+
+fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
+    where
+        D: de::Deserializer<'de>,
+{
+    struct Visitor;
+
+    impl<'de> de::Visitor<'de> for Visitor {
+        type Value = Option<U256>;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string containing json data")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+        {
+            if v.is_empty() {
+                return Ok(None);
+            }
+
+            match hex::decode(v.split_at(2).1){
+                Ok(a) =>  {
+                    let value = U256::from(a.as_slice());
+                    Ok(Some(value))
+                }
+                Err(e) => Err(E::custom(e))
+            }
+        }
+    }
+
+    deserializer.deserialize_any(Visitor)
 }
