@@ -1,4 +1,9 @@
 #!/bin/bash
+set -euo pipefail
+set ${NEON_EVM_COMMIT:=ci-tracing-api-v0.5.1}
+
+echo "Tracer API revision=${BUILDKITE_COMMIT}"
+echo "Neon EVM revision=${NEON_EVM_COMMIT}"
 
 docker-compose -f docker-compose-test.yml pull
 

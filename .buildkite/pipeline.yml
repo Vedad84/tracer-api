@@ -21,6 +21,7 @@ steps:
       - "neon-tracer.log"
       - "proxy.log"
       - "tracer-db.log"
+      - "neon-tracer-test.log"
 
   - wait
 
