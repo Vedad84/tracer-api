@@ -321,12 +321,13 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
             if v.is_empty() || v.eq("null"){
                 return Ok(None);
             }
-            else if v.len() < 3 {
-                return Err(E::custom("incorrect data"));
+
+            if !v.starts_with("0x") || v.len() < 3 {
+                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
             }
 
             let v = v.split_at(2).1;
-            let v = if v.len() % 2 != 0 {
+            let v = if v.len() & 1 != 0 {
                 "0".to_owned() +v
             }
             else{
@@ -338,7 +339,7 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
                     let address = H160::from_slice(a.as_slice());
                     Ok(Some(address))
                 }
-                Err(e) => Err(E::custom(e))
+                Err(e) => Err(E::custom(format!("Invalid hex format: {}", e)))
             }
         }
     }
@@ -367,25 +368,22 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Erro
             if v.is_empty() || v.eq("null"){
                 return Ok(None);
             }
-            else if v.len() < 3 {
-                return Err(E::custom("incorrect data"));
+
+            if !v.starts_with("0x") || v.len() < 3 {
+                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
             }
 
             let v = v.split_at(2).1;
-            let v = if v.len() % 2 != 0 {
+            let v = if v.len() & 1 != 0 {
                 "0".to_owned() +v
             }
             else{
                 v.to_string()
             };
 
-            match hex::decode(v){
-                Ok(a) =>  {
-                    let value = U256::from(a.as_slice());
-                    Ok(Some(value))
-                }
-                Err(e) => Err(E::custom(e))
-            }
+            let value = U256::from_str_radix(&v, 16)
+                .map_err(|e| E::custom(format!("Invalid hex format: {}", e)))?;
+            Ok(Some(value))
         }
     }
 
