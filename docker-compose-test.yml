@@ -2,9 +2,6 @@ version: "3"
 
 services:
   tracer-db:
-    build:
-      context: ./clickhouse
-      dockerfile: Dockerfile
     container_name: tracer-db
     hostname: tracer-db
     image: neonlabsorg/tracer-db:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
@@ -170,11 +167,6 @@ services:
   neon-tracer:
     container_name: neon-tracer
     hostname: neon-tracer
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NEON_REVISION: ${NEON_EVM_COMMIT:-ci-tracing-api-develop-v1.8.12}
     environment:
       RUST_BACKTRACE: 1
       RUST_LOG: debug
@@ -234,9 +226,6 @@ services:
   neon-tracer-test:
     container_name: neon-tracer-test
     hostname: neon-tracer-test
-    build:
-      context: ./tests
-      dockerfile: Dockerfile
     image: neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
     networks:
       - net

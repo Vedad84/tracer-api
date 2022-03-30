@@ -1,6 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-set ${NEON_EVM_COMMIT:=ci-tracing-api-v0.5.1}
+set ${NEON_EVM_COMMIT:=ci-tracing-api-develop-v1.8.12}
 
 echo "Tracer API revision=${BUILDKITE_COMMIT}"
 echo "Neon EVM revision=${NEON_EVM_COMMIT}"
