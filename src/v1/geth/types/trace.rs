@@ -318,11 +318,22 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty() {
+            if v.is_empty(){
                 return Ok(None);
             }
+            else if v.len() < 3 {
+                return Err(E::custom("incorrect data"));
+            }
 
-            match hex::decode(v.split_at(2).1){
+            let v = v.split_at(2).1;
+            let v = if v.len() % 2 != 0 {
+                "0".to_owned() +v
+            }
+            else{
+                v.to_string()
+            };
+
+            match hex::decode(v){
                 Ok(a) =>  {
                     let address = H160::from_slice(a.as_slice());
                     Ok(Some(address))
@@ -353,11 +364,22 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty() {
+            if v.is_empty(){
                 return Ok(None);
             }
+            else if v.len() < 3 {
+                return Err(E::custom("incorrect data"));
+            }
 
-            match hex::decode(v.split_at(2).1){
+            let v = v.split_at(2).1;
+            let v = if v.len() % 2 != 0 {
+                "0".to_owned() +v
+            }
+            else{
+                v.to_string()
+            };
+
+            match hex::decode(v){
                 Ok(a) =>  {
                     let value = U256::from(a.as_slice());
                     Ok(Some(value))
