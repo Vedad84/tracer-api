@@ -267,29 +267,21 @@ pub enum TraceResult {
 /// Represents the arguments to construct a new transaction or a message call
 pub struct TransactionArgs {
     /// From
-    #[serde(deserialize_with = "deserialize_hex_h160")]
-    pub from: Option<H160>,
+    pub from: Option<H160_T>,
     /// To
-    #[serde(deserialize_with = "deserialize_hex_h160")]
-    pub to: Option<H160>,
+    pub to: Option<H160_T>,
     /// Gas
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub gas: Option<U256>,
+    pub gas: Option<U256_T>,
     /// Gas Price
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub gas_price: Option<U256>,
+    pub gas_price: Option<U256_T>,
     /// Max fee per gas
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub max_fee_per_gas: Option<U256>,
+    pub max_fee_per_gas: Option<U256_T>,
     /// Miner bribe
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub max_priority_fee_per_gas: Option<U256>,
+    pub max_priority_fee_per_gas: Option<U256_T>,
     /// Value
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub value: Option<U256>,
+    pub value: Option<U256_T>,
     /// Nonce
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub nonce: Option<U256>,
+    pub nonce: Option<U256_T>,
     /// Input
     #[serde(alias = "data")]
     pub input: Option<Bytes>,
@@ -297,18 +289,33 @@ pub struct TransactionArgs {
     //#[serde(skip_serializing_if = "Option::is_none")]
     //pub access_list: Option<AccessList>,
     /// Chain id
-    #[serde(deserialize_with = "deserialize_hex_u256")]
-    pub chain_id: Option<U256>,
+    pub chain_id: Option<U256_T>,
 }
 
-fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Error>
+
+#[derive(Debug, Deserialize)]
+#[derive(std::cmp::PartialEq)]
+pub struct H160_T(
+    #[serde(deserialize_with = "deserialize_hex_h160")]
+    pub H160
+);
+
+#[derive(Debug, Deserialize)]
+#[derive(std::cmp::PartialEq)]
+pub struct U256_T(
+    #[serde(deserialize_with = "deserialize_hex_u256")]
+    pub U256
+);
+
+
+fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<H160, D::Error>
     where
         D: de::Deserializer<'de>,
 {
     struct Visitor;
 
     impl<'de> de::Visitor<'de> for Visitor {
-        type Value = Option<H160>;
+        type Value = H160;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             formatter.write_str("a string containing json data")
@@ -318,10 +325,6 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty() || v.eq("null"){
-                return Ok(None);
-            }
-
             if !v.starts_with("0x") || v.len() < 3 {
                 return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
             }
@@ -337,7 +340,7 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
             match hex::decode(v){
                 Ok(a) =>  {
                     let address = H160::from_slice(a.as_slice());
-                    Ok(Some(address))
+                    Ok(address)
                 }
                 Err(e) => Err(E::custom(format!("Invalid hex format: {}", e)))
             }
@@ -348,14 +351,14 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
 }
 
 
-fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Error>
+fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
     where
         D: de::Deserializer<'de>,
 {
     struct Visitor;
 
     impl<'de> de::Visitor<'de> for Visitor {
-        type Value = Option<U256>;
+        type Value = U256;
 
         fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
             formatter.write_str("a string containing json data")
@@ -365,9 +368,6 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty() || v.eq("null"){
-                return Ok(None);
-            }
 
             if !v.starts_with("0x") || v.len() < 3 {
                 return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
@@ -383,9 +383,11 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Erro
 
             let value = U256::from_str_radix(&v, 16)
                 .map_err(|e| E::custom(format!("Invalid hex format: {}", e)))?;
-            Ok(Some(value))
+            Ok(value)
         }
     }
 
     deserializer.deserialize_any(Visitor)
 }
+
+

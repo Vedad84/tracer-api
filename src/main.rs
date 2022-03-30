@@ -21,7 +21,7 @@ use crate::v1::types::{
     BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter, TraceOptions,
     TraceResults, TraceResultsWithTransactionHash,
 };
-use evm::H256;
+use evm::{H160, U256, H256};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -262,14 +262,13 @@ impl GethTraceServer for ServerImpl {
             self.neon_config.evm_loader,
         );
         let trace_code = o.tracer.clone();
-
         let traced_call = neon::command_trace_call(
             provider,
-            a.to,
-            a.from.unwrap(), // TODO
+            a.to.map(|n| n.0),
+            a.from.unwrap().0, // TODO
             a.input.map(Into::into),
-            a.value,
-            a.gas.map(|gas| gas.as_u64()),
+            a.value.map(|n| n.0),
+            a.gas.map(|n| n.0.as_u64()),
             Some(b.into()),
             trace_code,
         )?;
