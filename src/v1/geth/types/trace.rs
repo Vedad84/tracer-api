@@ -318,7 +318,7 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<Option<H160>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty(){
+            if v.is_empty() || v.eq("null"){
                 return Ok(None);
             }
             else if v.len() < 3 {
@@ -364,7 +364,7 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<Option<U256>, D::Erro
             where
                 E: de::Error,
         {
-            if v.is_empty(){
+            if v.is_empty() || v.eq("null"){
                 return Ok(None);
             }
             else if v.len() < 3 {
