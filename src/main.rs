@@ -169,6 +169,10 @@ pub trait OpenEthereumTraces {
     ) -> Result<Vec<TraceResultsWithTransactionHash>>;
 }
 
+#[rpc(server)]
+pub trait EIP1898 {
+}
+
 fn trace_with_options(traced_call: neon::TracedCall, options: &ParsedTraceOptions) -> TraceResults {
     let neon::TracedCall {
         vm_trace,
