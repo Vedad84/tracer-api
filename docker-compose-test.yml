@@ -169,7 +169,7 @@ services:
     hostname: neon-tracer
     environment:
       RUST_BACKTRACE: 1
-      RUST_LOG: debug
+      RUST_LOG: neon=debug
     image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
     depends_on:
       tracer-db:
