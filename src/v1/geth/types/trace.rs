@@ -267,21 +267,21 @@ pub enum TraceResult {
 /// Represents the arguments to construct a new transaction or a message call
 pub struct TransactionArgs {
     /// From
-    pub from: Option<H160_T>,
+    pub from: Option<H160T>,
     /// To
-    pub to: Option<H160_T>,
+    pub to: Option<H160T>,
     /// Gas
-    pub gas: Option<U256_T>,
+    pub gas: Option<U256T>,
     /// Gas Price
-    pub gas_price: Option<U256_T>,
+    pub gas_price: Option<U256T>,
     /// Max fee per gas
-    pub max_fee_per_gas: Option<U256_T>,
+    pub max_fee_per_gas: Option<U256T>,
     /// Miner bribe
-    pub max_priority_fee_per_gas: Option<U256_T>,
+    pub max_priority_fee_per_gas: Option<U256T>,
     /// Value
-    pub value: Option<U256_T>,
+    pub value: Option<U256T>,
     /// Nonce
-    pub nonce: Option<U256_T>,
+    pub nonce: Option<U256T>,
     /// Input
     #[serde(alias = "data")]
     pub input: Option<Bytes>,
@@ -289,20 +289,20 @@ pub struct TransactionArgs {
     //#[serde(skip_serializing_if = "Option::is_none")]
     //pub access_list: Option<AccessList>,
     /// Chain id
-    pub chain_id: Option<U256_T>,
+    pub chain_id: Option<U256T>,
 }
 
 
 #[derive(Debug, Deserialize)]
 #[derive(std::cmp::PartialEq)]
-pub struct H160_T(
+pub struct H160T(
     #[serde(deserialize_with = "deserialize_hex_h160")]
     pub H160
 );
 
 #[derive(Debug, Deserialize)]
 #[derive(std::cmp::PartialEq)]
-pub struct U256_T(
+pub struct U256T(
     #[serde(deserialize_with = "deserialize_hex_u256")]
     pub U256
 );

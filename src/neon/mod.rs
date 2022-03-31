@@ -32,6 +32,7 @@ use crate::types::ec::pod_account::{diff_pod, PodAccount};
 use crate::types::ec::state_diff::StateDiff;
 use crate::types::ec::trace::{FlatTrace, FullTraceData, VMTrace};
 use crate::types::TxMeta;
+use crate::syscall_stubs::Stubs;
 
 use account_storage::EmulatorAccountStorage;
 use diff::prepare_state_diff;
@@ -354,6 +355,9 @@ where
     );
 
     let new_contract_id: Option<H160> = contract.map_or_else(|| deployed_contract_id(&provider,  &caller_id, block_number).ok(), |_| None);
+
+    let syscall_stubs = Stubs::new(&provider, block_number)?;
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
     let storage = EmulatorAccountStorage::new(provider, block_number);
 

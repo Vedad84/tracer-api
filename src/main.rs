@@ -32,6 +32,7 @@ mod replay;
 mod types;
 mod utils;
 mod v1;
+mod syscall_stubs;
 
 #[derive(Debug, StructOpt)]
 struct Options {
