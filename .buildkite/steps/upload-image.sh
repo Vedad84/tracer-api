@@ -12,5 +12,3 @@ docker login -u=${DHUBU} -p=${DHUBP}
 docker push neonlabsorg/tracer-db:${BUILDKITE_COMMIT}
 docker push neonlabsorg/neon-tracer:${BUILDKITE_COMMIT}
 docker push neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT}
-
-echo step_complete!
