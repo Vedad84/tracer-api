@@ -194,11 +194,14 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
 
         let mut accounts = self.ethereum_accounts.borrow_mut();
 
-        if let Some(solana) = accounts.get_mut(address) {
+        if let Some(account) = accounts.get_mut(address) {
+            let info = account_info(&account.key, &mut account.account);
+            let ethereum_account = EthereumAccount::from_account(&self.provider.evm_loader(), &info).unwrap();
 
-            if let Some(ref code_acc) = solana.code_account {
-                let info =account_info(&solana.key, &mut solana.account);
-                let ethereum_contract = EthereumContract::from_account(self.provider.evm_loader(), &info).unwrap();
+            if let Some(ref mut code_account) = account.code_account {
+                let code_key = ethereum_account.code_account.unwrap();
+                let code_info = account_info(&code_key, code_account);
+                let ethereum_contract = EthereumContract::from_account(&self.provider.evm_loader(), &code_info).unwrap();
 
                 f(&ethereum_contract)
             } else {
