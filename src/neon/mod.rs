@@ -88,6 +88,7 @@ pub struct Config {
     // fee_payer: Pubkey,
     //signer: Box<dyn Signer + Send>,
     //pub keypair: Option<Keypair>,
+    pub rpc_client_after: Arc<RpcClient>,
 }
 
 impl std::fmt::Debug for Config {

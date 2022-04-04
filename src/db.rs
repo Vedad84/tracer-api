@@ -19,6 +19,7 @@ type Slot = u64;
 
 pub struct DbClient {
     client: Client,
+    use_acc_after_trx: bool,
 }
 
 impl std::fmt::Debug for DbClient {
@@ -103,6 +104,7 @@ impl DbClient {
         user: Option<String>,
         password: Option<String>,
         db: Option<String>,
+        use_acc_after_trx: bool
     ) -> Self {
         let client = Client::default().with_url(addr);
         let client = if let Some(user) = user {
@@ -120,7 +122,7 @@ impl DbClient {
         } else {
             client
         };
-        DbClient { client }
+        DbClient { client, use_acc_after_trx }
     }
 
     #[tracing::instrument]
@@ -291,24 +293,35 @@ impl DbClient {
         Ok(time)
     }
 
+    fn get_accounts_table(&self) -> &str {
+        static ACCOUNTS_AFTER_TABLE: &str = "accounts_after_transaction";
+        static ACCOUNTS_TABLE: &str = "accounts";
+
+        if self.use_acc_after_trx {
+            ACCOUNTS_AFTER_TABLE
+        } else {
+            ACCOUNTS_TABLE
+        }
+    }
+
     pub fn get_accounts_for_tx(&self, tx: H256) -> DbResult<Vec<(Pubkey, Account)>> {
         let accounts = self.block(|client| async move {
             client
                 .query(
-                    "SELECT
+                    &format!("SELECT
                         public_key,
                         lamports,
                         data,
                         owner,
                         executable,
                         rent_epoch
-                     FROM accounts
+                     FROM {}
                      WHERE transaction_signature IN
                      (
                          SELECT transaction_signature
                          FROM evm_transactions
                          WHERE eth_transaction_signature = ?
-                     )",
+                     )", self.get_accounts_table()),
                 )
                 .bind(hex::encode(tx.as_bytes()))
                 .fetch_all::<AccountRow>()
@@ -343,12 +356,12 @@ impl DbClient {
                         argMax(owner,T.slot),
                         argMax(executable,T.slot),
                         argMax(rent_epoch,T.slot)
-                     FROM accounts A
+                     FROM {} A
                      JOIN transactions T
                      ON A.transaction_signature = T.transaction_signature
                      WHERE T.slot <= ? AND public_key IN ({})
                      GROUP BY public_key",
-                    pubkeys
+                    self.get_accounts_table(), pubkeys
                 ))
                 .bind(slot)
                 .fetch_all::<AccountRow>()

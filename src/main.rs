@@ -555,17 +555,27 @@ async fn main() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let mut client = DbClient::new(
+    let client = DbClient::new(
+        options.ch_addr.clone(),
+        options.ch_user.clone(),
+        options.ch_password.clone().map(Secret::inner),
+        options.ch_database.clone(),
+        false
+    );
+
+    let client_after = DbClient::new(
         options.ch_addr,
         options.ch_user,
         options.ch_password.map(Secret::inner),
         options.ch_database,
+        true
     );
 
     let serv_impl = ServerImpl {
         neon_config: neon::Config {
             evm_loader: options.evm_loader,
             rpc_client: Arc::new(client),
+            rpc_client_after: Arc::new(client_after),
         },
     };
 

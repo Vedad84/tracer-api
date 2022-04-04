@@ -27,6 +27,7 @@ services:
       RUST_LOG: solana_runtime::system_instruction_processor=debug,solana_runtime::message_processor=debug,solana_bpf_loader=debug,solana_rbpf=debug
       SOLANA_RUN_SH_VALIDATOR_ARGS: >
         --enable-account-dumper
+        --dumper-after-transaction
         --dumper-db-url http://tracer-db:8123
         --dumper-db-database tracer_api_db
         --dumper-db-user validator_user
