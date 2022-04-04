@@ -552,7 +552,7 @@ impl vm_tracing::EventListener for VmTracer {
                 ..
             } => {
                 debug!("res");
-                debug!("Stack.len()=", stack.len());
+                debug!("Stack.len()={:?}", stack.len());
                 match result {
                     Ok(_) => self.handle_step_result(stack, memory, self.pushed),
                     Err(err) => {
