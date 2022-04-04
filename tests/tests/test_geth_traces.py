@@ -63,27 +63,27 @@ def test_geth_debug_trace_call(tx_hex, url, role):
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
     pprint("test_geth_debug_trace_call complete")
 
-
-@parameterized.expand(**level_test_parameters)
-@assert_all()
-def test_geth_debug_transaction_call(tx_hex, url, role):
-    pprint("test_geth_debug_transaction_call begin")
-    for file in REQUESTS_TRANSACTION:
-        with open(f'{RESOURCES}/{file}') as req:
-            file_payload: dict = json.loads(req.read())
-            file_payload['params'].insert(0, tx_hex)
-
-            payload = json.dumps(file_payload)
-
-        response_dict = send_trace_request(url, payload)
-
-        assert response_dict, 'There are no response for trace request'
-        assert not response_dict.get('error'), 'There is error in response for trace request'
-
-        method_scheme = f'{role}_{file}'
-        print('\n' + blue_text(method_scheme), end='\n')
-
-        pprint(response_dict)
-
-        validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
-    pprint("test_geth_debug_transaction_call complete")
+#
+# @parameterized.expand(**level_test_parameters)
+# @assert_all()
+# def test_geth_debug_transaction_call(tx_hex, url, role):
+#     pprint("test_geth_debug_transaction_call begin")
+#     for file in REQUESTS_TRANSACTION:
+#         with open(f'{RESOURCES}/{file}') as req:
+#             file_payload: dict = json.loads(req.read())
+#             file_payload['params'].insert(0, tx_hex)
+#
+#             payload = json.dumps(file_payload)
+#
+#         response_dict = send_trace_request(url, payload)
+#
+#         assert response_dict, 'There are no response for trace request'
+#         assert not response_dict.get('error'), 'There is error in response for trace request'
+#
+#         method_scheme = f'{role}_{file}'
+#         print('\n' + blue_text(method_scheme), end='\n')
+#
+#         pprint(response_dict)
+#
+#         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
+#     pprint("test_geth_debug_transaction_call complete")
