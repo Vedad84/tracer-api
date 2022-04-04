@@ -425,7 +425,7 @@ where
             }
         }
     })?;
-
+    debug!("executer was finished");
     let (vm_trace, traces, full_trace_data, js_trace, result) = tracer.into_traces();
 
     debug!(
