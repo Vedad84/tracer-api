@@ -8,10 +8,8 @@ use tracing::{debug, warn};
 
 use crate::js;
 use crate::neon::To;
-use crate::types::ec::trace::{
-    ActionParams, ActionType, Call, Create, ExecutiveTracer, ExecutiveVMTracer, FlatTrace,
-    FullTraceData, Tracer as _, VMTrace, VMTracer as _, INSTRUCTIONS,
-};
+use crate::types::ec::trace::{ActionParams, ActionType, Call, Create, ExecutiveTracer, ExecutiveVMTracer, FlatTrace, 
+FullTraceData, Tracer as _, VMTrace, VMTracer as _, INSTRUCTIONS, VMTracer};
 
 environmental::environmental!(tracer: Tracer);
 
@@ -353,12 +351,12 @@ impl transaction_tracing::EventListener for Tracer {
     }
 }
 
-struct InstructionData {
-    pc: usize,
-    instruction: u8,
-    mem_written: Option<(usize, usize)>,
-    store_written: Option<(U256, U256)>,
-}
+// struct InstructionData {
+//     pc: usize,
+//     instruction: u8,
+//     mem_written: Option<(usize, usize)>,
+//     store_written: Option<(U256, U256)>,
+// }
 
 struct PendingTrap {
     pushed: usize,
@@ -368,7 +366,7 @@ struct PendingTrap {
 struct VmTracer {
     tracer: ExecutiveVMTracer,
     pushed: usize,
-    current: Option<InstructionData>,
+    // current: Option<InstructionData>,
     gas: u64,
     storage_accessed: Option<(U256, U256)>,
     trap_stack: Vec<PendingTrap>,
@@ -382,25 +380,25 @@ impl VmTracer {
         VmTracer {
             tracer,
             pushed: 0,
-            current: None,
+            // current: None,
             gas: 0,
             storage_accessed: None,
             trap_stack: Vec::new(),
         }
     }
 
-    fn gas(&mut self, cost: u64, gas: u64) {
-        if let Some(processed) = self.current.take() {
-            self.tracer.trace_prepare_execute(
-                processed.pc,
-                processed.instruction,
-                U256::from(cost),
-                processed.mem_written,
-                processed.store_written.map(|(a, b)| (a, b)),
-            );
-        }
-        self.gas = gas;
-    }
+    // fn gas(&mut self, cost: u64, gas: u64) {
+    //     if let Some(processed) = self.current.take() {
+    //         self.tracer.trace_prepare_execute(
+    //             processed.pc,
+    //             processed.instruction,
+    //             U256::from(cost),
+    //             processed.mem_written,
+    //             processed.store_written.map(|(a, b)| (a, b)),
+    //         );
+    //     }
+    //     self.gas = gas;
+    // }
 
     fn handle_log(&self, opcode: Opcode, stack: &Stack, memory: &[u8]) {
         tracing::info!("handling log {:?}", opcode);
@@ -533,12 +531,20 @@ impl vm_tracing::EventListener for VmTracer {
                 let instruction = opcode.0;
                 let mem_written = mem_written(opcode, stack);
                 let store_written = store_written(opcode, stack);
-                self.current = Some(InstructionData {
+                // self.current = Some(InstructionData {
+                //     pc,
+                //     instruction,
+                //     mem_written,
+                //     store_written,
+                // });
+                self.tracer.trace_prepare_execute(
                     pc,
                     instruction,
+                    U256::from(0),
                     mem_written,
-                    store_written,
-                });
+                    store_written.map(|(a, b)| (a, b)),
+                );
+
                 if let Some(pushed_count) = pushed(opcode) {
                     self.pushed = pushed_count;
                 } else {
