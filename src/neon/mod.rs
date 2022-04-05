@@ -358,9 +358,6 @@ where
 
     let new_contract_id =
         if contract.is_none() {
-            None
-        }
-        else {
             match deployed_contract_id(&provider,  &caller_id, block_number){
                 Ok(id) => Some(id),
                 Err(e) => {
@@ -368,6 +365,9 @@ where
                     return Err(e)
                 }
             }
+        }
+        else {
+            None
         };
 
 
