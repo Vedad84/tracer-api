@@ -134,9 +134,9 @@ impl ExecutionResult {
         assert_eq!(logs.len(), data.len());
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
-            if !options.disable_stack {
-                l.stack = Some(d.stack);
-            }
+            // if !options.disable_stack {
+            //     l.stack = Some(d.stack);
+            // }
 
             if options.enable_memory && !d.memory.is_empty() {
                 l.memory = Some(d.memory.into());
