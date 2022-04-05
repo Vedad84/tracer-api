@@ -354,7 +354,22 @@ where
         value
     );
 
-    let new_contract_id: Option<H160> = contract.map_or_else(|| deployed_contract_id(&provider,  &caller_id, block_number).ok(), |_| None);
+    // let new_contract_id: Option<H160> = contract.map_or_else(|| deployed_contract_id(&provider,  &caller_id, block_number).ok(), |_| None);
+
+    let new_contract_id =
+        if contract.is_none() {
+            None
+        }
+        else {
+            match deployed_contract_id(&provider,  &caller_id, block_number){
+                Ok(id) => Some(id),
+                Err(e) => {
+                    debug!("deployed_contract_id error: {:?}", e);
+                    return Err(e)
+                }
+            }
+        };
+
 
     let syscall_stubs = Stubs::new(&provider, block_number)?;
     solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
