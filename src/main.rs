@@ -19,7 +19,7 @@ use crate::neon::provider::DbProvider;
 use crate::v1::geth::types::trace as geth;
 use crate::v1::types::{
     BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter, TraceOptions,
-    TraceResults, TraceResultsWithTransactionHash,
+    TraceResults, TraceResultsWithTransactionHash
 };
 use evm::{H160, U256, H256};
 
@@ -103,7 +103,7 @@ pub trait GethTrace {
     #[method(name = "debug_traceTransaction")]
     fn trace_transaction(
         &self,
-        t: H256,
+        t: geth::H256T,
         o: Option<geth::TraceTransactionOptions>,
     ) -> Result<Option<geth::Trace>>;
 
@@ -125,11 +125,11 @@ pub trait OpenEthereumTraces {
 
     /// Returns transaction trace at given index.
     #[method(name = "trace_get")]
-    fn trace(&self, t: H256, i: Vec<Index>) -> Result<Option<LocalizedTrace>>;
+    fn trace(&self, t: geth::H256T, i: Vec<Index>) -> Result<Option<LocalizedTrace>>;
 
     /// Returns all traces of given transaction.
     #[method(name = "trace_transaction")]
-    fn transaction_traces(&self, t: H256) -> Result<Option<Vec<LocalizedTrace>>>;
+    fn transaction_traces(&self, t: geth::H256T) -> Result<Option<Vec<LocalizedTrace>>>;
 
     /// Returns all traces produced at given block.
     #[method(name = "trace_block")]
@@ -159,7 +159,7 @@ pub trait OpenEthereumTraces {
 
     /// Executes the transaction with the given hash and returns a number of possible traces for it.
     #[method(name = "trace_replayTransaction")]
-    fn replay_transaction(&self, t: H256, o: TraceOptions) -> Result<TraceResults>;
+    fn replay_transaction(&self, t: geth::H256T, o: TraceOptions) -> Result<TraceResults>;
 
     /// Executes all the transactions at the given block and returns a number of possible traces for each transaction.
     #[method(name = "trace_replayBlockTransactions")]
@@ -236,7 +236,7 @@ impl GethTraceServer for ServerImpl {
     #[instrument]
     fn trace_transaction(
         &self,
-        t: H256,
+        t: geth::H256T,
         o: Option<geth::TraceTransactionOptions>,
     ) -> Result<Option<geth::Trace>> {
         use neon::To;
@@ -244,7 +244,7 @@ impl GethTraceServer for ServerImpl {
         let o = o.unwrap_or_default();
         let trace_code = o.tracer.clone();
         let (_meta, traced_call) =
-            neon::command_replay_transaction(&self.neon_config, t, trace_code)?.split();
+            neon::command_replay_transaction(&self.neon_config, t.0, trace_code)?.split();
         if let Some(js_trace) = traced_call.js_trace {
             Ok(Some(geth::Trace::JsTrace(js_trace)))
         } else {
@@ -344,11 +344,11 @@ impl OpenEthereumTracesServer for ServerImpl {
 
     /// Returns transaction trace at given index.
     #[instrument]
-    fn trace(&self, t: H256, i: Vec<Index>) -> Result<Option<LocalizedTrace>> {
+    fn trace(&self, t: geth::H256T, i: Vec<Index>) -> Result<Option<LocalizedTrace>> {
         use neon::To;
         use types::ec::trace::LocalizedTrace;
         let (meta, traced_call) =
-            neon::command_replay_transaction(&self.neon_config, t, None)?.split();
+            neon::command_replay_transaction(&self.neon_config, t.0, None)?.split();
 
         // TODO: it's unclear what's index
         let trace = traced_call.traces.get(i[0].value()).map(|flat| {
@@ -358,7 +358,7 @@ impl OpenEthereumTracesServer for ServerImpl {
                 subtraces: flat.subtraces,
                 trace_address: flat.trace_address.clone(),
                 transaction_number: None, // TODO??
-                transaction_hash: Some(t),
+                transaction_hash: Some(t.0),
                 block_number: meta.slot,
                 block_hash: H256::from_low_u64_ne(meta.slot), // TODO
             }
@@ -368,11 +368,11 @@ impl OpenEthereumTracesServer for ServerImpl {
     }
 
     /// Returns all traces of given transaction.
-    fn transaction_traces(&self, t: H256) -> Result<Option<Vec<LocalizedTrace>>> {
+    fn transaction_traces(&self, t: geth::H256T) -> Result<Option<Vec<LocalizedTrace>>> {
         use neon::To;
         use types::ec::trace::LocalizedTrace;
 
-        let traced_call = neon::command_replay_transaction(&self.neon_config, t, None)?;
+        let traced_call = neon::command_replay_transaction(&self.neon_config, t.0, None)?;
         let (meta, traced_call) = traced_call.split();
         let traces = traced_call
             .traces
@@ -443,11 +443,11 @@ impl OpenEthereumTracesServer for ServerImpl {
         );
         let traced_call = neon::command_trace_call(
             provider,
-            req.to,
-            req.from.unwrap(), // todo
+            req.to.map(|a| a.0),
+            req.from.map(|a| a.0).unwrap(), // todo
             req.data.map(Into::into),      // todo
-            req.value,
-            req.gas.map(|gas| gas.as_u64()),
+            req.value.map(|a| a.0),
+            req.gas.map(|gas| gas.0.as_u64()),
             block.map(|block| self.get_slot_by_block(block)).flatten(),
             None,
         )?;
@@ -484,9 +484,9 @@ impl OpenEthereumTracesServer for ServerImpl {
 
     /// Executes the transaction with the given hash and returns a number of possible traces for it.
     #[instrument]
-    fn replay_transaction(&self, t: H256, options: TraceOptions) -> Result<TraceResults> {
+    fn replay_transaction(&self, t: geth::H256T, options: TraceOptions) -> Result<TraceResults> {
         use neon::To;
-        let traced_call = neon::command_replay_transaction(&self.neon_config, t, None)?;
+        let traced_call = neon::command_replay_transaction(&self.neon_config, t.0, None)?;
         let options = ParsedTraceOptions::parse(&options);
 
         Ok(trace_with_options(traced_call.value, &options))
