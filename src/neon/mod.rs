@@ -309,7 +309,7 @@ pub fn command_replay_transaction(
 fn deployed_contract_id<P>(
     provider: &P,
     caller_id: &H160,
-    block_number: Option<u64>) -> Result<H160, Error>
+    block_number: u64) -> Result<H160, Error>
 where
     P: Provider
 {
@@ -317,7 +317,7 @@ where
         &[&[ACCOUNT_SEED_VERSION], caller_id.as_bytes()], provider.evm_loader(),
     );
 
-    let mut acc = match provider.get_account_at_slot(&caller_sol, block_number.unwrap())? {
+    let mut acc = match provider.get_account_at_slot(&caller_sol, block_number)? {
         Some(acc) => acc,
         None => return Ok(H160::default())
     };
@@ -358,7 +358,9 @@ where
 
     let new_contract_id =
         if contract.is_none() {
-            match deployed_contract_id(&provider,  &caller_id, block_number){
+            match deployed_contract_id(&provider,  &caller_id,
+                                     block_number.unwrap_or(u64::MAX) // TODO:  fix  get_slot_by_block(..)
+            ){
                 Ok(id) => Some(id),
                 Err(e) => {
                     debug!("deployed_contract_id error: {:?}", e);
