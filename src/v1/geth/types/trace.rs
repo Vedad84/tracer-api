@@ -300,10 +300,10 @@ pub struct H160T(
     pub H160
 );
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[derive(std::cmp::PartialEq)]
 pub struct U256T(
-    #[serde(deserialize_with = "deserialize_hex_u256")]
+    #[serde(deserialize_with = "deserialize_hex_u256", serialize_with = "serialize_hex_u256")]
     pub U256
 );
 
@@ -388,6 +388,22 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
     }
 
     deserializer.deserialize_any(Visitor)
+}
+
+fn serialize_hex_u256<S>(value: &U256, serializer: S)  -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+
+    static SYMTABLE: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
+
+    let string = (0..=31).rev().map(|idx| {
+        let byte = value.byte(idx);
+        format!("{}{}",
+                SYMTABLE[usize::from(byte >> 4)],
+                SYMTABLE[usize::from(byte & 0x0F)])
+    }).collect::<Vec<String>>().concat();
+
+    serializer.serialize_str(&string)
 }
 
 

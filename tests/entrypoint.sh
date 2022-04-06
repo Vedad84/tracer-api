@@ -7,4 +7,4 @@ curl -X POST http://faucet:3333/request_neon \
 python3 deploy_contracts_make_transactions.py --target=http://proxy:9090/solana --tracer=http://neon-tracer:8250
 pytest tests/test_geth_traces.py --target=http://neon-tracer:8250
 pytest tests/test_open_eth_traces.py --target=http://neon-tracer:8250
- 
+python3 -m unittest discover -v -p "test_get_storage_at.py"

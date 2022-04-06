@@ -22,6 +22,7 @@ use crate::neon::{Config, EvmAccount};
 use crate::utils::parse_token_amount;
 use solana_sdk::account_info::AccountInfo;
 use std::collections::{BTreeMap, BTreeSet};
+use solana_sdk::program_error::ProgramError;
 use crate::neon::{Error, account_info};
 
 
@@ -190,23 +191,43 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
        where
             F: FnOnce(&EthereumContract) -> D
     {
-        self.create_acc_if_not_exists(address);
+        if !self.create_acc_if_not_exists(address) {
+            warn!("Failed to create/find ethereum account {:?}", address);
+            return default
+        }
 
         let mut accounts = self.ethereum_accounts.borrow_mut();
-
         if let Some(account) = accounts.get_mut(address) {
+            const ERR_ETH_NO_CODE_ACC: u32 = 1;
+            const ERR_SOL_NO_CODE_ACC: u32 = 2;
+
             let info = account_info(&account.key, &mut account.account);
-            let ethereum_account = EthereumAccount::from_account(&self.provider.evm_loader(), &info).unwrap();
-
-            if let Some(ref mut code_account) = account.code_account {
-                let code_key = ethereum_account.code_account.unwrap();
-                let code_info = account_info(&code_key, code_account);
-                let ethereum_contract = EthereumContract::from_account(&self.provider.evm_loader(), &code_info).unwrap();
-
-                f(&ethereum_contract)
-            } else {
-                default
-            }
+            EthereumAccount::from_account(&self.provider.evm_loader(), &info)
+                .and_then(|ethereum_account| {
+                    ethereum_account.code_account.ok_or(ProgramError::Custom(ERR_ETH_NO_CODE_ACC))
+                })
+                .and_then(|code_key| {
+                    match account.code_account {
+                        Some(ref mut code_account) => Ok((code_key, code_account)),
+                        None => Err(ProgramError::Custom(ERR_SOL_NO_CODE_ACC))
+                    }
+                })
+                .and_then(|(code_key, code_account)| {
+                    let code_info = account_info(&code_key, code_account);
+                    let ethereum_contract = EthereumContract::from_account(&self.provider.evm_loader(), &code_info)?;
+                    Ok(f(&ethereum_contract))
+                })
+                .map_or_else(
+                    |err| {
+                        let err_description = match err {
+                            ProgramError::Custom(ERR_ETH_NO_CODE_ACC) => "Ethereum account has no code account".to_string(),
+                            ProgramError::Custom(ERR_SOL_NO_CODE_ACC) => "Solana account has no code account".to_string(),
+                            err => format!("{:?}", err),
+                        };
+                        warn!("Failed to get ehtereum contract account: {}", err_description);
+                        default
+                    },
+                    |result| result)
         } else {
             default
         }

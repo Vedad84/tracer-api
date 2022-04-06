@@ -22,6 +22,7 @@ use crate::v1::types::{
     TraceResults, TraceResultsWithTransactionHash,
 };
 use evm::{H160, U256, H256};
+use crate::v1::geth::types::trace::{H160T, U256T};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -174,6 +175,13 @@ pub trait OpenEthereumTraces {
 pub trait EIP1898 {
     #[method(name = "eth_call")]
     fn eth_call(&self, r: CallRequest, b: BlockNumber) -> Result<()>;
+
+    #[method(name = "eth_getStorageAt")]
+    fn eth_get_storage_at(
+        &self,
+        contract_id: H160T,
+        index: U256T,
+        block_number: u64) -> Result<U256T>;
 }
 
 fn trace_with_options(traced_call: neon::TracedCall, options: &ParsedTraceOptions) -> TraceResults {
@@ -526,6 +534,25 @@ impl EIP1898Server for ServerImpl {
     fn eth_call(&self, r: CallRequest, b: BlockNumber) -> Result<()> {
         todo!()
     }
+
+    #[instrument]
+    fn eth_get_storage_at(
+        &self,
+        contract_id: H160T,
+        index: U256T,
+        block_number: u64) -> Result<U256T> {
+
+        let provider = DbProvider::new(
+            self.neon_config.rpc_client_after.clone(),
+            self.neon_config.evm_loader,
+        );
+
+        Ok(U256T(neon::get_storage_at(
+            provider,
+            &contract_id.0,
+            &index.0,
+            block_number)))
+    }
 }
 
 fn init_logs() {
@@ -581,7 +608,8 @@ async fn main() {
 
     let mut module = RpcModule::new(());
     module.merge(OpenEthereumTracesServer::into_rpc(serv_impl.clone()));
-    module.merge(GethTraceServer::into_rpc(serv_impl));
+    module.merge(GethTraceServer::into_rpc(serv_impl.clone()));
+    module.merge(EIP1898Server::into_rpc(serv_impl));
 
     let _handle = server.start(module).unwrap();
     loop {

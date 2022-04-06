@@ -49,6 +49,7 @@ pub enum EvmAccount<'a> {
 use solana_sdk::account_info::AccountInfo;
 use arrayref::{array_ref};
 use evm_loader::account::{ACCOUNT_SEED_VERSION};
+use evm_loader::account_storage::AccountStorage;
 
 pub trait To<T> {
     fn to(self) -> T;
@@ -572,5 +573,16 @@ pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInf
         executable: account.executable,
         rent_epoch: account.rent_epoch,
     }
+}
+
+pub fn get_storage_at<P>(
+    provider: P,
+    contract_id: &H160,
+    index: &U256,
+    block_number: u64)
+    -> U256
+where  P: Provider, {
+    let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+    account_storage.storage(contract_id, index)
 }
 
