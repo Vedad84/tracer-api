@@ -19,8 +19,8 @@ impl Stubs {
         P: Provider
     {
         let rent_pubkey = solana_sdk::sysvar::rent::id();
-
-        let mut acc  = provider.get_account_at_slot(&rent_pubkey, block_number.unwrap())
+        // TODO: remove u64::MAX after fix get_slot_by_block
+        let mut acc  = provider.get_account_at_slot(&rent_pubkey, block_number.unwrap_or(u64::MAX))
             .map_err(|e| anyhow!("error load rent account {}", e))?;
 
         let acc = acc.ok_or(anyhow!("rent account is None"))?;

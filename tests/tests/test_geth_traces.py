@@ -25,6 +25,7 @@ def test_geth_debug_trace_call(tx_hex, url, role):
     #     "params": [tx_hex],
     #     "id": 1
     # })
+    pprint("test_geth_debug_trace_call begin")
 
     tx_info_response_dict = send_trace_request('http://proxy:9090/solana', get_tx_info(tx_hex))
 
@@ -60,11 +61,13 @@ def test_geth_debug_trace_call(tx_hex, url, role):
         pprint(response_dict)
 
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
+    pprint("test_geth_debug_trace_call complete")
 
 
 @parameterized.expand(**level_test_parameters)
 @assert_all()
 def test_geth_debug_transaction_call(tx_hex, url, role):
+    pprint("test_geth_debug_transaction_call begin")
     for file in REQUESTS_TRANSACTION:
         with open(f'{RESOURCES}/{file}') as req:
             file_payload: dict = json.loads(req.read())
@@ -83,3 +86,4 @@ def test_geth_debug_transaction_call(tx_hex, url, role):
         pprint(response_dict)
 
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
+    pprint("test_geth_debug_transaction_call complete")

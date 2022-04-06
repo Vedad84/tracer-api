@@ -1,6 +1,6 @@
 use std::{collections::BTreeMap, iter};
 
-use evm::{H160, U256};
+use evm::{H160, U256, H256};
 use serde::{self, Deserialize, Serialize};
 
 use crate::neon;
@@ -307,6 +307,13 @@ pub struct U256T(
     pub U256
 );
 
+#[derive(Debug, Deserialize)]
+#[derive(std::cmp::PartialEq)]
+pub struct H256T(
+    #[serde(deserialize_with = "deserialize_hex_h256")]
+    pub H256
+);
+
 
 fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<H160, D::Error>
     where
@@ -384,6 +391,49 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
             let value = U256::from_str_radix(&v, 16)
                 .map_err(|e| E::custom(format!("Invalid hex format: {}", e)))?;
             Ok(value)
+        }
+    }
+
+    deserializer.deserialize_any(Visitor)
+}
+
+fn deserialize_hex_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
+    where
+        D: de::Deserializer<'de>,
+{
+    struct Visitor;
+
+    impl<'de> de::Visitor<'de> for Visitor {
+        type Value = H256;
+
+        fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+            formatter.write_str("a string containing json data")
+        }
+
+        fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+            where
+                E: de::Error,
+        {
+
+            if !v.starts_with("0x") || v.len() < 3 {
+                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
+            }
+
+            let v = v.split_at(2).1;
+            let v = if v.len() & 1 != 0 {
+                "0".to_owned() +v
+            }
+            else{
+                v.to_string()
+            };
+
+            match hex::decode(v){
+                Ok(a) =>  {
+                    let address = H256::from_slice(a.as_slice());
+                    Ok(address)
+                }
+                Err(e) => Err(E::custom(format!("Invalid hex format: {}", e)))
+            }
         }
     }
 
