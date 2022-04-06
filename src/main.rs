@@ -19,7 +19,7 @@ use crate::neon::provider::DbProvider;
 use crate::v1::geth::types::trace as geth;
 use crate::v1::types::{
     BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter, TraceOptions,
-    TraceResults, TraceResultsWithTransactionHash
+    TraceResults, TraceResultsWithTransactionHash,
 };
 use evm::{H160, U256, H256};
 

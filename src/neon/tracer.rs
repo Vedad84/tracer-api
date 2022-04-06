@@ -351,12 +351,6 @@ impl transaction_tracing::EventListener for Tracer {
     }
 }
 
-// struct InstructionData {
-//     pc: usize,
-//     instruction: u8,
-//     mem_written: Option<(usize, usize)>,
-//     store_written: Option<(U256, U256)>,
-// }
 
 struct PendingTrap {
     pushed: usize,
@@ -366,7 +360,6 @@ struct PendingTrap {
 struct VmTracer {
     tracer: ExecutiveVMTracer,
     pushed: usize,
-    // current: Option<InstructionData>,
     gas: u64,
     storage_accessed: Option<(U256, U256)>,
     trap_stack: Vec<PendingTrap>,
@@ -380,25 +373,11 @@ impl VmTracer {
         VmTracer {
             tracer,
             pushed: 0,
-            // current: None,
             gas: 0,
             storage_accessed: None,
             trap_stack: Vec::new(),
         }
     }
-
-    // fn gas(&mut self, cost: u64, gas: u64) {
-    //     if let Some(processed) = self.current.take() {
-    //         self.tracer.trace_prepare_execute(
-    //             processed.pc,
-    //             processed.instruction,
-    //             U256::from(cost),
-    //             processed.mem_written,
-    //             processed.store_written.map(|(a, b)| (a, b)),
-    //         );
-    //     }
-    //     self.gas = gas;
-    // }
 
     fn handle_log(&self, opcode: Opcode, stack: &Stack, memory: &[u8]) {
         tracing::info!("handling log {:?}", opcode);
@@ -531,12 +510,6 @@ impl vm_tracing::EventListener for VmTracer {
                 let instruction = opcode.0;
                 let mem_written = mem_written(opcode, stack);
                 let store_written = store_written(opcode, stack);
-                // self.current = Some(InstructionData {
-                //     pc,
-                //     instruction,
-                //     mem_written,
-                //     store_written,
-                // });
                 self.tracer.trace_prepare_execute(
                     pc,
                     instruction,
@@ -558,7 +531,6 @@ impl vm_tracing::EventListener for VmTracer {
                 ..
             } => {
                 debug!("res");
-                debug!("Stack.len()={:?}", stack.len());
                 match result {
                     Ok(_) => self.handle_step_result(stack, memory, self.pushed),
                     Err(err) => {
