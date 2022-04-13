@@ -1,6 +1,6 @@
 import requests
 import json
-
+import os
 
 def set_correct_params(resource, params_from_response) -> dict:
     target_values = list(params_from_response.keys())
@@ -28,3 +28,14 @@ def get_tx_info(tx_hex) -> dict:
         "params": [tx_hex],
         "id": 1
     })
+
+
+def request_airdrop(address, amount: int = 10):
+    FAUCET_URL = os.environ.get('FAUCET_URL', 'http://faucet:3333')
+    url = FAUCET_URL + '/request_neon'
+    data = f'{{"wallet": "{address}", "amount": {amount}}}'
+    r = requests.post(url, data=data)
+    if not r.ok:
+        print()
+        print('Bad response:', r)
+    assert(r.ok)

@@ -3,26 +3,21 @@
 use std::str::FromStr;
 use std::sync::Arc;
 
-use secret_value::Secret;
-use structopt::StructOpt;
-use tracing::{info, instrument, span, Level};
-use tracing_subscriber::{fmt, EnvFilter};
-
+use evm::H256;
 use jsonrpsee::http_server::{HttpServerBuilder, RpcModule};
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::error::{CallError, Error};
+use secret_value::Secret;
+use structopt::StructOpt;
+use tracing::{info, instrument};
+use tracing_subscriber::{EnvFilter, fmt};
+
 use types::TxMeta;
-//use jsonrpsee::types::{async_trait, error::Error};
-//
-//use crate::types::ec::trace::FullTraceData;
+
 use crate::neon::provider::DbProvider;
-use crate::v1::geth::types::trace as geth;
-use crate::v1::types::{
-    BlockNumber, Bytes, CallRequest, Index, LocalizedTrace, TraceFilter, TraceOptions,
-    TraceResults, TraceResultsWithTransactionHash,
-};
-use evm::{H160, U256, H256};
 use crate::v1::geth::types::trace::{H160T, U256T};
+use crate::v1::geth::types::trace as geth;
+use crate::v1::types::{BlockNumber, Bytes, CallRequest, EthCallObject, Index, LocalizedTrace, TraceFilter, TraceOptions, TraceResults, TraceResultsWithTransactionHash};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -174,7 +169,11 @@ pub trait OpenEthereumTraces {
 #[rpc(server)]
 pub trait EIP1898 {
     #[method(name = "eth_call")]
-    fn eth_call(&self, r: CallRequest, b: BlockNumber) -> Result<()>;
+    fn eth_call(
+        &self,
+        object: EthCallObject,
+        block_number: u64,
+    ) -> Result<serde_json::Value>;
 
     #[method(name = "eth_getStorageAt")]
     fn eth_get_storage_at(
@@ -531,8 +530,25 @@ impl OpenEthereumTracesServer for ServerImpl {
 
 impl EIP1898Server for ServerImpl {
     #[instrument]
-    fn eth_call(&self, r: CallRequest, b: BlockNumber) -> Result<()> {
-        todo!()
+    fn eth_call(
+        &self,
+        object: EthCallObject,
+        block_number: u64,
+    ) -> Result<serde_json::Value> {
+        let provider = DbProvider::new(
+            Arc::clone(&self.neon_config.rpc_client_after),
+            self.neon_config.evm_loader,
+        );
+
+        neon::eth_call(
+            provider,
+            object.from.map(|v| v.0),
+            object.to.0,
+            object.gas.map(|v| v.0),
+            object.value.map(|v| v.0),
+            object.data.map(|v| v.0),
+            block_number,
+        ).map_err(|err| Error::Custom(err.to_string()))
     }
 
     #[instrument]

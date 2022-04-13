@@ -330,3 +330,15 @@ impl<'a> Visitor<'a> for IndexVisitor {
         self.visit_str(value.as_ref())
     }
 }
+
+#[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct EthCallObject {
+    pub from: Option<H160T>,
+    pub to: H160T,
+    pub gas: Option<U256T>,
+    pub gasprice: Option<U256T>,
+    pub value: Option<U256T>,
+    pub data: Option<Bytes>,
+}

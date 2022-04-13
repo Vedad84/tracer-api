@@ -1,7 +1,7 @@
-mod account_storage;
+pub mod account_storage;
 mod diff;
 pub mod provider;
-mod tracer;
+pub mod tracer;
 
 use std::borrow::Borrow;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -9,7 +9,7 @@ use std::convert::{TryFrom, TryInto};
 use std::fmt;
 use std::sync::Arc;
 
-use anyhow::anyhow;
+use anyhow::{anyhow, bail};
 use tracing::{debug, info, warn};
 
 use evm::backend::Apply;
@@ -308,7 +308,7 @@ pub fn command_replay_transaction(
 }
 
 
-fn deployed_contract_id<P>(
+pub fn deployed_contract_id<P>(
     provider: &P,
     caller_id: &H160,
     block_number: u64) -> Result<H160, Error>
@@ -601,3 +601,62 @@ where  P: Provider, {
     account_storage.storage(contract_id, index)
 }
 
+pub fn eth_call<P: Provider> (
+    provider: P,
+    from: Option<H160>,
+    to: H160,
+    gas: Option<U256>,
+    value: Option<U256>,
+    data: Option<Vec<u8>>,
+    block_number: u64,
+) -> Result<serde_json::Value, Error> {
+    let caller_id = from.unwrap_or_default();
+    let block_number = Some(block_number);
+
+    let syscall_stubs = Stubs::new(&provider, block_number)?;
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
+
+    let storage = EmulatorAccountStorage::new(provider, block_number);
+    let mut executor = Machine::new(caller_id, &storage)?;
+
+    // u64::MAX is too large, remix gives this error:
+    // Gas estimation errored with the following message (see below).
+    // Number can only safely store up to 53 bits
+    let gas_limit = U256::from(gas.unwrap_or_else(|| 50_000_000u32.into()));
+
+    debug!(
+        "call_begin(caller_id={:?}, contract_id={:?}, data={:?}, value={:?})",
+        caller_id,
+        to,
+        data.as_ref().map(|vec| hex::encode(&vec)),
+        value,
+    );
+    executor.call_begin(
+        caller_id,
+        to,
+        data.unwrap_or_default(),
+        value.unwrap_or_default(),
+        gas_limit,
+    )?;
+
+    let (result, exit_reason) = match executor.execute_n_steps(100_000) {
+        Ok(()) => bail!("bad account kind"),
+        Err(result) => result,
+    };
+
+    let status = match exit_reason {
+        ExitReason::Succeed(_) => "succeed".to_string(),
+        ExitReason::Error(_) => "error".to_string(),
+        ExitReason::Revert(_) => "revert".to_string(),
+        ExitReason::Fatal(_) => "fatal".to_string(),
+        ExitReason::StepLimitReached => unreachable!(),
+    };
+
+    Ok(serde_json::json!({
+        "result": hex::encode(&result),
+        "exit_status": status,
+        "exit_reason": exit_reason,
+        "steps_executed": executor.get_steps_executed(),
+        "gas_used": executor.used_gas().to_string(),
+    }))
+}

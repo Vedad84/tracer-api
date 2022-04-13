@@ -293,15 +293,13 @@ pub struct TransactionArgs {
 }
 
 
-#[derive(Debug, Deserialize)]
-#[derive(std::cmp::PartialEq)]
+#[derive(Debug, Default, PartialEq, Deserialize)]
 pub struct H160T(
     #[serde(deserialize_with = "deserialize_hex_h160")]
     pub H160
 );
 
-#[derive(Debug, Serialize, Deserialize)]
-#[derive(std::cmp::PartialEq)]
+#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct U256T(
     #[serde(deserialize_with = "deserialize_hex_u256", serialize_with = "serialize_hex_u256")]
     pub U256
