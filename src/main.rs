@@ -181,6 +181,12 @@ pub trait EIP1898 {
         contract_id: H160T,
         index: U256T,
         block_number: u64) -> Result<U256T>;
+
+    #[method(name = "eth_getBalance")]
+    fn eth_get_balance(
+        &self,
+        address: H160T,
+        block_number: u64) -> Result<U256T>;
 }
 
 fn trace_with_options(traced_call: neon::TracedCall, options: &ParsedTraceOptions) -> TraceResults {
@@ -567,6 +573,23 @@ impl EIP1898Server for ServerImpl {
             provider,
             &contract_id.0,
             &index.0,
+            block_number)))
+    }
+
+    #[instrument]
+    fn eth_get_balance(
+        &self,
+        address: H160T,
+        block_number: u64) -> Result<U256T> {
+
+        let provider = DbProvider::new(
+            self.neon_config.rpc_client_after.clone(),
+            self.neon_config.evm_loader,
+        );
+
+        Ok(U256T(neon::get_balance(
+            provider,
+            &address.0,
             block_number)))
     }
 }

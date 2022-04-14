@@ -601,6 +601,16 @@ where  P: Provider, {
     account_storage.storage(contract_id, index)
 }
 
+pub fn get_balance<P>(
+    provider: P,
+    address: &H160,
+    block_number: u64)
+    -> U256
+    where  P: Provider, {
+    let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+    account_storage.balance(address)
+}
+
 pub fn eth_call<P: Provider> (
     provider: P,
     from: Option<H160>,

@@ -9,3 +9,4 @@ pytest tests/test_geth_traces.py --target=http://neon-tracer:8250
 pytest tests/test_open_eth_traces.py --target=http://neon-tracer:8250
 python3 -m unittest discover -v -p "test_eth_call.py"
 python3 -m unittest discover -v -p "test_get_storage_at.py"
+python3 -m unittest discover -v -p "test_get_balance.py"
