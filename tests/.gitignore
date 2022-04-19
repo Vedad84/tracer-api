@@ -1,0 +1,28 @@
+# python cache files
+*__pycache__*
+.pytest_cache
+
+# log files
+log/*
+*.log
+
+#report files
+*.html
+*.xml
+
+# vim temp files
+.~
+*.swp
+*.swo
+
+# other temps files
+.DS_Store
+.tmp/*
+
+# virtual environment
+venv
+
+# idea cache
+.idea/
+
+resources/transactions_level.json

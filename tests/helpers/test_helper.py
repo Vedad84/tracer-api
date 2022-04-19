@@ -2,19 +2,13 @@
 RPC API Responses json schema validator.
 This helper contains very special validator to check JSON data types in SolanaAPI replies.
 Match JSON reply with schema(stored in file).
-"""  # pylint: disable=line-too-long
-from pathlib import Path
+"""
 from typing import List, DefaultDict, AnyStr, Optional
 from helpers.helper import find_values_in_dict_for_key
 import simplejson as json
 from helpers.soft_assertion import soft_assert_type
 from helpers import failed_text, yellow_text, green_text
 import os
-
-# from component_test_support.utils.helpers import find_values_in_dict_for_key
-# from component_test_support.utils.pretty_printers import pretty_summary_print_data, \
-#     pretty_success_print_data, pretty_error_print_data, pretty_warning_print_text
-# from component_test_support.utils.soft_assertion import soft_assert_type
 
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 PATH_TO_SCHEMAS = f'{ROOT_DIR}/../resources/schemas'
@@ -48,6 +42,6 @@ def validate_type_by_scheme(data_to_validate: List[DefaultDict],
         if soft_assert_type(data_to_validate, schema_to_compare):
             print(green_text('Data types are correct'))
         else:
-            print(failed_text(f'Data types are incorrect according to schema\n{data_to_validate}'))
+            print(failed_text(f'Data types are incorrect according to schema'))
     else:
         print(yellow_text('Warning: There is no schema to compare with. Json data type validation was not done'))

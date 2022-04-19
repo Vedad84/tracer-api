@@ -19,15 +19,8 @@ REQUEST_BLOCK = [f for f in listdir(RESOURCES) if isfile(join(RESOURCES, f)) and
 
 @parameterized.expand(**level_test_parameters)
 @assert_all()
-def test_open_eth_trace_call(tx_hex, url, role):
-    # get_tx_info = json.dumps({
-    #     "jsonrpc": "2.0",
-    #     "method": "eth_getTransactionByHash",
-    #     "params": [tx_hex],
-    #     "id": 1
-    # })
-
-    tx_info_response_dict = send_trace_request('http://proxy:9090/solana', get_tx_info(tx_hex))
+def test_open_eth_trace_call(tx_hex, url_node, url_trace, role):
+    tx_info_response_dict = send_trace_request(url_node, get_tx_info(tx_hex))
 
     result = tx_info_response_dict['result']
     params = [{
@@ -50,22 +43,27 @@ def test_open_eth_trace_call(tx_hex, url, role):
 
             payload = json.dumps(file_payload)
 
-        response_dict = send_trace_request(url, payload)
+        print('\n' + blue_text('Request'), end='\n')
+
+        pprint(file_payload)
+
+        response_dict = send_trace_request(url_trace, payload)
 
         assert response_dict, 'There are no response for trace request'
         assert not response_dict.get('error'), 'There is error in response for trace request'
 
         method_scheme = f'{role}_{file}'
-        print('\n' + blue_text(method_scheme), end='\n')
+        print('\n' + blue_text('Reply'), end='\n')
 
         pprint(response_dict)
 
+        print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
 
 
 @parameterized.expand(**level_test_parameters)
 @assert_all()
-def test_open_eth_transaction_call(tx_hex, url, role):
+def test_open_eth_transaction_call(tx_hex, url_node, url_trace, role):
     for file in REQUESTS_TRANSACTION:
         with open(f'{RESOURCES}/{file}') as req:
             file_payload: dict = json.loads(req.read())
@@ -73,24 +71,30 @@ def test_open_eth_transaction_call(tx_hex, url, role):
 
             payload = json.dumps(file_payload)
 
-        response_dict = send_trace_request(url, payload)
+        print('\n' + blue_text('Request'), end='\n')
+
+        pprint(file_payload)
+
+        response_dict = send_trace_request(url_trace, payload)
 
         assert response_dict, 'There are no response for trace request'
         assert not response_dict.get('error'), 'There is error in response for trace request'
 
         method_scheme = f'{role}_{file}'
-        print('\n' + blue_text(method_scheme), end='\n')
+        print('\n' + blue_text('Reply'), end='\n')
 
         pprint(response_dict)
+
+        print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
 
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
 
 
 @parameterized.expand(**level_test_parameters)
 @assert_all()
-def test_open_eth_block_call(tx_hex, url, role):
+def test_open_eth_block_call(tx_hex, url_node, url_trace, role):
 
-    tx_info_response_dict = send_trace_request('http://proxy:9090/solana', get_tx_info(tx_hex))
+    tx_info_response_dict = send_trace_request(url_node, get_tx_info(tx_hex))
 
     for file in REQUEST_BLOCK:
         with open(f'{RESOURCES}/{file}') as req:
@@ -99,15 +103,17 @@ def test_open_eth_block_call(tx_hex, url, role):
 
             payload = json.dumps(file_payload)
 
-        response_dict = send_trace_request(url, payload)
+        response_dict = send_trace_request(url_trace, payload)
 
         assert response_dict, 'There are no response for trace request'
         assert not response_dict.get('error'), 'There is error in response for trace request'
 
         method_scheme = f'{role}_{file}'
-        print('\n' + blue_text(method_scheme), end='\n')
+        print('\n' + blue_text('Reply'), end='\n')
 
         pprint(response_dict)
+
+        print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
 
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
 

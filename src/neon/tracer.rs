@@ -33,7 +33,9 @@ impl Tracer {
     }
 
     fn with_js(&mut self, f: impl FnOnce(&mut dyn js::Tracer)) {
-        self.js_tracer.as_mut().map(|jst| f(&mut **jst));
+        if let Some(jst) = self.js_tracer.as_mut() {
+            f(&mut **jst)
+        }
     }
 
     pub fn using<F: FnOnce() -> R, R>(&mut self, f: F) -> R {
@@ -352,6 +354,7 @@ impl transaction_tracing::EventListener for Tracer {
 }
 
 
+#[derive(Debug)]
 struct PendingTrap {
     pushed: usize,
     depth: usize,
@@ -506,7 +509,7 @@ impl vm_tracing::EventListener for VmTracer {
                 }
 
                 let pc = position.unwrap();
-                debug!("pc = {:?}", pc);
+                debug!("pc = {:?} opcode = {:?}", pc, opcode);
                 let instruction = opcode.0;
                 let mem_written = mem_written(opcode, stack);
                 let store_written = store_written(opcode, stack);
@@ -540,9 +543,11 @@ impl vm_tracing::EventListener for VmTracer {
                                     return; // Handled in separate events
                                 }
 
-                                let pushed = self.pushed;
-                                let depth = self.tracer.depth;
-                                self.trap_stack.push(PendingTrap { pushed, depth });
+                                let trap = PendingTrap {
+                                    pushed: self.pushed,
+                                    depth: self.tracer.depth,
+                                };
+                                self.trap_stack.push(trap);
 
                                 match *opcode {
                                     Opcode::CALL
@@ -574,6 +579,9 @@ impl vm_tracing::EventListener for VmTracer {
                                     | ExitReason::StepLimitReached => self.tracer.trace_failed(),
                                 }
                                 self.tracer.done_subtrace();
+                                if let Some(pending_trap) = self.take_pending_trap() {
+                                    self.handle_step_result(stack, memory, pending_trap.pushed);
+                                }
                             }
                         }
                         self.pushed = 0;

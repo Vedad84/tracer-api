@@ -87,13 +87,13 @@ Tests are located in folder:
 
 In CMD
 ``` 
- pytest tests/test_geth_traces.py --capture=tee-sys
- pytest tests/test_open_eth_traces.py --capture=tee-sys
+ pytest tests/test_geth_traces.py --capture=tee-sys --target={end_point where we deployed test contacts}  --trace_url={end_point that listen for trace requests}
+ pytest tests/test_open_eth_traces.py --capture=tee-sys --target={end_point where we deployed test contacts}  --trace_url={end_point that listen for trace requests}
 ```
 
 
 ### What tests do
-1. Send RPC request for transaction trace (gETHa and OpenEthereum)
+1. Send RPC request for transaction trace (gETHa or OpenEthereum or Neon)
 2. Check that response was received
 3. Check that received response does not have 'error' section.
 4. Check that received reply 'trace' format corresponds to RPC request node type format (by schemes)

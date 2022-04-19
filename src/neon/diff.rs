@@ -149,6 +149,7 @@ where
     Some(pod)
 }
 
+#[tracing::instrument(skip_all, fields(address))]
 fn modify<P, I>(
     accounts: &EmulatorAccountStorage<P>,
     address: H160,
@@ -177,6 +178,8 @@ where
         storage: storage.into_iter().map(|(k, v)| (H256::from(k), H256::from(v))).collect(),
         code: code_and_valids.map(|(code, _valids)| code),
     };
+
+    tracing::info!(?address, ?old_pod, ?new_pod, "modifying account");
 
     diff_pod(old_pod.as_ref(), Some(&new_pod))
 }

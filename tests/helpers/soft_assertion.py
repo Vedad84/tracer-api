@@ -67,6 +67,7 @@ def soft_assert_type(data, schema_to_compare: dict) -> bool:
                 data.clear()
                 data.update({failed_key: what_failed})
         _log_failure(ae)
+        print(ae)
         return False
     except SchemaError as e:
         _log_failure(e)
@@ -106,12 +107,7 @@ def _log_failure(msg=None, data_info=None):
         blue_under_line('"{}:{}"'.format(file_path, line)) +
         failed_text(', in {}()\n\t'.format(func_name)) +
         failed_text_under_line('ErrorMessage') +
-        failed_text(': {}\n {}'.format(msg, data_info
-                                       # ('Data: \n' + table(data_info,
-                                       #                          fmt='error') + '\n'
-                                       #       if data_info
-                                       #       else '')
-                                       ))
+        failed_text(': {}\n {}'.format(msg, data_info))
     )
 
 

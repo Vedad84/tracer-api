@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
 use tracing::warn;
@@ -237,7 +238,7 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
 impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
 
     fn program_id(&self) -> &Pubkey {
-        &self.provider.evm_loader()
+        self.provider.evm_loader()
     }
 
     fn balance(&self, address: &H160) -> U256 {

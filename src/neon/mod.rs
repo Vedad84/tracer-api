@@ -388,7 +388,7 @@ where
 
     let js_tracer = trace_code
         .as_ref()
-        .and_then(|code| Some(crate::js::JsTracer::new(code).unwrap()))
+        .map(|code| crate::js::JsTracer::new(code).unwrap())
         .map(|tracer| Box::new(tracer) as Box<_>);
 
     let mut tracer = Tracer::new(js_tracer);
@@ -471,11 +471,7 @@ where
                 withdrawals,
                 erc20_approves) = applies_logs.unwrap();
 
-            Some(prepare_state_diff(
-                &storage,
-                applies.clone(),
-                transfers.clone(),
-            ))
+            Some(prepare_state_diff(&storage, applies, transfers))
         }
         ExitReason::Error(_) | ExitReason::Revert(_) | ExitReason::Fatal(_) => None,
         ExitReason::StepLimitReached => unreachable!(),

@@ -1,9 +1,8 @@
-#![allow(unused)]
+#![allow(unused, clippy::too_many_arguments)]
 
 use std::str::FromStr;
 use std::sync::Arc;
 
-use evm::H256;
 use jsonrpsee::http_server::{HttpServerBuilder, RpcModule};
 use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::error::{CallError, Error};
@@ -15,9 +14,14 @@ use tracing_subscriber::{EnvFilter, fmt};
 use types::TxMeta;
 
 use crate::neon::provider::DbProvider;
-use crate::v1::geth::types::trace::{H160T, U256T};
 use crate::v1::geth::types::trace as geth;
-use crate::v1::types::{BlockNumber, Bytes, CallRequest, EthCallObject, Index, LocalizedTrace, TraceFilter, TraceOptions, TraceResults, TraceResultsWithTransactionHash};
+use crate::v1::types::{
+    BlockNumber, Bytes, CallRequest, EthCallObject, Index,
+    LocalizedTrace, TraceFilter, TraceOptions,
+    TraceResults, TraceResultsWithTransactionHash,
+};
+use evm::{H160, U256, H256};
+use crate::v1::geth::types::trace::{H160T, H256T, U256T};
 
 type Result<T> = std::result::Result<T, Error>;
 
@@ -336,19 +340,23 @@ impl OpenEthereumTracesServer for ServerImpl {
             .into_iter()
             .map(TxMeta::split)
             .map(|(meta, traced_call)| {
-                traced_call.traces.into_iter().map(move |flat| {
-                    LocalizedTrace {
-                        action: flat.action,
-                        result: flat.result,
-                        subtraces: flat.subtraces,
-                        trace_address: flat.trace_address,
-                        transaction_number: None, // TODO: add idx to db or just enumerate?
-                        transaction_hash: Some(meta.eth_signature),
-                        block_number: meta.slot,
-                        block_hash: H256::from_low_u64_ne(meta.slot), // TODO: revise this
-                    }
-                    .into()
-                })
+                traced_call
+                    .traces
+                    .into_iter()
+                    .enumerate()
+                    .map(move |(i, flat)| {
+                        LocalizedTrace {
+                            action: flat.action,
+                            result: flat.result,
+                            subtraces: flat.subtraces,
+                            trace_address: flat.trace_address,
+                            transaction_number: Some(i), // TODO: add idx to db or just enumerate?
+                            transaction_hash: Some(meta.eth_signature),
+                            block_number: meta.slot,
+                            block_hash: H256::from_low_u64_ne(meta.slot), // TODO: revise this
+                        }
+                        .into()
+                    })
             })
             .flatten()
             .collect();
@@ -370,7 +378,7 @@ impl OpenEthereumTracesServer for ServerImpl {
                 result: flat.result.clone(),
                 subtraces: flat.subtraces,
                 trace_address: flat.trace_address.clone(),
-                transaction_number: None, // TODO??
+                transaction_number: Some(0),
                 transaction_hash: Some(t.0),
                 block_number: meta.slot,
                 block_hash: H256::from_low_u64_ne(meta.slot), // TODO
@@ -390,13 +398,14 @@ impl OpenEthereumTracesServer for ServerImpl {
         let traces = traced_call
             .traces
             .into_iter()
-            .map(|flat| {
+            .enumerate()
+            .map(|(i, flat)| {
                 LocalizedTrace {
                     action: flat.action,
                     result: flat.result,
                     subtraces: flat.subtraces,
                     trace_address: flat.trace_address,
-                    transaction_number: None, // TODO??
+                    transaction_number: Some(i),
                     transaction_hash: Some(meta.eth_signature),
                     block_number: meta.slot,
                     block_hash: H256::from_low_u64_ne(meta.slot),
@@ -422,8 +431,8 @@ impl OpenEthereumTracesServer for ServerImpl {
             .map(|(idx, (meta, call))| {
                 call.traces.into_iter().map(move |flat| {
                     LocalizedTrace {
-                        action: flat.action.into(),
-                        result: flat.result.into(),
+                        action: flat.action,
+                        result: flat.result,
                         subtraces: flat.subtraces,
                         trace_address: flat.trace_address,
                         // !: Since we tracing whole block it's ok to use trace index.
@@ -527,7 +536,7 @@ impl OpenEthereumTracesServer for ServerImpl {
                     trace: trace_result.trace,
                     vm_trace: trace_result.vm_trace,
                     state_diff: trace_result.state_diff,
-                    transaction_hash: meta.eth_signature,
+                    transaction_hash: H256T(meta.eth_signature),
                 }
             })
             .collect())
@@ -595,7 +604,7 @@ impl EIP1898Server for ServerImpl {
 }
 
 fn init_logs() {
-    let writer = || std::io::stdout();
+    let writer = std::io::stdout;
     let subscriber = fmt::Subscriber::builder()
         .with_writer(writer)
         .with_env_filter(

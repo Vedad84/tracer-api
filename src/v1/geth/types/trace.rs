@@ -7,6 +7,7 @@ use crate::neon;
 use crate::types::ec::trace;
 use serde::de;
 use std::fmt;
+use byte_slice_cast::AsByteSlice;
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct BlockNumber(#[serde(with = "string")] u64);
@@ -54,14 +55,14 @@ mod string {
         D: Deserializer<'de>,
     {
         let value = String::deserialize(deserializer)?;
-        if value.starts_with("0x") {
-            let number = HasRadix::from_radix(&value[2..], 16)
+        if let Some(value) = value.strip_prefix("0x") {
+            let number = HasRadix::from_radix(value, 16)
                 .map_err(|e| serde::de::Error::custom(format!("Invalid block number: {}", e)))?;
             Ok(number)
         } else {
-            return Err(serde::de::Error::custom(
+            Err(serde::de::Error::custom(
                 "Invalid block number: missing 0x prefix".to_string(),
-            ));
+            ))
         }
     }
 }
@@ -135,15 +136,20 @@ impl ExecutionResult {
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
             if !options.disable_stack {
-                l.stack = Some(d.stack);
+                l.stack = Some(d.stack.iter().map(|entry|{ U256T(*entry) }).collect());
             }
 
             if options.enable_memory && !d.memory.is_empty() {
-                l.memory = Some(d.memory.into());
+                l.memory = Some(
+                    d.memory
+                        .chunks(32)
+                        .map(|slice| slice.to_vec().into())
+                        .collect(),
+                );
             }
 
-            if !options.disable_storage && !d.storage.is_none() {
-                l.storage = Some(d.storage.into_iter().collect());
+            if !options.disable_storage && d.storage.is_some() {
+                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (U256T(k), U256T(v)) }).collect());
             }
         });
 
@@ -174,13 +180,13 @@ pub struct StructLog {
     pub depth: u32,
     /// Snapshot of the current memory sate
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory: Option<Bytes>,
+    pub memory: Option<Vec<Bytes>>, // U256 sized chunks
     /// Snapshot of the current stack sate
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub stack: Option<Vec<U256>>,
+    pub stack: Option<Vec<U256T>>,
     /// Snapshot of the current storage
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub storage: Option<BTreeMap<U256, U256>>,
+    pub storage: Option<BTreeMap<U256T, U256T>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
@@ -293,25 +299,56 @@ pub struct TransactionArgs {
 }
 
 
-#[derive(Debug, Default, PartialEq, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
 pub struct H160T(
-    #[serde(deserialize_with = "deserialize_hex_h160")]
+    #[serde(deserialize_with = "deserialize_hex_h160", serialize_with = "serialize_hex_h160")]
     pub H160
 );
 
-#[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
+impl std::cmp::Ord for H160T {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
 pub struct U256T(
     #[serde(deserialize_with = "deserialize_hex_u256", serialize_with = "serialize_hex_u256")]
     pub U256
 );
 
-#[derive(Debug, Deserialize)]
-#[derive(std::cmp::PartialEq)]
+impl From<U256> for U256T {
+    fn from(value: U256) -> Self {
+        U256T(value)
+    }
+}
+
+impl std::cmp::Ord for U256T {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
 pub struct H256T(
-    #[serde(deserialize_with = "deserialize_hex_h256")]
+    #[serde(deserialize_with = "deserialize_hex_h256", serialize_with = "serialize_hex_h256")]
     pub H256
 );
 
+impl From<H256> for H256T {
+    fn from(value: H256) -> Self {
+        H256T(value)
+    }
+}
+
+impl std::cmp::Ord for H256T {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.0.cmp(&other.0)
+    }
+}
 
 fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<H160, D::Error>
     where
@@ -441,17 +478,19 @@ fn deserialize_hex_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
 fn serialize_hex_u256<S>(value: &U256, serializer: S)  -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer {
-
-    static SYMTABLE: [char; 16] = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'];
-
-    let string = (0..=31).rev().map(|idx| {
-        let byte = value.byte(idx);
-        format!("{}{}",
-                SYMTABLE[usize::from(byte >> 4)],
-                SYMTABLE[usize::from(byte & 0x0F)])
-    }).collect::<Vec<String>>().concat();
-
-    serializer.serialize_str(&string)
+    let mut tmp = value.as_byte_slice().iter().cloned().rev().collect::<Vec<u8>>();
+    serializer.serialize_str(format!("0x{}", hex::encode(tmp.as_slice())).as_str())
 }
 
+fn serialize_hex_h256<S>(value: &H256, serializer: S)  -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+    serializer.serialize_str(format!("0x{}", hex::encode(value.as_bytes())).as_str())
+}
+
+fn serialize_hex_h160<S>(value: &H160, serializer: S)  -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer {
+    serializer.serialize_str(format!("0x{}", hex::encode(value.as_bytes())).as_str())
+}
 

@@ -217,13 +217,11 @@ impl DbClient {
             client
                 .query(&format!(
                     "SELECT {}
-                        FROM transactions T, evm_transactions E
-                        WHERE transaction_signature IN
-                        (
-                         SELECT transaction_signature
-                         FROM evm_transactions
-                         WHERE eth_transaction_signature = ?
-                        )",
+                     FROM transactions T
+                     LEFT ANY JOIN evm_transactions E
+                     ON T.transaction_signature = E.transaction_signature
+                     WHERE E.eth_transaction_signature = ?
+                     ",
                     field_with_meta!("message")
                 ))
                 .bind(tx)
@@ -232,7 +230,7 @@ impl DbClient {
         })?;
         let msg = msgs
             .into_iter()
-            .nth(0)
+            .next()
             .map(|row| row.into_meta_with(|msg| bincode::deserialize(&msg).unwrap())); // TODO
         Ok(msg)
     }

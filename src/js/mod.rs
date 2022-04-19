@@ -81,7 +81,7 @@ pub trait Tracer: EvmLogger {
 type Hash = [u8; 32];
 type Address = [u8; 20];
 
-const BIGINT: &'static str = include_str!("bigint.js");
+const BIGINT: &str = include_str!("bigint.js");
 
 fn instruction_name(x: u8) -> Option<&'static str> {
     use crate::types::ec::trace::INSTRUCTIONS;
@@ -218,6 +218,7 @@ impl OpCode {
         self.code
     }
 
+    #[allow(clippy::inherent_to_string)]
     #[dukt(this = "OpCode")]
     fn to_string(&self) -> String {
         instruction_name(self.code).unwrap().to_string() // TODO
@@ -329,12 +330,12 @@ pub struct Contract {
 impl Contract {
     #[dukt(this = "Contract")]
     fn get_caller(&self) -> Address {
-        self.caller.into()
+        self.caller
     }
 
     #[dukt(this = "Contract")]
     fn get_address(&self) -> Address {
-        self.address.into()
+        self.address
     }
 
     #[dukt(this = "Contract")]
@@ -377,7 +378,7 @@ impl Frame {
 
     #[dukt(this = "Frame")]
     fn get_input(&self) -> &[u8] {
-        self.input.as_ref().map(|v| v.as_slice()).unwrap_or(&[])
+        self.input.as_deref().unwrap_or(&[])
     }
 
     #[dukt(this = "Frame")]
@@ -722,7 +723,6 @@ impl JsTracer {
             contract: scope.contract,
             vm: vm_state,
         };
-        let tx = self.transaction.as_ref().unwrap();
         let state = State {
             log,
             frame: None,
@@ -758,7 +758,7 @@ impl JsTracer {
         self.ctx.eval::<()>("(JSON.stringify)").unwrap();
         self.ctx.swap(-1, -2);
         self.ctx.call(1).unwrap();
-        return Some(String::peek_at(&mut self.ctx, -1).unwrap());
+        Some(String::peek_at(&mut self.ctx, -1).unwrap())
     }
 }
 

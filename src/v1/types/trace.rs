@@ -24,7 +24,7 @@ use crate::types::ec::{
     trace as vm,
     trace::{self, Error as TraceError, FlatTrace, LocalizedTrace as EthLocalizedTrace},
 };
-use crate::v1::types::BlockNumber;
+use crate::v1::types::{H160T, U256T, H256T, BlockNumber};
 use evm::{H160, H256, U256};
 use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
 //use vm;
@@ -55,16 +55,16 @@ impl From<et::MemoryDiff> for MemoryDiff {
 /// A diff of some storage value.
 pub struct StorageDiff {
     /// Which key in storage is changed.
-    pub key: U256,
+    pub key: U256T,
     /// What the value has been changed to.
-    pub val: U256,
+    pub val: U256T,
 }
 
 impl From<et::StorageDiff> for StorageDiff {
     fn from(c: et::StorageDiff) -> Self {
         StorageDiff {
-            key: c.location,
-            val: c.value,
+            key: U256T(c.location),
+            val: U256T(c.value),
         }
     }
 }
@@ -75,7 +75,7 @@ pub struct VMExecutedOperation {
     /// The total gas used.
     pub used: u64,
     /// The stack item placed, if any.
-    pub push: Vec<U256>,
+    pub push: Vec<U256T>,
     /// If altered, the memory delta.
     pub mem: Option<MemoryDiff>,
     /// The altered storage value, if any.
@@ -203,10 +203,10 @@ where
 #[derive(Debug, Serialize)]
 /// Serde-friendly `AccountDiff` shadow.
 pub struct AccountDiff {
-    pub balance: Diff<U256>,
-    pub nonce: Diff<U256>,
+    pub balance: Diff<U256T>,
+    pub nonce: Diff<U256T>,
     pub code: Diff<Bytes>,
-    pub storage: BTreeMap<H256, Diff<H256>>,
+    pub storage: BTreeMap<H256T, Diff<H256T>>,
 }
 
 impl From<account_diff::AccountDiff> for AccountDiff {
@@ -215,14 +215,14 @@ impl From<account_diff::AccountDiff> for AccountDiff {
             balance: c.balance.into(),
             nonce: c.nonce.into(),
             code: c.code.into(),
-            storage: c.storage.into_iter().map(|(k, v)| (k, v.into())).collect(),
+            storage: c.storage.into_iter().map(|(k, v)| (H256T(k), v.into())).collect(),
         }
     }
 }
 
 #[derive(Debug)]
 /// Serde-friendly `StateDiff` shadow.
-pub struct StateDiff(BTreeMap<H160, AccountDiff>);
+pub struct StateDiff(BTreeMap<H160T, AccountDiff>);
 
 impl Serialize for StateDiff {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -235,7 +235,7 @@ impl Serialize for StateDiff {
 
 impl From<state_diff::StateDiff> for StateDiff {
     fn from(c: state_diff::StateDiff) -> Self {
-        StateDiff(c.raw.into_iter().map(|(k, v)| (k, v.into())).collect())
+        StateDiff(c.raw.into_iter().map(|(k, v)| (H160T(k), v.into())).collect())
     }
 }
 
@@ -243,11 +243,11 @@ impl From<state_diff::StateDiff> for StateDiff {
 #[derive(Debug, Serialize)]
 pub struct Create {
     /// Sender
-    from: H160,
+    from: H160T,
     /// Value
-    value: U256,
+    value: U256T,
     /// Gas
-    gas: U256,
+    gas: U256T,
     /// Initialization code
     init: Bytes,
 }
@@ -255,9 +255,9 @@ pub struct Create {
 impl From<trace::Create> for Create {
     fn from(c: trace::Create) -> Self {
         Create {
-            from: c.from,
-            value: c.value,
-            gas: c.gas,
+            from: H160T(c.from),
+            value: U256T(c.value),
+            gas: U256T(c.gas),
             init: Bytes::new(c.init),
         }
     }
@@ -296,13 +296,13 @@ impl From<vm::CallType> for CallType {
 #[serde(rename_all = "camelCase")]
 pub struct Call {
     /// Sender
-    from: H160,
+    from: H160T,
     /// Recipient
-    to: H160,
+    to: H160T,
     /// Transfered Value
-    value: U256,
+    value: U256T,
     /// Gas
-    gas: U256,
+    gas: U256T,
     /// Input data
     input: Bytes,
     /// The type of the call.
@@ -312,10 +312,10 @@ pub struct Call {
 impl From<trace::Call> for Call {
     fn from(c: trace::Call) -> Self {
         Call {
-            from: c.from,
-            to: c.to,
-            value: c.value,
-            gas: c.gas,
+            from: H160T(c.from),
+            to: H160T(c.to),
+            value: U256T(c.value),
+            gas: U256T(c.gas),
             input: c.input.into(),
             call_type: c.call_type.into(),
         }
@@ -352,9 +352,9 @@ impl From<trace::RewardType> for RewardType {
 #[serde(rename_all = "camelCase")]
 pub struct Reward {
     /// Author's address.
-    pub author: H160,
+    pub author: H160T,
     /// Reward amount.
-    pub value: U256,
+    pub value: U256T,
     /// Reward type.
     pub reward_type: RewardType,
 }
@@ -362,8 +362,8 @@ pub struct Reward {
 impl From<trace::Reward> for Reward {
     fn from(r: trace::Reward) -> Self {
         Reward {
-            author: r.author,
-            value: r.value,
+            author: H160T(r.author),
+            value: U256T(r.value),
             reward_type: r.reward_type.into(),
         }
     }
@@ -374,19 +374,19 @@ impl From<trace::Reward> for Reward {
 #[serde(rename_all = "camelCase")]
 pub struct Suicide {
     /// Address.
-    pub address: H160,
+    pub address: H160T,
     /// Refund address.
-    pub refund_address: H160,
+    pub refund_address: H160T,
     /// Balance.
-    pub balance: U256,
+    pub balance: U256T,
 }
 
 impl From<trace::Suicide> for Suicide {
     fn from(s: trace::Suicide) -> Self {
         Suicide {
-            address: s.address,
-            refund_address: s.refund_address,
-            balance: s.balance,
+            address: H160T(s.address),
+            refund_address: H160T(s.refund_address),
+            balance: U256T(s.balance),
         }
     }
 }
@@ -420,7 +420,7 @@ impl From<trace::Action> for Action {
 #[serde(rename_all = "camelCase")]
 pub struct CallResult {
     /// Gas used
-    gas_used: U256,
+    gas_used: U256T,
     /// Output bytes
     output: Bytes,
 }
@@ -428,7 +428,7 @@ pub struct CallResult {
 impl From<trace::CallResult> for CallResult {
     fn from(c: trace::CallResult) -> Self {
         CallResult {
-            gas_used: c.gas_used,
+            gas_used: U256T(c.gas_used),
             output: c.output.into(),
         }
     }
@@ -439,19 +439,19 @@ impl From<trace::CallResult> for CallResult {
 #[serde(rename_all = "camelCase")]
 pub struct CreateResult {
     /// Gas used
-    gas_used: U256,
+    gas_used: U256T,
     /// Code
     code: Bytes,
     /// Assigned address
-    address: H160,
+    address: H160T,
 }
 
 impl From<trace::CreateResult> for CreateResult {
     fn from(c: trace::CreateResult) -> Self {
         CreateResult {
-            gas_used: c.gas_used,
+            gas_used: U256T(c.gas_used),
             code: c.code.into(),
-            address: c.address,
+            address: H160T(c.address),
         }
     }
 }
@@ -497,11 +497,11 @@ pub struct LocalizedTrace {
     /// Transaction position
     transaction_position: Option<usize>,
     /// Transaction hash
-    transaction_hash: Option<H256>,
+    transaction_hash: Option<H256T>,
     /// Block Number
     block_number: u64,
     /// Block Hash
-    block_hash: H256,
+    block_hash: H256T,
 }
 
 impl Serialize for LocalizedTrace {
@@ -558,7 +558,7 @@ impl From<EthLocalizedTrace> for LocalizedTrace {
             transaction_position: t.transaction_number.map(Into::into),
             transaction_hash: t.transaction_hash.map(Into::into),
             block_number: t.block_number,
-            block_hash: t.block_hash,
+            block_hash: H256T(t.block_hash),
         }
     }
 }
@@ -667,7 +667,7 @@ pub struct TraceResultsWithTransactionHash {
     /// The transaction trace.
     pub state_diff: Option<StateDiff>,
     /// The transaction Hash.
-    pub transaction_hash: H256,
+    pub transaction_hash: H256T,
 }
 
 /// Trace filter

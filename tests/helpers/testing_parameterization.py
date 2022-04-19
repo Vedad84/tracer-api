@@ -5,7 +5,8 @@ from parse_args import cfg
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 RESOURCES = f'{ROOT_DIR}/../resources/'
 
-url = cfg.endpoint #'http://localhost:8545'
+url = cfg.endpoint
+url_trace = cfg.trace_url
 
 
 def read_saved_tx_hashes_level() -> dict:
@@ -25,7 +26,7 @@ class TestParameterizationHelper:
     @staticmethod
     def test_name_with_parameter(testcase_func, _, param) -> str:
         """
-        Format test method(test name) to contain patameters values.
+        Format test method(test name) to contain parameters values.
 
         Args:
             testcase_func: test function.
@@ -34,13 +35,9 @@ class TestParameterizationHelper:
         Returns:
             Formatted test name string.
         """
-        return "%s_%s" % (str(testcase_func.__name__), '_'.join(param.args[2]))
+        return f"{str(testcase_func.__name__)}_{'_'.join(param.args[3])}"
 
 
-# level_test_parameters = [[tx_hash, url, role] for role, tx_hash in read_saved_tx_hashes_level().items()]
-#
-# print(level_test_parameters)
-
-level_test_parameters = {'input': [[tx_hash, url, role] for role, tx_hash in read_saved_tx_hashes_level().items()],
+level_test_parameters = {'input': [[tx_hash, url, url_trace, role] for role, tx_hash in read_saved_tx_hashes_level().items()],
                          'name_func': TestParameterizationHelper.test_name_with_parameter}
 

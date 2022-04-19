@@ -17,11 +17,9 @@ def send_trace_request(url, payload) -> dict:
     }
 
     response = requests.request("POST", url, headers=headers, data=payload, allow_redirects=False)
-
     return json.loads(response.text)
 
-
-def get_tx_info(tx_hex) -> dict:
+def get_tx_info(tx_hex) -> str:
     return json.dumps({
         "jsonrpc": "2.0",
         "method": "eth_getTransactionByHash",
