@@ -8,9 +8,8 @@ from helpers.requests_helper import send_trace_request, request_airdrop
 
 install_solc(version='0.7.6')
 
-PROXY_URL = "http://proxy:9090/solana"
-TRACER_URL = "http://neon-tracer:8250"
-proxy = Web3(Web3.HTTPProvider(PROXY_URL))
+NEON_URL = "http://neon-rpc:9090"
+proxy = Web3(Web3.HTTPProvider(NEON_URL))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
 proxy.eth.default_account = eth_account.address
 
@@ -102,7 +101,7 @@ class TestEthCall(TestCase):
                f'[{{"to": "{address}", "data": "{abi_data}"}}, {block_number}], ' \
                f'"id": 1}}'
         print('eth_call request data:', data)
-        resp = send_trace_request(TRACER_URL, data)
+        resp = send_trace_request(NEON_URL, data)
         print('eth_call response:', resp)
 
         result = resp.get('result', None)
