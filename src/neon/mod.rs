@@ -666,3 +666,12 @@ pub fn eth_call<P: Provider> (
         "gas_used": executor.used_gas().to_string(),
     }))
 }
+
+pub fn get_code<P: Provider>(
+    provider: P,
+    address: &H160,
+    block_number: u64,
+) -> Vec<u8> {
+    EmulatorAccountStorage::new(provider, Some(block_number))
+        .code(address)
+}

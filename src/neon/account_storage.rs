@@ -225,7 +225,7 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
                             ProgramError::Custom(ERR_SOL_NO_CODE_ACC) => "Solana account has no code account".to_string(),
                             err => format!("{:?}", err),
                         };
-                        warn!("Failed to get ehtereum contract account: {}", err_description);
+                        warn!("Failed to get ethereum contract account: {}", err_description);
                         default
                     },
                     |result| result)

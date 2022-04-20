@@ -184,13 +184,22 @@ pub trait EIP1898 {
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64) -> Result<U256T>;
+        block_number: u64,
+    ) -> Result<U256T>;
 
     #[method(name = "eth_getBalance")]
     fn eth_get_balance(
         &self,
         address: H160T,
-        block_number: u64) -> Result<U256T>;
+        block_number: u64,
+    ) -> Result<U256T>;
+
+    #[method(name = "eth_getCode")]
+    fn eth_get_code(
+        &self,
+        address: H160T,
+        block_number: u64,
+    ) -> Result<String>;
 }
 
 fn trace_with_options(traced_call: neon::TracedCall, options: &ParsedTraceOptions) -> TraceResults {
@@ -571,7 +580,8 @@ impl EIP1898Server for ServerImpl {
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64) -> Result<U256T> {
+        block_number: u64,
+    ) -> Result<U256T> {
 
         let provider = DbProvider::new(
             self.neon_config.rpc_client_after.clone(),
@@ -589,7 +599,8 @@ impl EIP1898Server for ServerImpl {
     fn eth_get_balance(
         &self,
         address: H160T,
-        block_number: u64) -> Result<U256T> {
+        block_number: u64,
+    ) -> Result<U256T> {
 
         let provider = DbProvider::new(
             self.neon_config.rpc_client_after.clone(),
@@ -600,6 +611,22 @@ impl EIP1898Server for ServerImpl {
             provider,
             &address.0,
             block_number)))
+    }
+
+    #[instrument]
+    fn eth_get_code(
+        &self,
+        address: H160T,
+        block_number: u64,
+    ) -> Result<String> {
+        let provider = DbProvider::new(
+            Arc::clone(&self.neon_config.rpc_client_after),
+            self.neon_config.evm_loader,
+        );
+
+        let code = neon::get_code(provider, &address.0, block_number);
+
+        Ok(format!("0x{}", hex::encode(code)))
     }
 }
 
