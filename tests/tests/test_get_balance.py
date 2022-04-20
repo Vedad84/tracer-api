@@ -15,14 +15,6 @@ class TestGetBalance(TestCase):
     def setUpClass(cls):
         pass
 
-    def get_balance(self, contract_address, block_number):
-        data = f'{{"jsonrpc":"2.0", "method": "eth_getBalance", ' \
-            f'"params": ["{contract_address}",{block_number}],"id": 1}}'
-        resp = send_trace_request(NEON_URL, data)
-        result = resp.get('result', None)
-        self.assertTrue(result is not None)
-        return int(result, base=16)
-
     def test_get_balance(self):
         initial_balance = 0
         block0 = proxy.eth.block_number
