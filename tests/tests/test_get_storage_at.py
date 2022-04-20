@@ -109,16 +109,16 @@ class TestGetStorageAt(TestCase):
         sleep(10) # wait for a while to changes be applied
         block2 = proxy.eth.block_number
 
-        self.assertEqual(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block0), 0)
-        self.assertEqual(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block1), value1)
-        self.assertEqual(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block2), value2)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block0), byteorder='big'), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block1), byteorder='big'), value1)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block2), byteorder='big'), value2)
 
     def test_account_not_found(self):
         block = proxy.eth.block_number
         sleep(10)
 
         non_existent_account = proxy.eth.account.create("Not exist")
-        self.assertEqual(proxy.eth.get_storage_at(non_existent_account.address, 0, block), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(non_existent_account.address, 0, block), byteorder='big'), 0)
 
     def test_account_is_not_contract(self):
         block = proxy.eth.block_number
@@ -126,4 +126,4 @@ class TestGetStorageAt(TestCase):
 
         personal_account = proxy.eth.account.create("Personal account")
         request_airdrop(personal_account.address)
-        self.assertEqual(proxy.eth.get_storage_at(personal_account.address, 0, block), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(personal_account.address, 0, block), byteorder='big'), 0)
