@@ -582,7 +582,6 @@ impl EIP1898Server for ServerImpl {
         index: U256T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-
         let provider = DbProvider::new(
             self.neon_config.rpc_client_after.clone(),
             self.neon_config.evm_loader,
@@ -595,7 +594,7 @@ impl EIP1898Server for ServerImpl {
                     provider,
                     &contract_id.0,
                     &index.0,
-                    number)))
+                    number)));
             },
             _ => todo!()
         }
