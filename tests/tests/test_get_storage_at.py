@@ -86,13 +86,6 @@ class TestGetStorageAt(TestCase):
         trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
         print('trx_store_receipt:', trx_store_receipt)
 
-    def get_storage_at(self, contract_address, index, block_number):
-        data = f'{{"jsonrpc":"2.0", "method": "eth_getStorageAt", "params": ["{contract_address}","{hex(index)}",{block_number}],"id": 1}}'
-        resp = send_trace_request(NEON_URL, data)
-        result = resp.get('result', None)
-        self.assertTrue(result is not None)
-        return int(result, base=16)
-
     def test_get_storage_at(self):
         value_idx = 0
 

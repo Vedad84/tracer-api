@@ -122,7 +122,7 @@ class TestEthCall(TestCase):
         return int(result, base=16)
 
     def eth_call(self, block_number):
-        return self.eth_call_ex(self.storage_contract.address, block_number)
+        return proxy.eth.call(self.storage_contract.address, block_number)
 
     def test_eth_call(self):
         block0 = proxy.eth.block_number
@@ -153,7 +153,7 @@ class TestEthCall(TestCase):
         # wait for a while in order to changes to be applied
         sleep(10)
 
-        self.assertIsNone(self.eth_call_ex('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number))
+        self.assertIsNone(proxy.eth.call('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number))
 
         # revert value in order to not break other tests
         self.store_value(0)
