@@ -8,7 +8,7 @@
 
 #pytest tests/test_geth_traces.py --capture=tee-sys --target=http://neon-rpc:9090  --trace_url=http://neon-rpc:9090
 #pytest tests/test_open_eth_traces.py --capture=tee-sys --target=http://neon-rpc:9090  --trace_url=http://neon-rpc:9090
-#python3 -m unittest discover -v -p "test_eth_call.py"
+python3 -m unittest discover -v -p "test_eth_call.py"
 python3 -m unittest discover -v -p "test_get_storage_at.py"
-#python3 -m unittest discover -v -p "test_get_balance.py"
-#python3 -m unittest discover -v -p "test_eth_get_code.py"
+python3 -m unittest discover -v -p "test_get_balance.py"
+python3 -m unittest discover -v -p "test_eth_get_code.py"
