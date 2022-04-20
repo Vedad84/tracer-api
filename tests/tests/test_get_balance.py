@@ -4,9 +4,8 @@ from time import sleep
 from unittest import TestCase
 from web3 import Web3
 
-PROXY_URL = "http://proxy:9090/solana"
-TRACER_URL = "http://neon-tracer:8250"
-proxy = Web3(Web3.HTTPProvider(PROXY_URL))
+NEON_URL = "http://neon-rpc:9090"
+proxy = Web3(Web3.HTTPProvider(NEON_URL))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
 proxy.eth.default_account = eth_account.address
 
@@ -19,7 +18,7 @@ class TestGetBalance(TestCase):
     def get_balance(self, contract_address, block_number):
         data = f'{{"jsonrpc":"2.0", "method": "eth_getBalance", ' \
             f'"params": ["{contract_address}",{block_number}],"id": 1}}'
-        resp = send_trace_request(TRACER_URL, data)
+        resp = send_trace_request(NEON_URL, data)
         result = resp.get('result', None)
         self.assertTrue(result is not None)
         return int(result, base=16)
