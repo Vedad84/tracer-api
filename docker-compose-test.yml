@@ -228,6 +228,8 @@ services:
     container_name: neon-rpc
     hostname: neon-rpc
     image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
+    expose:
+      - "9090"
     networks:
       - net
     depends_on:
@@ -240,8 +242,6 @@ services:
     container_name: neon-tracer-test
     hostname: neon-tracer-test
     image: neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
-    expose:
-      - "9090"
     networks:
       - net
     depends_on:
