@@ -615,7 +615,7 @@ pub fn eth_call<P: Provider> (
     value: Option<U256>,
     data: Option<Vec<u8>>,
     block_number: u64,
-) -> Result<serde_json::Value, Error> {
+) -> Result<String, Error> {
     let caller_id = from.unwrap_or_default();
     let block_number = Some(block_number);
 
@@ -658,13 +658,11 @@ pub fn eth_call<P: Provider> (
         ExitReason::StepLimitReached => unreachable!(),
     };
 
-    Ok(serde_json::json!({
-        "result": hex::encode(&result),
-        "exit_status": status,
-        "exit_reason": exit_reason,
-        "steps_executed": executor.get_steps_executed(),
-        "gas_used": executor.used_gas().to_string(),
-    }))
+    if status.eq("succeed") {
+        return Ok(format!("0x{}", hex::encode(&result)));
+    }
+
+    Ok("0x".to_string())
 }
 
 pub fn get_code<P: Provider>(

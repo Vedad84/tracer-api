@@ -177,7 +177,7 @@ pub trait EIP1898 {
         &self,
         object: EthCallObject,
         tag: BlockNumber,
-    ) -> Result<serde_json::Value>;
+    ) -> Result<String>;
 
     #[method(name = "eth_getStorageAt")]
     fn eth_get_storage_at(
@@ -558,7 +558,7 @@ impl EIP1898Server for ServerImpl {
         &self,
         object: EthCallObject,
         tag: BlockNumber,
-    ) -> Result<serde_json::Value> {
+    ) -> Result<String> {
         let provider = DbProvider::new(
             Arc::clone(&self.neon_config.rpc_client_after),
             self.neon_config.evm_loader,
