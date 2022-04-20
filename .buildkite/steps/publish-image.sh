@@ -26,3 +26,7 @@ docker push neonlabsorg/tracer-db:${TAG}
 docker pull neonlabsorg/neon-tracer-test:${REVISION}
 docker tag neonlabsorg/neon-tracer-test:${REVISION} neonlabsorg/neon-tracer-test:${TAG}
 docker push neonlabsorg/neon-tracer-test:${TAG}
+
+docker pull neonlabsorg/neon-rpc:${REVISION}
+docker tag neonlabsorg/neon-rpc:${REVISION} neonlabsorg/neon-rpc:${TAG}
+docker push neonlabsorg/neon-rpc:${TAG}

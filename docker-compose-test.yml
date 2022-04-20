@@ -227,13 +227,9 @@ services:
   neon-rpc:
     container_name: neon-rpc
     hostname: neon-rpc
-    image: nginx:1.21
+    image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
     networks:
       - net
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
-      - ./nginx/filter.js:/etc/nginx/filter.js
-      - ./nginx/logs:/var/log/nginx/
     depends_on:
       proxy:
         condition: service_healthy
