@@ -40,15 +40,15 @@ class TestGetBalance(TestCase):
         block2 = proxy.eth.block_number
 
         self.assertEqual(
-            self.get_balance(eth_account.address, block0),
+            proxy.eth.get_balance(eth_account.address, block0),
             initial_balance * ALAN_PER_NEON
         )
         self.assertEqual(
-            self.get_balance(eth_account.address, block1),
+            proxy.eth.get_balance(eth_account.address, block1),
             (initial_balance + delta_balance1) * ALAN_PER_NEON
         )
         self.assertEqual(
-            self.get_balance(eth_account.address, block2),
+            proxy.eth.get_balance(eth_account.address, block2),
             (initial_balance + delta_balance1 + delta_balance2) * ALAN_PER_NEON
         )
 
@@ -57,4 +57,4 @@ class TestGetBalance(TestCase):
         sleep(10)
 
         non_existent_account = proxy.eth.account.create("Not exist")
-        self.assertEqual(self.get_balance(non_existent_account.address, block), 0)
+        self.assertEqual(proxy.eth.get_balance(non_existent_account.address, block), 0)
