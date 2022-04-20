@@ -589,13 +589,14 @@ impl EIP1898Server for ServerImpl {
         );
 
         match tag {
-            BlockNumber::Num(number) =>
-                Ok(U256T(neon::get_storage_at(
+            BlockNumber::Num(number) => {
+                print!("Block number {:?}", number);
+                return Ok(U256T(neon::get_storage_at(
                     provider,
                     &contract_id.0,
                     &index.0,
-                    number))),
-            BlockNumber::Hash {hash, require_canonical} => todo!(),
+                    number)))
+            },
             _ => todo!()
         }
     }
