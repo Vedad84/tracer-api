@@ -40,19 +40,16 @@ function isEIP1898Method(req) {
 async function process(req) {
     let json = JSON.parse(req.requestText);
     if (isTracingMethod(json)) {
-        let res = await req.subrequest("/tracer", { method: "POST" });
-        req.return(res.status, res.responseBody);
+        req.internalRedirect("/tracer");
         return;
     }
 
     if (!isEIP1898Method(json)) {
-        let res = await req.subrequest("/proxy", { method: "POST" });
-        req.return(res.status, res.responseBody);
+        req.internalRedirect("/proxy");
         return;
     }
 
-    let res = await req.subrequest("/tracer", { method: "POST" });
-    req.return(res.status, res.responseBody);
+    req.internalRedirect("/tracer");
 }
 
 export default { process }
