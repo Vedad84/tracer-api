@@ -45,7 +45,7 @@ class TestEthGetCode(TestCase):
         self.deploy_address = trx_deploy_receipt.contractAddress
 
     def get_code(self, block_number):
-        return proxy.eth.get_code(self.deploy_address, block_number)
+        return proxy.eth.get_code(self.deploy_address, block_number).hex()
 
     def test_eth_get_code(self):
         expected_code = '0x' + CONTRACT_CODE
@@ -59,7 +59,7 @@ class TestEthGetCode(TestCase):
 
     def test_eth_get_code_incorrect_address(self):
         self.assertEqual(
-            proxy.eth.get_code('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number),
+            proxy.eth.get_code('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number).hex(),
             '0x',
         )
 
