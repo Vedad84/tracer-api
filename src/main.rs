@@ -184,7 +184,7 @@ pub trait EIP1898 {
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T>;
 
     #[method(name = "eth_getBalance")]
@@ -580,7 +580,7 @@ impl EIP1898Server for ServerImpl {
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T> {
 
         let provider = DbProvider::new(
@@ -588,11 +588,16 @@ impl EIP1898Server for ServerImpl {
             self.neon_config.evm_loader,
         );
 
-        Ok(U256T(neon::get_storage_at(
-            provider,
-            &contract_id.0,
-            &index.0,
-            block_number)))
+        match tag {
+            BlockNumber::Num(number) =>
+                Ok(U256T(neon::get_storage_at(
+                    provider,
+                    &contract_id.0,
+                    &index.0,
+                    number))),
+            BlockNumber::Hash {hash, require_canonical} => todo!(),
+            _ => todo!()
+        }
     }
 
     #[instrument]
