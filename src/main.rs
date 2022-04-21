@@ -200,6 +200,13 @@ pub trait EIP1898 {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<String>;
+
+    #[method(name = "eth_getTransactionCount")]
+    fn eth_get_transaction_count(
+        &self,
+        contract_id: H160T,
+        block_number: u64,
+    ) -> Result<U256T>;
 }
 
 fn trace_with_options(traced_call: neon::TracedCall, options: &ParsedTraceOptions) -> TraceResults {
@@ -645,6 +652,23 @@ impl EIP1898Server for ServerImpl {
             }
             _ => todo!()
         }
+    }
+
+    #[instrument]
+    fn eth_get_transaction_count(
+        &self,
+        account_id: H160T,
+        block_number: u64) -> Result<U256T> {
+
+        let provider = DbProvider::new(
+            self.neon_config.rpc_client_after.clone(),
+            self.neon_config.evm_loader,
+        );
+
+        Ok(U256T(neon::get_transaction_count(
+            provider,
+            &account_id.0,
+            block_number)))
     }
 }
 
