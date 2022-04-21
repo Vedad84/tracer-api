@@ -94,7 +94,10 @@ class TestEthCall(TestCase):
 
     def eth_call_ex(self, address, block_number):
         abi_data = self.storage_contract.encodeABI('retrieve')
-        return int.from_bytes(proxy.eth.call({'to': address, 'data': abi_data}, block_number), byteorder='big')
+        res = proxy.eth.call({'to': address, 'data': abi_data}, block_number)
+        if len(res) == 0:
+            return None
+        return int.from_bytes(res, byteorder='big')
 
     def eth_call(self, block_number):
         return self.eth_call_ex(self.storage_contract.address, block_number)
