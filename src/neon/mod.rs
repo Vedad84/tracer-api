@@ -675,3 +675,13 @@ pub fn get_code<P: Provider>(
     EmulatorAccountStorage::new(provider, Some(block_number))
         .code(address)
 }
+
+pub fn get_transaction_count<P>(
+    provider: P,
+    account_id: &H160,
+    block_number: u64,
+) -> U256
+    where  P: Provider, {
+    let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+    account_storage.nonce(account_id)
+}

@@ -3,7 +3,7 @@ from unittest import TestCase
 from solcx import install_solc
 from web3 import Web3
 
-from helpers.requests_helper import request_airdrop, send_trace_request
+from helpers.requests_helper import request_airdrop, send_trace_request, deploy_storage_contract
 
 install_solc(version='0.7.6')
 from solcx import compile_source
@@ -12,69 +12,14 @@ from time import sleep
 PROXY_URL = "http://proxy:9090/solana"
 TRACER_URL = "http://neon-tracer:8250"
 proxy = Web3(Web3.HTTPProvider(PROXY_URL))
-eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
+eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/tracer-api/issues/3')
 proxy.eth.default_account = eth_account.address
-
-STORAGE_SOLIDITY_SOURCE_147 = '''
-pragma solidity >=0.4.0 <0.9.0;
-/**
- * @title Storage
- * @dev Store & retrieve value in a variable
- */
-contract Storage {
-    uint256 number;
-    /**
-     * @dev Store value in variable
-     * @param num value to store
-     */
-    function store(uint256 num) public {
-        number = num;
-    }
-    /**
-     * @dev Return value
-     * @return value of 'number'
-     */
-    function retrieve() public view returns (uint256){
-        return number;
-    }
-}
-'''
 
 class TestGetStorageAt(TestCase):
     @classmethod
     def setUpClass(cls):
         request_airdrop(eth_account.address)
-        cls.deploy_storage_contract(cls)
-
-    def deploy_storage_contract(self):
-        compiled_sol = compile_source(STORAGE_SOLIDITY_SOURCE_147)
-        contract_id, contract_interface = compiled_sol.popitem()
-        storage = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
-        trx_deploy = proxy.eth.account.sign_transaction(dict(
-            nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
-            chainId=proxy.eth.chain_id,
-            gas=987654321,
-            gasPrice=2000000000,
-            to='',
-            value=0,
-            data=storage.bytecode),
-            eth_account.key
-        )
-        print('trx_deploy:', trx_deploy)
-        self.trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
-        print('trx_deploy_hash:', self.trx_deploy_hash.hex())
-        trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(self.trx_deploy_hash)
-        print('trx_deploy_receipt:', trx_deploy_receipt)
-
-        self.deploy_block_hash = trx_deploy_receipt['blockHash']
-        self.deploy_block_num = trx_deploy_receipt['blockNumber']
-        print('deploy_block_hash:', self.deploy_block_hash)
-        print('deploy_block_num:', self.deploy_block_num)
-
-        self.storage_contract = proxy.eth.contract(
-            address=trx_deploy_receipt.contractAddress,
-            abi=storage.abi
-        )
+        cls.storage_contract, cls.deploy_block_num = deploy_storage_contract(proxy, eth_account)
 
     def store_value(self, value):
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
