@@ -1,8 +1,0 @@
-{
-  "id": 2,
-  "jsonrpc": "2.0",
-  "method":"debug_traceTransaction",
-  "params":[
-    {"disableStack":true}
-  ]
-}

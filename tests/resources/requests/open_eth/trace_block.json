@@ -1,8 +1,0 @@
-{
-    "method":"trace_block",
-    "params": [
-     "{{blockNumber}}"
-    ],
-    "id":1,
-    "jsonrpc":"2.0"
-}

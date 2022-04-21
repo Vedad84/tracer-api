@@ -1,9 +1,0 @@
-{
-    "method":"trace_replayTransaction",
-    "params":[
-        "{{hash_2}}",
-        ["trace", "vmTrace","stateDiff"]
-        ],
-    "id":1,
-    "jsonrpc":"2.0"
-}

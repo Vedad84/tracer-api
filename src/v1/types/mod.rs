@@ -6,9 +6,6 @@ use serde::{
 };
 use std::fmt;
 
-pub mod trace;
-
-pub use trace::*;
 use crate::v1::geth::types::trace::{H160T, H256T, U256T};
 
 /// Represents rpc api block number param.
@@ -246,38 +243,6 @@ impl<'a> Visitor<'a> for BytesVisitor {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Deserialize)]
-#[serde(deny_unknown_fields)]
-#[serde(rename_all = "camelCase")]
-pub struct CallRequest {
-    /// transaction type. Defaults to legacy type.
-    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub transaction_type: Option<U64>,
-    /// From
-    pub from: Option<H160T>,
-    /// To
-    pub to: Option<H160T>,
-    /// Gas Price
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gas_price: Option<U256T>,
-    /// Max fee per gas
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_fee_per_gas: Option<U256T>,
-    /// Gas
-    pub gas: Option<U256T>,
-    /// Value
-    pub value: Option<U256T>,
-    /// Data
-    pub data: Option<Bytes>,
-    /// Nonce
-    pub nonce: Option<U256T>,
-    /// Access list
-    //#[serde(skip_serializing_if = "Option::is_none")]
-    //pub access_list: Option<AccessList>,
-    /// Miner bribe
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub max_priority_fee_per_gas: Option<U256T>,
-}
 
 /// Represents usize.
 #[derive(Debug, PartialEq)]
