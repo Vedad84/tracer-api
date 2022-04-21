@@ -94,14 +94,7 @@ class TestEthCall(TestCase):
 
     def eth_call_ex(self, address, block_number):
         abi_data = self.storage_contract.encodeABI('retrieve')
-        data = f'{{' \
-               f'"jsonrpc":"2.0", ' \
-               f'"method": "eth_call", ' \
-               f'"params": ' \
-               f'[{{"to": "{address}", "data": "{abi_data}"}}, {block_number}], ' \
-               f'"id": 1}}'
-        print('eth_call request data:', data)
-        return int(proxy.eth.call({'to': address, 'data': abi_data}, block_number), base=16)
+        return int.from_bytes(proxy.eth.call({'to': address, 'data': abi_data}, block_number), byteorder='big')
 
     def eth_call(self, block_number):
         return self.eth_call_ex(self.storage_contract.address, block_number)
