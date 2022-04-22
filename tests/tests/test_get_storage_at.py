@@ -6,7 +6,6 @@ from web3 import Web3
 from helpers.requests_helper import request_airdrop, send_trace_request, deploy_storage_contract
 
 install_solc(version='0.7.6')
-from solcx import compile_source
 from time import sleep
 
 NEON_URL = "http://neon-rpc:9090"
