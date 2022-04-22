@@ -5,7 +5,7 @@ from web3 import Web3
 
 from helpers.requests_helper import send_trace_request, request_airdrop
 
-NEON_URL = 'http://proxy:9090/solana'
+NEON_URL = 'http://neon-rpc:9090'
 CONTRACT_CODE = '6060604052600080fd00a165627a7a72305820e75cae05548a56ec53108e39a532f0644e4b92aa900cc9f2cf98b7ab044539380029'
 DEPLOY_CODE = '60606040523415600e57600080fd5b603580601b6000396000f300' + CONTRACT_CODE
 proxy = Web3(Web3.HTTPProvider(NEON_URL))
