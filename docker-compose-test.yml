@@ -57,7 +57,7 @@ services:
 
   evm_loader:
     container_name: evm_loader
-    image: neonlabsorg/evm_loader:ci-tracing-api-develop-1.8.12
+    image: neonlabsorg/evm_loader:develop
     environment:
       - SOLANA_URL=http://validator:8899
     networks:
