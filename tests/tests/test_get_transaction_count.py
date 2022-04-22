@@ -5,9 +5,8 @@ from helpers.requests_helper import request_airdrop, send_trace_request, deploy_
 import json
 from time import sleep
 
-PROXY_URL = "http://proxy:9090/solana"
-TRACER_URL = "http://neon-tracer:8250"
-proxy = Web3(Web3.HTTPProvider(PROXY_URL))
+NEON_URL = "http://neon-rpc:9090"
+proxy = Web3(Web3.HTTPProvider(NEON_URL))
 eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/tracer-api/issues/5')
 proxy.eth.default_account = eth_account.address
 
@@ -26,7 +25,7 @@ class TestGetTransactionCount(TestCase):
             ],
             "id":1
         }
-        resp = send_trace_request(TRACER_URL, json.dumps(data))
+        resp = send_trace_request(NEON_URL, json.dumps(data))
         self.assertIsNotNone(resp.get('result', None))
         return int(resp['result'], 16)
 

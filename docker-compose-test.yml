@@ -222,7 +222,21 @@ services:
       interval: 10s
       timeout: 10s
       retries: 10
-      start_period: 5s 
+      start_period: 5s
+      
+  neon-rpc:
+    container_name: neon-rpc
+    hostname: neon-rpc
+    image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
+    expose:
+      - "9090"
+    networks:
+      - net
+    depends_on:
+      proxy:
+        condition: service_healthy
+      neon-tracer:
+        condition: service_started
   
   neon-tracer-test:
     container_name: neon-tracer-test
@@ -233,9 +247,7 @@ services:
     depends_on:
       faucet:
         condition: service_healthy
-      proxy:
-        condition: service_healthy
-      neon-tracer:
+      neon-rpc:
         condition: service_started
 
 networks:

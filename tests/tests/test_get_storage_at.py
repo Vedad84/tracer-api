@@ -6,13 +6,11 @@ from web3 import Web3
 from helpers.requests_helper import request_airdrop, send_trace_request, deploy_storage_contract
 
 install_solc(version='0.7.6')
-from solcx import compile_source
 from time import sleep
 
-PROXY_URL = "http://proxy:9090/solana"
-TRACER_URL = "http://neon-tracer:8250"
-proxy = Web3(Web3.HTTPProvider(PROXY_URL))
-eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/tracer-api/issues/3')
+NEON_URL = "http://neon-rpc:9090"
+proxy = Web3(Web3.HTTPProvider(NEON_URL))
+eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
 proxy.eth.default_account = eth_account.address
 
 class TestGetStorageAt(TestCase):
@@ -34,7 +32,7 @@ class TestGetStorageAt(TestCase):
 
     def get_storage_at(self, contract_address, index, block_number):
         data = f'{{"jsonrpc":"2.0", "method": "eth_getStorageAt", "params": ["{contract_address}","{hex(index)}",{block_number}],"id": 1}}'
-        resp = send_trace_request(TRACER_URL, data)
+        resp = send_trace_request(NEON_URL, data)
         result = resp.get('result', None)
         self.assertTrue(result is not None)
         return int(result, base=16)
