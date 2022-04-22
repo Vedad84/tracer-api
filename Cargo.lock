@@ -1244,7 +1244,7 @@ dependencies = [
 [[package]]
 name = "evm"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#7f361e13fcaac95be0d981bcbb01b0cf3b07fcdd"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#6732aa22f973fd7492eccc49be7d6fbc5607e912"
 dependencies = [
  "evm-core",
  "evm-runtime",
@@ -1258,7 +1258,7 @@ dependencies = [
 [[package]]
 name = "evm-core"
 version = "0.18.2"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#7f361e13fcaac95be0d981bcbb01b0cf3b07fcdd"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#6732aa22f973fd7492eccc49be7d6fbc5607e912"
 dependencies = [
  "fixed-hash",
  "impl-rlp",
@@ -1272,7 +1272,7 @@ dependencies = [
 [[package]]
 name = "evm-loader"
 version = "0.7.5-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#7f361e13fcaac95be0d981bcbb01b0cf3b07fcdd"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#6732aa22f973fd7492eccc49be7d6fbc5607e912"
 dependencies = [
  "arrayref",
  "bincode",
@@ -1304,7 +1304,7 @@ dependencies = [
 [[package]]
 name = "evm-runtime"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#7f361e13fcaac95be0d981bcbb01b0cf3b07fcdd"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#6732aa22f973fd7492eccc49be7d6fbc5607e912"
 dependencies = [
  "environmental",
  "evm-core",
