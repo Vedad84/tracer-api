@@ -144,7 +144,6 @@ impl EIP1898Server for ServerImpl {
 
         match tag {
             BlockNumber::Num(number) => {
-                print!("Block number {:?}", number);
                 return Ok(U256T(neon::get_storage_at(
                     provider,
                     &contract_id.0,
