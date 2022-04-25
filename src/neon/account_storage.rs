@@ -406,6 +406,9 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
         )
     }
 
+    fn token_mint(&self) -> &Pubkey { todo!() }
 
+    fn block_hash(&self, _: evm::U256) -> evm::H256 { todo!() }
 
+    fn chain_id(&self) -> u64 { todo!() }
 }
