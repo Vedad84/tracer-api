@@ -44,22 +44,8 @@ class TestEthGetCode(TestCase):
         print('deploy_block_num:', self.deploy_block_num)
         self.deploy_address = trx_deploy_receipt.contractAddress
 
-    @staticmethod
-    def get_code_ex(address, block_number):
-        data = f'{{' \
-               f'"jsonrpc":"2.0", ' \
-               f'"method": "eth_getCode", ' \
-               f'"params": ' \
-               f'["{address}", {block_number}], ' \
-               f'"id": 1}}'
-        print('eth_getCode request data:', data)
-        resp = send_trace_request(NEON_URL, data)
-        print('eth_getCode response:', resp)
-
-        return resp.get('result')
-
     def get_code(self, block_number):
-        return TestEthGetCode.get_code_ex(self.deploy_address, block_number)
+        return proxy.eth.get_code(self.deploy_address, block_number).hex()
 
     def test_eth_get_code(self):
         expected_code = '0x' + CONTRACT_CODE
@@ -73,7 +59,7 @@ class TestEthGetCode(TestCase):
 
     def test_eth_get_code_incorrect_address(self):
         self.assertEqual(
-            TestEthGetCode.get_code_ex('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number),
+            proxy.eth.get_code('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number).hex(),
             '0x',
         )
 

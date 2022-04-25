@@ -40,32 +40,10 @@ class TestEthCall(TestCase):
 
     def eth_call_ex(self, address, block_number):
         abi_data = self.storage_contract.encodeABI('retrieve')
-        data = f'{{' \
-               f'"jsonrpc":"2.0", ' \
-               f'"method": "eth_call", ' \
-               f'"params": ' \
-               f'[{{"to": "{address}", "data": "{abi_data}"}}, {block_number}], ' \
-               f'"id": 1}}'
-        print('eth_call request data:', data)
-        resp = send_trace_request(NEON_URL, data)
-        print('eth_call response:', resp)
-
-        result = resp.get('result', None)
-        self.assertTrue(result is not None)
-
-        exit_reason = result.get('exit_reason', None)
-        self.assertTrue(exit_reason is not None)
-
-        succeed_status = exit_reason.get('Succeed', None)
-        self.assertTrue(succeed_status is not None)
-
-        if succeed_status != 'Returned':
+        res = proxy.eth.call({'to': address, 'data': abi_data}, block_number)
+        if len(res) == 0:
             return None
-
-        result = result.get('result', None)
-        self.assertTrue(result is not None)
-
-        return int(result, base=16)
+        return int.from_bytes(res, byteorder='big')
 
     def eth_call(self, block_number):
         return self.eth_call_ex(self.storage_contract.address, block_number)

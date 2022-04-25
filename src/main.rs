@@ -176,29 +176,29 @@ pub trait EIP1898 {
     fn eth_call(
         &self,
         object: EthCallObject,
-        block_number: u64,
-    ) -> Result<serde_json::Value>;
+        tag: BlockNumber,
+    ) -> Result<String>;
 
     #[method(name = "eth_getStorageAt")]
     fn eth_get_storage_at(
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T>;
 
     #[method(name = "eth_getBalance")]
     fn eth_get_balance(
         &self,
         address: H160T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T>;
 
     #[method(name = "eth_getCode")]
     fn eth_get_code(
         &self,
         address: H160T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<String>;
 
     #[method(name = "eth_getTransactionCount")]
@@ -564,22 +564,27 @@ impl EIP1898Server for ServerImpl {
     fn eth_call(
         &self,
         object: EthCallObject,
-        block_number: u64,
-    ) -> Result<serde_json::Value> {
+        tag: BlockNumber,
+    ) -> Result<String> {
         let provider = DbProvider::new(
             Arc::clone(&self.neon_config.rpc_client_after),
             self.neon_config.evm_loader,
         );
 
-        neon::eth_call(
-            provider,
-            object.from.map(|v| v.0),
-            object.to.0,
-            object.gas.map(|v| v.0),
-            object.value.map(|v| v.0),
-            object.data.map(|v| v.0),
-            block_number,
-        ).map_err(|err| Error::Custom(err.to_string()))
+        match tag {
+            BlockNumber::Num(block_number) =>
+                neon::eth_call(
+                    provider,
+                    object.from.map(|v| v.0),
+                    object.to.0,
+                    object.gas.map(|v| v.0),
+                    object.value.map(|v| v.0),
+                    object.data.map(|v| v.0),
+                    block_number,
+                ).map_err(|err| Error::Custom(err.to_string())),
+            _ => todo!()
+        }
+
     }
 
     #[instrument]
@@ -587,26 +592,30 @@ impl EIP1898Server for ServerImpl {
         &self,
         contract_id: H160T,
         index: U256T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T> {
-
         let provider = DbProvider::new(
             self.neon_config.rpc_client_after.clone(),
             self.neon_config.evm_loader,
         );
 
-        Ok(U256T(neon::get_storage_at(
-            provider,
-            &contract_id.0,
-            &index.0,
-            block_number)))
+        match tag {
+            BlockNumber::Num(number) => {
+                return Ok(U256T(neon::get_storage_at(
+                    provider,
+                    &contract_id.0,
+                    &index.0,
+                    number)));
+            },
+            _ => todo!()
+        }
     }
 
     #[instrument]
     fn eth_get_balance(
         &self,
         address: H160T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T> {
 
         let provider = DbProvider::new(
@@ -614,26 +623,34 @@ impl EIP1898Server for ServerImpl {
             self.neon_config.evm_loader,
         );
 
-        Ok(U256T(neon::get_balance(
-            provider,
-            &address.0,
-            block_number)))
+        match tag {
+            BlockNumber::Num(block_number) =>
+                Ok(U256T(neon::get_balance(
+                    provider,
+                    &address.0,
+                    block_number))),
+            _ => todo!()
+        }
     }
 
     #[instrument]
     fn eth_get_code(
         &self,
         address: H160T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<String> {
         let provider = DbProvider::new(
             Arc::clone(&self.neon_config.rpc_client_after),
             self.neon_config.evm_loader,
         );
 
-        let code = neon::get_code(provider, &address.0, block_number);
-
-        Ok(format!("0x{}", hex::encode(code)))
+        match tag {
+            BlockNumber::Num(block_number) => {
+                let code = neon::get_code(provider, &address.0, block_number);
+                Ok(format!("0x{}", hex::encode(code)))
+            }
+            _ => todo!()
+        }
     }
 
     #[instrument]

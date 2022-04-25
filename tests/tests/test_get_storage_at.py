@@ -30,13 +30,6 @@ class TestGetStorageAt(TestCase):
         trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
         print('trx_store_receipt:', trx_store_receipt)
 
-    def get_storage_at(self, contract_address, index, block_number):
-        data = f'{{"jsonrpc":"2.0", "method": "eth_getStorageAt", "params": ["{contract_address}","{hex(index)}",{block_number}],"id": 1}}'
-        resp = send_trace_request(NEON_URL, data)
-        result = resp.get('result', None)
-        self.assertTrue(result is not None)
-        return int(result, base=16)
-
     def test_get_storage_at(self):
         value_idx = 0
 
@@ -53,16 +46,16 @@ class TestGetStorageAt(TestCase):
         sleep(10) # wait for a while to changes be applied
         block2 = proxy.eth.block_number
 
-        self.assertEqual(self.get_storage_at(self.storage_contract.address, value_idx, block0), 0)
-        self.assertEqual(self.get_storage_at(self.storage_contract.address, value_idx, block1), value1)
-        self.assertEqual(self.get_storage_at(self.storage_contract.address, value_idx, block2), value2)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block0), byteorder='big'), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block1), byteorder='big'), value1)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block2), byteorder='big'), value2)
 
     def test_account_not_found(self):
         block = proxy.eth.block_number
         sleep(10)
 
         non_existent_account = proxy.eth.account.create("Not exist")
-        self.assertEqual(self.get_storage_at(non_existent_account.address, 0, block), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(non_existent_account.address, 0, block), byteorder='big'), 0)
 
     def test_account_is_not_contract(self):
         block = proxy.eth.block_number
@@ -70,4 +63,4 @@ class TestGetStorageAt(TestCase):
 
         personal_account = proxy.eth.account.create("Personal account")
         request_airdrop(personal_account.address)
-        self.assertEqual(self.get_storage_at(personal_account.address, 0, block), 0)
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(personal_account.address, 0, block), byteorder='big'), 0)
