@@ -57,7 +57,7 @@ services:
 
   evm_loader:
     container_name: evm_loader
-    image: neonlabsorg/evm_loader:develop
+    image: neonlabsorg/evm_loader:latest
     environment:
       - SOLANA_URL=http://validator:8899
     networks:
