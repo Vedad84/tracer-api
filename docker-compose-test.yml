@@ -20,7 +20,7 @@ services:
     
   validator:
     container_name: validator
-    image: neonlabsorg/solana:ci-tracing-api-develop
+    image: neonlabsorg/solana:v1.9.12-testnet-accountdumper
     environment:
       NEON_REVISION: ${NEON_EVM_COMMIT:-ci-tracing-api-develop-v1.8.12}
       SOLANA_URL: http://validator:8899
@@ -171,22 +171,25 @@ services:
     environment:
       RUST_BACKTRACE: 1
       RUST_LOG: neon=debug
+      LISTEN_ADDR: 0.0.0.0:8250
+      SOLANA_URL: http://validator:8899
+      EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
+      TRACER_DB_URL: http://tracer-db:8123
+      TRACER_DB_NAME: tracer_api_db
+      TRACER_DB_USER: validator_user
+      TRACER_DB_PASSWORD: qwerty
     image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
     depends_on:
       tracer-db:
         condition: service_healthy
+      validator:
+        condition: service_healthy
+      evm_loader:
+        condition: service_completed_successfully
     expose:
       - "8250"
     ports:
       - "127.0.0.1:8250:8250"
-    command: >
-      neon-tracer 
-      -l 0.0.0.0:8250
-      -c http://tracer-db:8123
-      -d tracer_api_db
-      -u validator_user
-      -p qwerty
-      --evm-loader 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
     networks:
       - net
       

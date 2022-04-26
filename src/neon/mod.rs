@@ -99,6 +99,13 @@ pub fn get_storage_at<P>(
     block_number: u64)
     -> U256
 where  P: Provider, {
+
+    let syscall_stubs = Stubs::new(&provider, Some(block_number));
+    if syscall_stubs.is_err() {
+        return U256::default();
+    }
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs.unwrap());
+
     let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
     account_storage.storage(contract_id, index)
 }
@@ -109,6 +116,13 @@ pub fn get_balance<P>(
     block_number: u64)
     -> U256
     where  P: Provider, {
+
+    let syscall_stubs = Stubs::new(&provider, Some(block_number));
+    if syscall_stubs.is_err() {
+        return U256::default();
+    }
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs.unwrap());
+
     let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
     account_storage.balance(address)
 }
@@ -176,6 +190,13 @@ pub fn get_code<P: Provider>(
     address: &H160,
     block_number: u64,
 ) -> Vec<u8> {
+
+    let syscall_stubs = Stubs::new(&provider, Some(block_number));
+    if syscall_stubs.is_err() {
+        return vec![];
+    }
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs.unwrap());
+
     EmulatorAccountStorage::new(provider, Some(block_number))
         .code(address)
 }
@@ -186,6 +207,13 @@ pub fn get_transaction_count<P>(
     block_number: u64,
 ) -> U256
     where  P: Provider, {
+
+    let syscall_stubs = Stubs::new(&provider, Some(block_number));
+    if syscall_stubs.is_err() {
+        return U256::default();
+    }
+    solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs.unwrap());
+
     let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
     account_storage.nonce(account_id)
 }

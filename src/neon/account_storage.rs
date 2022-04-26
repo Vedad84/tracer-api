@@ -15,8 +15,15 @@ use evm_loader::{
 
 use evm_loader::account::tag;
 
-use solana_program::instruction::AccountMeta;
-use solana_sdk::{account::Account, pubkey::Pubkey};
+use solana_program::sysvar::recent_blockhashes;
+use solana_sdk::{
+    account::Account,
+    pubkey::Pubkey,
+    sysvar::{
+        clock::Clock,
+        Sysvar,
+    },
+};
 
 use super::provider::Provider;
 use crate::neon::{Config, EvmAccount};
@@ -25,6 +32,8 @@ use solana_sdk::account_info::AccountInfo;
 use std::collections::{BTreeMap, BTreeSet};
 use solana_sdk::program_error::ProgramError;
 use crate::neon::{Error, account_info};
+use std::env;
+use std::str::FromStr;
 
 
 macro_rules! bail_with_default {
@@ -50,6 +59,9 @@ pub struct EmulatorAccountStorage<P> {
     provider: P,
     block_number: u64,
     block_timestamp: i64,
+    token_mint: Pubkey,
+    chain_id: u64,
+    clock: Clock,
 }
 
 impl<'a, P: Provider> EmulatorAccountStorage<P> {
@@ -79,6 +91,18 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
             0
         };
 
+        let token_mint = Pubkey::from_str(
+            env::var("NEON_TOKEN_MINT")
+                .expect("NEON_TOKEN_MINT is not set").as_str())
+            .expect("Unable to parse NEON_TOKEN_MINT");
+
+        let chain_id = u64::from_str(
+            env::var("NEON_CHAIN_ID")
+                .expect("NEON_CHAIN_ID is not set").as_str())
+            .expect("Unable to parse NEON_CHAIN_ID");
+
+        let clock = Clock::get().expect("Failed to create clock");
+
         Self {
             // accounts: RefCell::new(HashMap::new()),
             ethereum_accounts:  RefCell::new(HashMap::new()),
@@ -86,6 +110,9 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
             provider: provider,
             block_number: slot,
             block_timestamp: timestamp,
+            token_mint,
+            chain_id,
+            clock,
         }
     }
 
@@ -406,9 +433,33 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
         )
     }
 
-    fn token_mint(&self) -> &Pubkey { todo!() }
+    fn token_mint(&self) -> &Pubkey { &self.token_mint }
 
-    fn block_hash(&self, _: evm::U256) -> evm::H256 { todo!() }
+    fn block_hash(&self, number: evm::U256) -> evm::H256 {
+        if !self.create_sol_acc_if_not_exists(&recent_blockhashes::ID) {
+            warn!("Failed to create/find recent_blockhashed account");
+            return evm::H256::default();
+        }
 
-    fn chain_id(&self) -> u64 { todo!() }
+        let mut solana_accounts = self.solana_accounts.borrow_mut();
+
+        if let Some(account) = solana_accounts.get_mut(&recent_blockhashes::ID) {
+            let info = account_info(&recent_blockhashes::ID, account);
+            let slot_hash_data = info.data.borrow();
+            let clock_slot = self.clock.slot;
+            if number >= clock_slot.into() {
+                return H256::default();
+            }
+            let offset: usize = (8 + (clock_slot - 1 - number.as_u64()) * 40).try_into().unwrap();
+            if offset + 32 > slot_hash_data.len() {
+                return H256::default();
+            }
+            return H256::from_slice(&slot_hash_data[offset..][..32]);
+        }
+        else {
+            evm::H256::default()
+        }
+    }
+
+    fn chain_id(&self) -> u64 { self.chain_id }
 }
