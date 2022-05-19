@@ -82,6 +82,8 @@ services:
       - "5432"
     networks:
       - net
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
       interval: 5s
@@ -270,6 +272,40 @@ services:
         condition: service_started
       neon-rpc:
         condition: service_started
+        
+  graph-node:
+    container_name: graph-node
+    image: graphprotocol/graph-node
+    ports:
+      - '8000:8000'
+      - '8001:8001'
+      - '8020:8020'
+      - '8030:8030'
+      - '8040:8040'
+    depends_on:
+      - ipfs
+      - postgres
+      - neon-rpc
+    environment:
+      postgres_host: postgres
+      postgres_user: neon-proxy
+      postgres_pass: neon-proxy-pass
+      postgres_db: neon-db
+      ipfs: 'ipfs:5001'
+      ethereum: 'mainnet:http://neon-rpc:9090'
+      RUST_LOG: info
+    networks:
+      - net
+
+  ipfs:
+    container_name: ipfs
+    image: ipfs/go-ipfs:v0.4.23
+    ports:
+      - '5001:5001'
+    volumes:
+      - ./data/ipfs:/data/ipfs
+    networks:
+      - net
 
 networks:
   net:
