@@ -1,5 +1,7 @@
 #!/bin/bash
 
+sleep 10 # Remove after switching to heatcheck in faucet
+
 python3 -m unittest discover -v -p "test_eth_call.py"
 python3 -m unittest discover -v -p "test_get_storage_at.py"
 python3 -m unittest discover -v -p "test_get_balance.py"

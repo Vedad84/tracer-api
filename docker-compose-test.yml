@@ -177,7 +177,7 @@ services:
     container_name: deploy_contracts
     image: neonlabsorg/evm_loader:${NEON_EVM_COMMIT:-latest}
     environment:
-      - SOLANA_URL=http://solana:8899
+      - SOLANA_URL=http://validator:8899
       - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json
     networks:
       - net
@@ -238,6 +238,13 @@ services:
     networks:
       - net
     entrypoint: ./run-test-faucet.sh
+    # TODO: Add healthcheck script to faucet image
+    #healthcheck:
+    #  test: [ CMD-SHELL, "./health_check_faucet.sh", "http://faucet:3333" ]
+    #  interval: 10s
+    #  timeout: 10s
+    #  retries: 10
+    #  start_period: 5s
     depends_on:
       proxy:
         condition: service_started
@@ -267,6 +274,7 @@ services:
       - net
     depends_on:
       faucet:
+        #condition: service_healthy TODO: Use this after updating faucet image
         condition: service_started
       neon-rpc:
         condition: service_started
