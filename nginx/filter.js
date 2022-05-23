@@ -14,24 +14,28 @@ function isTracingMethod(req) {
         method === "trace_replayBlockTransactions";
 }
 
+function tagIsPredefined(tag) {
+  return tag === 'latest' || tag === 'pending' || tag === 'earliest';
+}
+
 function isEIP1898Method(req) {
     let method = req.method;
     let params = req.params;
 
     if (method === "eth_getStorageAt") {
-        return !(params[2] === "latest");
+        return !tagIsPredefined(params[2]);
     }
     else if (method === "eth_getBalance") {
-        return !(params[1] === "latest");
+        return !tagIsPredefined(params[1]);
     }
     else if (method === "eth_getCode") {
-        return !(params[1] === "latest");
+        return !tagIsPredefined(params[1]);
     }
     else if (method === "eth_getTransactionCount") {
-        return !(params[1] === "latest");
+        return !tagIsPredefined(params[1]);
     }
     else if (method === "eth_call") {
-        return !(params[1] === "latest");
+        return !tagIsPredefined(params[1]);
     }
 
     return false;
