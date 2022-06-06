@@ -8,6 +8,7 @@ echo "Neon EVM revision=${NEON_EVM_COMMIT}"
 docker-compose -f docker-compose-test.yml pull
 
 docker-compose -f docker-compose-test.yml up neon-tracer-test
+result=$?
 
 if docker logs validator >validator.log 2>&1; then echo "validator logs saved"; fi
 if docker logs evm_loader >evm_loader.log 2>&1; then echo "evm_loader logs saved"; fi
@@ -20,3 +21,5 @@ if docker logs tracer-db >tracer-db.log 2>&1; then echo "tracer-db logs saved"; 
 if docker logs neon-tracer-test >neon-tracer-test.log 2>&1; then echo "neon-tracer-test logs saved"; fi
 
 docker-compose -f  docker-compose-test.yml down
+
+exit $result

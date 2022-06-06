@@ -26,7 +26,6 @@ evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develo
 evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, features = ["tracing"] }
 
 solana-sdk = "=1.9.12"
-solana-client = "=1.9.12"
 solana-program = { version = "=1.9.12", default_features = false }
 solana-transaction-status = "=1.9.12"
 solana-runtime = "=1.9.12"
@@ -53,6 +52,7 @@ itertools = "0.10"
 clickhouse = "0.8"
 thiserror = "1.0"
 secret-value = { version = "0.1.0", features = ["serde"] }
+web3 = "0.18.0"
 
 libloading = "0.6.2"
 num-derive = { version = "0.3" }

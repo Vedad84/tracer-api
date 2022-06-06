@@ -8,4 +8,5 @@ neon-tracer -l $LISTEN_ADDR \
       -d $TRACER_DB_NAME \
       -u $TRACER_DB_USER \
       -p $TRACER_DB_PASSWORD \
-      --evm-loader $EVM_LOADER
+      --evm-loader $EVM_LOADER \
+      -w $WEB3_PROXY

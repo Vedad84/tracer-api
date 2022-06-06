@@ -1,6 +1,4 @@
 import sys
-from betterconf import Config
-
 
 class TestConfig(dict):
     """

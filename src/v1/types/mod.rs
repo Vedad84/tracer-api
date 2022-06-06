@@ -9,12 +9,12 @@ use std::fmt;
 use crate::v1::geth::types::trace::{H160T, H256T, U256T};
 
 /// Represents rpc api block number param.
-#[derive(Debug, PartialEq, Clone, Hash, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum BlockNumber {
     /// Hash
     Hash {
         /// block hash
-        hash: H256,
+        hash: H256T,
         /// only return blocks part of the canon chain
         require_canonical: bool,
     },
@@ -58,13 +58,13 @@ impl Serialize for BlockNumber {
     where
         S: Serializer,
     {
-        match *self {
+        match &*self {
             BlockNumber::Hash {
                 hash,
                 require_canonical,
             } => serializer.serialize_str(&format!(
                 "{{ 'hash': '{}', 'requireCanonical': '{}'  }}",
-                hash, require_canonical
+                hash.0.to_string(), require_canonical
             )),
             BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{:x}", x)),
             BlockNumber::Latest => serializer.serialize_str("latest"),
@@ -91,7 +91,7 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
         V: MapAccess<'a>,
     {
         let (mut require_canonical, mut block_number, mut block_hash) =
-            (false, None::<u64>, None::<H256>);
+            (false, None::<u64>, None::<H256T>);
 
         loop {
             let key_str: Option<String> = visitor.next_key()?;

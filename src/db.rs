@@ -5,7 +5,6 @@ use evm::{H160, H256};
 use solana_account_decoder::parse_token::{
     parse_token, TokenAccountType, UiTokenAccount, UiTokenAmount,
 };
-use solana_client::rpc_response::{Response, RpcResponseContext};
 use solana_sdk::account::{Account, ReadableAccount};
 use solana_sdk::message::Message;
 use solana_sdk::pubkey::Pubkey;

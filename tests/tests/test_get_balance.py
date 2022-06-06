@@ -16,7 +16,7 @@ class TestGetBalance(TestCase):
         pass
 
     def test_get_balance(self):
-        initial_balance = 0
+        initial_balance = proxy.eth.get_balance(eth_account.address)
         block0 = proxy.eth.block_number
 
         # Request 10 SOLs
@@ -33,15 +33,56 @@ class TestGetBalance(TestCase):
 
         self.assertEqual(
             proxy.eth.get_balance(eth_account.address, block0),
-            initial_balance * ALAN_PER_NEON
+            initial_balance
         )
         self.assertEqual(
             proxy.eth.get_balance(eth_account.address, block1),
-            (initial_balance + delta_balance1) * ALAN_PER_NEON
+            initial_balance + delta_balance1 * ALAN_PER_NEON
         )
         self.assertEqual(
             proxy.eth.get_balance(eth_account.address, block2),
-            (initial_balance + delta_balance1 + delta_balance2) * ALAN_PER_NEON
+            initial_balance + (delta_balance1 + delta_balance2) * ALAN_PER_NEON
+        )
+
+    def test_get_balance_blockhash(self):
+        initial_balance = proxy.eth.get_balance(eth_account.address)
+        blockhash0 = proxy.eth.get_block('latest')['hash']
+
+        # Request 10 SOLs
+        delta_balance1 = 40
+        request_airdrop(eth_account.address, delta_balance1)
+        sleep(10)  # wait for a while to change be applied
+        blockhash1 = proxy.eth.get_block('latest')['hash']
+
+        # Request additional 20 SOLs
+        delta_balance2 = 30
+        request_airdrop(eth_account.address, delta_balance2)
+        sleep(10)  # wait for a while to change be applied
+        blockhash2 = proxy.eth.get_block('latest')['hash']
+
+        self.assertEqual(
+            proxy.eth.get_balance(eth_account.address,
+                                  {
+                                      "blockHash": blockhash0.hex(),
+                                      "requireCanonical": True,
+                                  }),
+            initial_balance
+        )
+        self.assertEqual(
+            proxy.eth.get_balance(eth_account.address,
+                                  {
+                                      "blockHash": blockhash1.hex(),
+                                      "requireCanonical": True,
+                                  }),
+            initial_balance + delta_balance1 * ALAN_PER_NEON
+        )
+        self.assertEqual(
+            proxy.eth.get_balance(eth_account.address,
+                                  {
+                                      "blockHash": blockhash2.hex(),
+                                      "requireCanonical": False,
+                                  }),
+            initial_balance + (delta_balance1 + delta_balance2) * ALAN_PER_NEON
         )
 
     def test_balance_not_found(self):

@@ -8,9 +8,9 @@ use jsonrpsee::proc_macros::rpc;
 use jsonrpsee::types::error::Error;
 use secret_value::Secret;
 use structopt::StructOpt;
-use tracing::{info, instrument};
+use tracing::{info, warn, instrument};
 use tracing_subscriber::{EnvFilter, fmt};
-
+use web3;
 
 use crate::neon::provider::DbProvider;
 use crate::v1::geth::types::trace as geth;
@@ -42,6 +42,8 @@ struct Options {
     ch_database: Option<String>,
     #[structopt(long = "evm-loader")]
     evm_loader: solana_sdk::pubkey::Pubkey,
+    #[structopt(short = "w", long = "web3-proxy")]
+    web3_proxy: String,
 }
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
@@ -83,13 +85,13 @@ pub trait EIP1898 {
     fn eth_get_transaction_count(
         &self,
         contract_id: H160T,
-        block_number: u64,
+        tag: BlockNumber,
     ) -> Result<U256T>;
 }
 
 #[derive(Debug, Clone)]
 pub struct ServerImpl {
-    neon_config: neon::Config,
+    tracer_core: neon::TracerCore,
 }
 
 impl ServerImpl {
@@ -109,25 +111,15 @@ impl EIP1898Server for ServerImpl {
         object: EthCallObject,
         tag: BlockNumber,
     ) -> Result<String> {
-        let provider = DbProvider::new(
-            Arc::clone(&self.neon_config.rpc_client_after),
-            self.neon_config.evm_loader,
-        );
-
-        match tag {
-            BlockNumber::Num(block_number) =>
-                neon::eth_call(
-                    provider,
-                    object.from.map(|v| v.0),
-                    object.to.0,
-                    object.gas.map(|v| v.0),
-                    object.value.map(|v| v.0),
-                    object.data.map(|v| v.0),
-                    block_number,
-                ).map_err(|err| Error::Custom(err.to_string())),
-            _ => todo!()
-        }
-
+        self.tracer_core.eth_call(
+            object.from.map(|v| v.0),
+            object.to.0,
+            object.gas.map(|v| v.0),
+            object.value.map(|v| v.0),
+            object.data.map(|v| v.0),
+            tag,
+        )
+            .map_err(|err| Error::Custom(err.to_string()))
     }
 
     #[instrument]
@@ -137,21 +129,8 @@ impl EIP1898Server for ServerImpl {
         index: U256T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-        let provider = DbProvider::new(
-            self.neon_config.rpc_client_after.clone(),
-            self.neon_config.evm_loader,
-        );
-
-        match tag {
-            BlockNumber::Num(number) => {
-                return Ok(U256T(neon::get_storage_at(
-                    provider,
-                    &contract_id.0,
-                    &index.0,
-                    number)));
-            },
-            _ => todo!()
-        }
+        self.tracer_core.get_storage_at(&contract_id, &index, tag)
+            .map_err(|err| Error::Custom(err.to_string()))
     }
 
     #[instrument]
@@ -160,20 +139,8 @@ impl EIP1898Server for ServerImpl {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-
-        let provider = DbProvider::new(
-            self.neon_config.rpc_client_after.clone(),
-            self.neon_config.evm_loader,
-        );
-
-        match tag {
-            BlockNumber::Num(block_number) =>
-                Ok(U256T(neon::get_balance(
-                    provider,
-                    &address.0,
-                    block_number))),
-            _ => todo!()
-        }
+        self.tracer_core.get_balance(&address, tag)
+            .map_err(|err|Error::Custom(err.to_string()))
     }
 
     #[instrument]
@@ -182,35 +149,18 @@ impl EIP1898Server for ServerImpl {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<String> {
-        let provider = DbProvider::new(
-            Arc::clone(&self.neon_config.rpc_client_after),
-            self.neon_config.evm_loader,
-        );
-
-        match tag {
-            BlockNumber::Num(block_number) => {
-                let code = neon::get_code(provider, &address.0, block_number);
-                Ok(format!("0x{}", hex::encode(code)))
-            }
-            _ => todo!()
-        }
+        self.tracer_core.get_code(&address, tag)
+            .map_err(|err|Error::Custom(err.to_string()))
     }
 
     #[instrument]
     fn eth_get_transaction_count(
         &self,
         account_id: H160T,
-        block_number: u64) -> Result<U256T> {
-
-        let provider = DbProvider::new(
-            self.neon_config.rpc_client_after.clone(),
-            self.neon_config.evm_loader,
-        );
-
-        Ok(U256T(neon::get_transaction_count(
-            provider,
-            &account_id.0,
-            block_number)))
+        tag: BlockNumber,
+    ) -> Result<U256T> {
+        self.tracer_core.get_transaction_count(&account_id, tag)
+            .map_err(|err|Error::Custom(err.to_string()))
     }
 }
 
@@ -257,11 +207,20 @@ async fn main() {
         true
     );
 
+    let transport = web3::transports::Http::new(&options.web3_proxy);
+    if transport.is_err() {
+        warn!("Failed to initialize HTTP transport for Web3 Proxy client");
+        return;
+    }
+
+    let web3_client = web3::Web3::new(transport.unwrap());
+
     let serv_impl = ServerImpl {
-        neon_config: neon::Config {
+        tracer_core: neon::TracerCore {
             evm_loader: options.evm_loader,
-            rpc_client: Arc::new(client),
-            rpc_client_after: Arc::new(client_after),
+            db_client: Arc::new(client),
+            db_client_after: Arc::new(client_after),
+            web3: Arc::new(web3_client),
         },
     };
 

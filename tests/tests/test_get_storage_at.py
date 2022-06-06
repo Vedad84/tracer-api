@@ -1,11 +1,6 @@
 from unittest import TestCase
-
-from solcx import install_solc
 from web3 import Web3
-
-from helpers.requests_helper import request_airdrop, send_trace_request, deploy_storage_contract
-
-install_solc(version='0.7.6')
+from helpers.requests_helper import request_airdrop, deploy_storage_contract
 from time import sleep
 
 NEON_URL = "http://neon-rpc:9090"
@@ -49,6 +44,39 @@ class TestGetStorageAt(TestCase):
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block0), byteorder='big'), 0)
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block1), byteorder='big'), value1)
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block2), byteorder='big'), value2)
+
+    def test_get_storage_at_blockhash(self):
+        value_idx = 0
+
+        value1 = 21255
+        self.store_value(value1)
+
+        sleep(10) # wait for a while to changes be applied
+        blockhash1 = proxy.eth.get_block('latest')['hash']
+
+        value2 = 55489
+        self.store_value(value2)
+
+        sleep(10) # wait for a while to changes be applied
+        blockhash2 = proxy.eth.get_block('latest')['hash']
+
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(
+            self.storage_contract.address,
+            value_idx,
+            {
+                "blockHash": blockhash1.hex(),
+                "requireCanonical": False, # Should not make sense
+            }),
+            byteorder='big'), value1)
+
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(
+            self.storage_contract.address,
+            value_idx,
+            {
+                "blockHash": blockhash2.hex(),
+                "requireCanonical": True, # Should not make sense
+            }),
+            byteorder='big'), value2)
 
     def test_account_not_found(self):
         block = proxy.eth.block_number

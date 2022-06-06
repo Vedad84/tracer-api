@@ -26,7 +26,6 @@ use solana_sdk::{
 };
 
 use super::provider::Provider;
-use crate::neon::{Config, EvmAccount};
 use crate::utils::parse_token_amount;
 use solana_sdk::account_info::AccountInfo;
 use std::collections::{BTreeMap, BTreeSet};

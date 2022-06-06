@@ -1,13 +1,7 @@
 from time import sleep
 from unittest import TestCase
-
-from solcx import compile_source, install_solc
 from web3 import Web3
-
-from helpers.requests_helper import send_trace_request,\
-    request_airdrop, deploy_storage_contract
-
-install_solc(version='0.7.6')
+from helpers.requests_helper import request_airdrop, deploy_storage_contract
 
 NEON_URL = "http://neon-rpc:9090"
 proxy = Web3(Web3.HTTPProvider(NEON_URL))
@@ -50,23 +44,38 @@ class TestEthCall(TestCase):
 
     def test_eth_call(self):
         block0 = proxy.eth.block_number
+        blockhash0 = proxy.eth.get_block('latest')['hash']
         self.store_value(block0)
 
         # wait for a while in order to changes to be applied
         sleep(10)
 
         block1 = proxy.eth.block_number
-
+        blockhash1 = proxy.eth.get_block('latest')['hash']
         self.store_value(block1)
 
         # wait for a while in order to changes to be applied
         sleep(10)
 
         block2 = proxy.eth.block_number
+        blockhash2 = proxy.eth.get_block('latest')['hash']
 
         self.assertEqual(self.eth_call(block0), 0)
         self.assertEqual(self.eth_call(block1), block0)
         self.assertEqual(self.eth_call(block2), block1)
+
+        self.assertEqual(self.eth_call({
+            "blockHash": blockhash0.hex(),
+            "requireCanonical": True
+        }), 0)
+        self.assertEqual(self.eth_call({
+            "blockHash": blockhash1.hex(),
+            "requireCanonical": True
+        }), block0)
+        self.assertEqual(self.eth_call({
+            "blockHash": blockhash2.hex(),
+            "requireCanonical": True
+        }), block1)
 
     def test_eth_call_prior_deploy(self):
         self.assertIsNone(self.eth_call(self.deploy_block_num - 1))

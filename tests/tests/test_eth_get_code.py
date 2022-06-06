@@ -3,7 +3,7 @@ from unittest import TestCase
 
 from web3 import Web3
 
-from helpers.requests_helper import send_trace_request, request_airdrop
+from helpers.requests_helper import request_airdrop
 
 NEON_URL = 'http://neon-rpc:9090'
 CONTRACT_CODE = '6060604052600080fd00a165627a7a72305820e75cae05548a56ec53108e39a532f0644e4b92aa900cc9f2cf98b7ab044539380029'
@@ -22,6 +22,7 @@ class TestEthGetCode(TestCase):
         sleep(10)
 
     def deploy_test_contract(self):
+        self.before_deploy_block_hash = proxy.eth.get_block('latest')['hash']
         trx_deploy = proxy.eth.account.sign_transaction(dict(
             nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
             chainId=proxy.eth.chain_id,
@@ -52,10 +53,19 @@ class TestEthGetCode(TestCase):
         self.assertEqual(self.get_code(proxy.eth.block_number), expected_code)
         self.assertEqual(self.get_code(self.deploy_block_num), expected_code)
         self.assertEqual(self.get_code(self.deploy_block_num + 1), expected_code)
+        self.assertEqual(self.get_code({
+                "blockHash": self.deploy_block_hash.hex(),
+                "requireCanonical": True,
+            }),
+            expected_code)
 
     def test_eth_get_code_before_deployment(self):
         self.assertEqual(self.get_code(0), '0x')
         self.assertEqual(self.get_code(self.deploy_block_num - 1), '0x')
+        self.assertEqual(self.get_code({
+            "blockHash": self.before_deploy_block_hash.hex(),
+            "requireCanonical": True,
+        }), '0x')
 
     def test_eth_get_code_incorrect_address(self):
         self.assertEqual(
