@@ -1218,7 +1218,7 @@ dependencies = [
 [[package]]
 name = "evm"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?rev=3dc8fd01a2449dd37e8d617b02040561b02cf1eb#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
 dependencies = [
  "evm-core",
  "evm-runtime",
@@ -1232,7 +1232,7 @@ dependencies = [
 [[package]]
 name = "evm-core"
 version = "0.18.2"
-source = "git+https://github.com/neonlabsorg/neon-evm?rev=3dc8fd01a2449dd37e8d617b02040561b02cf1eb#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
 dependencies = [
  "fixed-hash",
  "impl-rlp",
@@ -1246,7 +1246,7 @@ dependencies = [
 [[package]]
 name = "evm-loader"
 version = "0.7.6-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?rev=3dc8fd01a2449dd37e8d617b02040561b02cf1eb#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
 dependencies = [
  "arrayref",
  "bincode",
@@ -1278,7 +1278,7 @@ dependencies = [
 [[package]]
 name = "evm-runtime"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?rev=3dc8fd01a2449dd37e8d617b02040561b02cf1eb#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#3dc8fd01a2449dd37e8d617b02040561b02cf1eb"
 dependencies = [
  "environmental",
  "evm-core",
@@ -1765,9 +1765,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "0.2.7"
+version = "0.2.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff8670570af52249509a86f5e3e18a08c60b177071826898fde8997cf5f6bfbb"
+checksum = "75f43d41e26995c17e71ee126451dd3941010b0514a81a9d11f3b341debc2399"
 dependencies = [
  "bytes",
  "fnv",

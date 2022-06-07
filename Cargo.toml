@@ -22,8 +22,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-log = "0.1"
 byte-slice-cast = "1.2.1"
 
-evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", rev = "3dc8fd01a2449dd37e8d617b02040561b02cf1eb", default_features = false, features = ["tracing"] }
-evm = { git = "https://github.com/neonlabsorg/neon-evm", rev = "3dc8fd01a2449dd37e8d617b02040561b02cf1eb", default_features = false, features = ["tracing"] }
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, features = ["tracing"] }
+evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, features = ["tracing"] }
 
 solana-sdk = "=1.9.12"
 solana-program = { version = "=1.9.12", default_features = false }
