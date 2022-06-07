@@ -11,6 +11,8 @@ use evm_loader::{
     account_storage::{AccountStorage},
     account::{ACCOUNT_SEED_VERSION, EthereumAccount, EthereumContract, ERC20Allowance, token},
     executor_state::{ERC20Approve, SplApprove, SplTransfer},
+    config::STORAGE_ENTIRIES_IN_CONTRACT_ACCOUNT,
+    account::EthereumStorage,
 };
 
 use evm_loader::account::tag;
@@ -411,7 +413,7 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
                                               EthereumContract::SIZE
                                                   + a.extension.code.len()
                                                   + a.extension.valids.len()
-                                                  + a.extension.storage.buffer_len()
+                                                  + a.extension.storage.len()
                                           })
         };
 
@@ -419,10 +421,39 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
     }
 
     fn storage(&self, address: &H160, index: &U256) -> U256 {
-        self.ethereum_contract_map_or(address,
-                                      None,
-                                      |c| c.extension.storage.find(*index)
-        ).unwrap_or_else(U256::zero)
+        if *index < U256::from(STORAGE_ENTIRIES_IN_CONTRACT_ACCOUNT) {
+            let index: usize = index.as_usize() * 32;
+            return self.ethereum_contract_map_or(
+                address,
+                None,
+                |c| Some(U256::from(&c.extension.storage[index..index+32])))
+                .unwrap_or_else(U256::zero);
+        }
+
+        let (solana_address, _) = self.get_storage_address(address, index);
+        let mut accounts = self.solana_accounts.borrow_mut();
+        let account = accounts.get_mut(&solana_address)
+            .unwrap_or_else(|| panic!("Account {} - storage account not found", solana_address));
+
+        if &account.owner == self.program_id() {
+            let acc_info = account_info(&solana_address, account);
+            let storage = EthereumStorage::from_account(self.program_id(), &acc_info).unwrap();
+            return storage.value
+        }
+
+        if solana_program::system_program::check_id(&account.owner) {
+            return U256::zero()
+        }
+
+        panic!("Account {} - expected system or program owned", solana_address);
+    }
+
+    fn generation(&self, address: &H160) -> u32 {
+        self.ethereum_contract_map_or(
+            address,
+            0_u32,
+            |c| c.generation
+        )
     }
 
     fn valids(&self, address: &H160) -> Vec<u8> {

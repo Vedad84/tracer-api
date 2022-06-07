@@ -176,6 +176,7 @@ impl TracerCore {
         from: Option<H160>,
         to: H160,
         gas: Option<U256>,
+        gas_price: Option<U256>,
         value: Option<U256>,
         data: Option<Vec<u8>>,
         tag: BlockNumber,
@@ -216,6 +217,7 @@ impl TracerCore {
             data.unwrap_or_default(),
             value.unwrap_or_default(),
             gas_limit,
+            gas_price.unwrap_or_default(),
         )?;
 
         let (result, exit_reason) = match executor.execute_n_steps(100_000) {

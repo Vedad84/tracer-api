@@ -115,6 +115,7 @@ impl EIP1898Server for ServerImpl {
             object.from.map(|v| v.0),
             object.to.0,
             object.gas.map(|v| v.0),
+            object.gasprice.map(|v| v.0),
             object.value.map(|v| v.0),
             object.data.map(|v| v.0),
             tag,
