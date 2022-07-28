@@ -18,112 +18,53 @@ use {
 type Slot = i64;
 type DbResult<T> = std::result::Result<T, anyhow::Error>;
 
-const DEFAULT_POSTGRES_PORT: u16 = 5432;
-
 pub struct DbClient {
     client: Client,
 }
 
-pub struct DbClientConfig {
-    /// The host name or IP of the PostgreSQL server
-    pub host: Option<String>,
-
-    /// The user name of the PostgreSQL server.
-    pub user: Option<String>,
-
-    /// The port number of the PostgreSQL database, the default is 5432
-    pub port: Option<u16>,
-
-    /// The connection string of PostgreSQL database, if this is set
-    /// `host`, `user` and `port` will be ignored.
-    pub connection_str: Option<String>,
-}
-
-#[derive(Error, Debug)]
-pub enum PostgresDbError {
-    #[error("Error preparing data store schema. Error message: ({msg})")]
-    ConfigurationError { msg: String },
-}
-
 impl DbClient {
-    pub async fn new(config: DbClientConfig) -> Self {
+    pub async fn new(connection_str: &str) -> Self {
+        let (client, connection) =
+            connect(&connection_str, postgres::NoTls).await.unwrap();
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
         Self {
-            client: Self::connect_to_db(config).await.unwrap(),
-        }
-    }
-
-    async fn connect_to_db(config: DbClientConfig) -> Result<Client, PostgresDbError>  {
-        let port = config.port.unwrap_or(DEFAULT_POSTGRES_PORT);
-
-        let connection_str = if let Some(connection_str) = &config.connection_str {
-            connection_str.clone()
-        } else {
-            if config.host.is_none() || config.user.is_none() {
-                let msg = format!(
-                    "\"connection_str\": {:?}, or \"host\": {:?} \"user\": {:?} must be specified",
-                    config.connection_str, config.host, config.user
-                );
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            format!(
-                "host={} user={} port={}",
-                config.host.as_ref().unwrap(),
-                config.user.as_ref().unwrap(),
-                port
-            )
-        };
-
-        let result =
-            connect(&connection_str, postgres::NoTls).await;
-
-        match result {
-            Err(err) => {
-                let msg = format!(
-                    "Error in connecting to the PostgreSQL database: {:?} connection_str: {:?}",
-                    err, connection_str
-                );
-                error!("{}", msg);
-                Err(PostgresDbError::ConfigurationError { msg })
-            }
-            Ok((client, connection)) => {
-                tokio::spawn(async move {
-                    if let Err(e) = connection.await {
-                        eprintln!("connection error: {}", e);
-                    }
-                });
-                Ok(client)
-            },
+            client
         }
     }
 
     fn block<F, Fu, R>(&self, f: F) -> R
         where
-            F: FnOnce(&Client) -> Fu,
+            F: FnOnce() -> Fu,
             Fu: std::future::Future<Output = R>,
     {
         block_in_place(|| {
             let handle = tokio::runtime::Handle::current();
-            handle.block_on(f(&self.client))
+            handle.block_on(f())
         })
     }
 
     pub fn get_slot(&self) -> Result<Slot, anyhow::Error> {
-        let slot = self.block(|client| async {
+        let slot = self.block(|| async {
             self.client.query_one("SELECT MAX(slot) FROM public.slot", &[])
-                .await?
-                .try_get(0)
-        })?;
+                .await
+        })?.try_get(0)?;
 
         Ok(slot)
     }
 
     pub fn get_block_time(&self, slot: Slot) -> Result<i64, anyhow::Error> {
-        let time = self.block(|client| async {
+        let time = self.block(|| async {
             self.client.query_one(
                 "SELECT block_time FROM public.block WHERE slot = $1",
                 &[&slot],
-            ).await?.try_get(0)
-        })?;
+            ).await
+        })?.try_get(0)?;
 
         Ok(time)
     }
@@ -144,7 +85,7 @@ impl DbClient {
             .collect_vec();
         let mut result = Vec::new();
 
-        let rows = self.block(|client| async {
+        let rows = self.block(|| async {
             self.client.query(
                 "SELECT * FROM get_accounts_at_slot($1, $2)",
                 &[&pubkey_slices, &slot]
