@@ -1,11 +1,20 @@
 use {
     log::*,
     openssl::ssl::{SslConnector, SslFiletype, SslMethod},
-    postgres::{ Client, NoTls },
+    tokio_postgres::{ connect, Client },
+    postgres::{ NoTls },
     postgres_openssl::MakeTlsConnector,
+    solana_sdk::{
+        account::Account,
+        pubkey::Pubkey,
+    },
     std::error,
     thiserror::Error,
+    tokio::task::block_in_place,
 };
+
+type Slot = i64;
+type DbResult<T> = std::result::Result<T, anyhow::Error>;
 
 const DEFAULT_POSTGRES_PORT: u16 = 5432;
 
@@ -26,19 +35,6 @@ pub struct DbClientConfig {
     /// The connection string of PostgreSQL database, if this is set
     /// `host`, `user` and `port` will be ignored.
     pub connection_str: Option<String>,
-
-    /// Controls whether to use SSL based connection to the database server.
-    /// The default is false
-    pub use_ssl: Option<bool>,
-
-    /// Specify the path to PostgreSQL server's certificate file
-    pub server_ca: Option<String>,
-
-    /// Specify the path to the local client's certificate file
-    pub client_cert: Option<String>,
-
-    /// Specify the path to the local client's private PEM key file.
-    pub client_key: Option<String>,
 }
 
 #[derive(Error, Debug)]
@@ -63,7 +59,13 @@ pub enum PostgresDbError {
 }
 
 impl DbClient {
-    fn connect_to_db(config: DbClientConfig) -> Result<Client, PostgresDbError>  {
+    pub async fn new(config: DbClientConfig) -> Self {
+        Self {
+            client: Self::connect_to_db(config).await.unwrap(),
+        }
+    }
+
+    async fn connect_to_db(config: DbClientConfig) -> Result<Client, PostgresDbError>  {
         let port = config.port.unwrap_or(DEFAULT_POSTGRES_PORT);
 
         let connection_str = if let Some(connection_str) = &config.connection_str {
@@ -84,54 +86,8 @@ impl DbClient {
             )
         };
 
-        let result = if let Some(true) = config.use_ssl {
-            if config.server_ca.is_none() {
-                let msg = "\"server_ca\" must be specified when \"use_ssl\" is set".to_string();
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            if config.client_cert.is_none() {
-                let msg = "\"client_cert\" must be specified when \"use_ssl\" is set".to_string();
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            if config.client_key.is_none() {
-                let msg = "\"client_key\" must be specified when \"use_ssl\" is set".to_string();
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            let mut builder = SslConnector::builder(SslMethod::tls()).unwrap();
-            if let Err(err) = builder.set_ca_file(config.server_ca.as_ref().unwrap()) {
-                let msg = format!(
-                    "Failed to set the server certificate specified by \"server_ca\": {}. Error: ({})",
-                    config.server_ca.as_ref().unwrap(), err);
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            if let Err(err) =
-            builder.set_certificate_file(config.client_cert.as_ref().unwrap(), SslFiletype::PEM)
-            {
-                let msg = format!(
-                    "Failed to set the client certificate specified by \"client_cert\": {}. Error: ({})",
-                    config.client_cert.as_ref().unwrap(), err);
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-            if let Err(err) =
-            builder.set_private_key_file(config.client_key.as_ref().unwrap(), SslFiletype::PEM)
-            {
-                let msg = format!(
-                    "Failed to set the client key specified by \"client_key\": {}. Error: ({})",
-                    config.client_key.as_ref().unwrap(),
-                    err
-                );
-                return Err(PostgresDbError::ConfigurationError { msg });
-            }
-
-            let mut connector = MakeTlsConnector::new(builder.build());
-            connector.set_callback(|connect_config, _domain| {
-                connect_config.set_verify_hostname(false);
-                Ok(())
-            });
-            Client::connect(&connection_str, connector)
-        } else {
-            Client::connect(&connection_str, NoTls)
-        };
+        let result =
+            connect(&connection_str, postgres::NoTls).await;
 
         match result {
             Err(err) => {
@@ -142,7 +98,44 @@ impl DbClient {
                 error!("{}", msg);
                 Err(PostgresDbError::ConfigurationError { msg })
             }
-            Ok(client) => Ok(client),
+            Ok((client, connection)) => {
+                tokio::spawn(async move {
+                    if let Err(e) = connection.await {
+                        eprintln!("connection error: {}", e);
+                    }
+                });
+                Ok(client)
+            },
         }
     }
+
+    pub async fn get_slot(&mut self) -> Result<Slot, anyhow::Error> {
+        let slot = self.client.query_one("SELECT MAX(slot) FROM public.slot", &[])
+            .await?
+            .try_get(0)?;
+        Ok(slot)
+    }
+
+
+    pub async fn get_block_time(&self, slot: Slot) -> Result<i64, anyhow::Error> {
+        let time = self.client.query_one(
+            "SELECT block_time FROM public.block WHERE slot = $1",
+            &[&slot],
+        ).await?.try_get(0)?;
+
+        Ok(time)
+    }
+
+    /*
+    pub fn get_accounts_at_slot(
+        &self,
+        pubkeys: impl Iterator<Item = Pubkey>,
+        slot: Slot,
+    ) -> DbResult<Vec<(Pubkey, Account)>> {
+        // SELECT * FROM get_accounts_at_slot(ARRAY[decode('5991510ef1cc9da133f4dd51e34ef00318ab4dfa517a4fd00baef9e83f7a7751', 'hex')], 10000000)
+    }
+
+    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: Slot) -> DbResult<Option<Account>> {
+
+    }*/
 }
