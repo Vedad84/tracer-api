@@ -96,25 +96,39 @@ impl DbClient {
         }
     }
 
-    pub async fn get_slot(&mut self) -> Result<Slot, anyhow::Error> {
-        let slot = self.client.query_one("SELECT MAX(slot) FROM public.slot", &[])
-            .await?
-            .try_get(0)?;
+    fn block<F, Fu, R>(&self, f: F) -> R
+        where
+            F: FnOnce(&Client) -> Fu,
+            Fu: std::future::Future<Output = R>,
+    {
+        block_in_place(|| {
+            let handle = tokio::runtime::Handle::current();
+            handle.block_on(f(&self.client))
+        })
+    }
+
+    pub fn get_slot(&self) -> Result<Slot, anyhow::Error> {
+        let slot = self.block(|client| async {
+            self.client.query_one("SELECT MAX(slot) FROM public.slot", &[])
+                .await?
+                .try_get(0)
+        })?;
+
         Ok(slot)
     }
 
-
-    pub async fn get_block_time(&self, slot: Slot) -> Result<i64, anyhow::Error> {
-        let time = self.client.query_one(
-            "SELECT block_time FROM public.block WHERE slot = $1",
-            &[&slot],
-        ).await?.try_get(0)?;
+    pub fn get_block_time(&self, slot: Slot) -> Result<i64, anyhow::Error> {
+        let time = self.block(|client| async {
+            self.client.query_one(
+                "SELECT block_time FROM public.block WHERE slot = $1",
+                &[&slot],
+            ).await?.try_get(0)
+        })?;
 
         Ok(time)
     }
 
-
-    pub async fn get_accounts_at_slot(
+    pub fn get_accounts_at_slot(
         &self,
         pubkeys: impl Iterator<Item = Pubkey>,
         slot: Slot,
@@ -130,10 +144,14 @@ impl DbClient {
             .collect_vec();
         let mut result = Vec::new();
 
-        for row in self.client.query(
-            "SELECT * FROM get_accounts_at_slot($1, $2)",
-            &[&pubkey_slices, &slot]
-        ).await? {
+        let rows = self.block(|client| async {
+            self.client.query(
+                "SELECT * FROM get_accounts_at_slot($1, $2)",
+                &[&pubkey_slices, &slot]
+            ).await
+        })?;
+
+        for row in rows {
             let lamports: i64 = row.try_get(2)?;
             let rent_epoch: i64 = row.try_get(4)?;
             result.push((
@@ -151,8 +169,8 @@ impl DbClient {
         Ok(result)
     }
 
-    pub async fn get_account_at_slot(&self, pubkey: &Pubkey, slot: Slot) -> DbResult<Option<Account>> {
-        let accounts = self.get_accounts_at_slot(std::iter::once(pubkey.to_owned()), slot).await?;
+    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: Slot) -> DbResult<Option<Account>> {
+        let accounts = self.get_accounts_at_slot(std::iter::once(pubkey.to_owned()), slot)?;
         let account = accounts.get(0).map(|(_, account)| account).cloned();
         Ok(account)
     }
