@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap, convert::Infallible, sync::Arc};
 
-use solana_program::{clock::Slot, pubkey::Pubkey};
+use solana_program::pubkey::Pubkey;
 use solana_sdk::account::Account;
 
 use crate::db::{DbClient, Error as DbError};
@@ -14,7 +14,7 @@ pub trait Provider {
         slot: u64,
     ) -> Result<Option<Account>, Self::Error>;
 
-    fn get_slot(&self) -> Result<Slot, Self::Error>;
+    fn get_slot(&self) -> Result<u64, Self::Error>;
     fn get_block_time(&self, slot: u64) -> Result<i64, Self::Error>; // TODO: Clock sysvar
     fn evm_loader(&self) -> &Pubkey;
 }
@@ -41,7 +41,7 @@ impl Provider for DbProvider {
         self.client.get_account_at_slot(pubkey, slot)
     }
 
-    fn get_slot(&self) -> Result<Slot, Self::Error> {
+    fn get_slot(&self) -> Result<u64, Self::Error> {
         self.client.get_slot()
     }
 
@@ -56,12 +56,12 @@ impl Provider for DbProvider {
 
 pub struct MapProvider<M> {
     map: M,
-    slot: Slot,
+    slot: u64,
     evm_loader: Pubkey,
 }
 
 impl<M> MapProvider<M> {
-    pub fn new(map: M, evm_loader: Pubkey, slot: Slot) -> Self {
+    pub fn new(map: M, evm_loader: Pubkey, slot: u64) -> Self {
         Self {
             map,
             evm_loader,
@@ -84,7 +84,7 @@ where
         Ok(self.map.borrow().get(pubkey).cloned())
     }
 
-    fn get_slot(&self) -> Result<Slot, Self::Error> {
+    fn get_slot(&self) -> Result<u64, Self::Error> {
         Ok(self.slot)
     }
 

@@ -27,14 +27,15 @@ mod neon;
 mod utils;
 mod v1;
 mod syscall_stubs;
-mod postgres_db;
 
 #[derive(Debug, StructOpt)]
 struct Options {
     #[structopt(short = "l", long = "listen", default_value = "127.0.0.1:8080")]
     addr: String,
-    #[structopt(short = "c", long = "db-addr", default_value = "127.0.0.1:8123")]
-    ch_addr: String,
+    #[structopt(short = "h", long = "db-host", default_value = "127.0.0.1")]
+    ch_host: String,
+    #[structopt(short = "P", long = "db-port", default_value = "5432")]
+    ch_port: String,
     #[structopt(short = "p", long = "ch-password", parse(try_from_str = parse_secret))]
     ch_password: Option<Secret<String>>,
     #[structopt(short = "u", long = "ch-user")]
@@ -194,20 +195,12 @@ async fn main() {
         .unwrap();
 
     let client = DbClient::new(
-        options.ch_addr.clone(),
+        &options.ch_host.clone(),
+        &options.ch_port.clone(),
         options.ch_user.clone(),
         options.ch_password.clone().map(Secret::inner),
         options.ch_database.clone(),
-        false
-    );
-
-    let client_after = DbClient::new(
-        options.ch_addr,
-        options.ch_user,
-        options.ch_password.map(Secret::inner),
-        options.ch_database,
-        true
-    );
+    ).await;
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
     if transport.is_err() {
@@ -221,7 +214,6 @@ async fn main() {
         tracer_core: neon::TracerCore {
             evm_loader: options.evm_loader,
             db_client: Arc::new(client),
-            db_client_after: Arc::new(client_after),
             web3: Arc::new(web3_client),
         },
     };

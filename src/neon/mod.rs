@@ -78,9 +78,8 @@ impl From<web3::Error> for TracerError {
 
 #[derive(Clone)]
 pub struct TracerCore {
-    pub db_client: Arc<DbClient>,
     pub evm_loader: Pubkey,
-    pub db_client_after: Arc<DbClient>,
+    pub db_client: Arc<DbClient>,
     pub web3: Arc<Web3<Http>>,
 }
 
@@ -141,7 +140,7 @@ impl TracerCore {
 
         let block_number = self.get_block_number(tag)?;
         let provider = DbProvider::new(
-            self.db_client_after.clone(),
+            self.db_client.clone(),
             self.evm_loader,
         );
 
@@ -160,7 +159,7 @@ impl TracerCore {
 
         let block_number = self.get_block_number(tag)?;
         let provider = DbProvider::new(
-            self.db_client_after.clone(),
+            self.db_client.clone(),
             self.evm_loader,
         );
 
@@ -184,7 +183,7 @@ impl TracerCore {
 
         let block_number = self.get_block_number(tag)?;
         let provider = DbProvider::new(
-            self.db_client_after.clone(),
+            self.db_client.clone(),
             self.evm_loader,
         );
 
@@ -247,7 +246,7 @@ impl TracerCore {
     ) -> Result<String, Error> {
         let block_number = self.get_block_number(tag)?;
         let provider = DbProvider::new(
-            self.db_client_after.clone(),
+            self.db_client.clone(),
             self.evm_loader,
         );
 
@@ -266,7 +265,7 @@ impl TracerCore {
     ) -> Result<U256T, Error> {
         let block_number = self.get_block_number(tag)?;
         let provider = DbProvider::new(
-            self.db_client_after.clone(),
+            self.db_client.clone(),
             self.evm_loader,
         );
 

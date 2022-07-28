@@ -1,177 +1,134 @@
-use clickhouse::Client;
-use thiserror::Error;
-
-use evm::{H160, H256};
-use solana_account_decoder::parse_token::{
-    parse_token, TokenAccountType, UiTokenAccount, UiTokenAmount,
+use byte_slice_cast::AsByteSlice;
+use itertools::Itertools;
+use {
+    log::*,
+    openssl::ssl::{SslConnector, SslFiletype, SslMethod},
+    tokio_postgres::{ connect, Client },
+    postgres::{ NoTls },
+    postgres_openssl::MakeTlsConnector,
+    solana_sdk::{
+        account::Account,
+        pubkey::Pubkey,
+    },
+    std::error,
+    thiserror::Error,
+    tokio::task::block_in_place,
 };
-use solana_sdk::account::{Account, ReadableAccount};
-use solana_sdk::message::Message;
-use solana_sdk::pubkey::Pubkey;
-use tokio::task::block_in_place;
-use tracing::debug;
-
-use crate::utils::parse_token_amount;
-
-type Slot = u64;
 
 pub struct DbClient {
     client: Client,
-    use_acc_after_trx: bool,
-}
-
-impl std::fmt::Debug for DbClient {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DbClient{{}}")
-    }
 }
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("clickhouse: {}", .0)]
-    Db(#[from] clickhouse::error::Error),
-}
-
-#[derive(Debug, serde::Deserialize, clickhouse::Row, Clone)]
-struct AccountRow {
-    pubkey: [u8; 32],
-    lamports: u64,
-    data: Vec<u8>,
-    owner: [u8; 32],
-    executable: bool,
-    rent_epoch: u64,
-}
-
-impl From<AccountRow> for Account {
-    fn from(row: AccountRow) -> Account {
-        Account {
-            lamports: row.lamports,
-            data: row.data,
-            owner: Pubkey::new_from_array(row.owner),
-            executable: row.executable,
-            rent_epoch: row.rent_epoch,
-        }
-    }
+    #[error("postgres: {}", .0)]
+    Db(#[from] tokio_postgres::Error),
 }
 
 type DbResult<T> = std::result::Result<T, Error>;
 
 impl DbClient {
-    pub fn new(
-        addr: impl Into<String>,
+    pub async fn new(
+        host: &str,
+        port: &str,
         user: Option<String>,
         password: Option<String>,
-        db: Option<String>,
-        use_acc_after_trx: bool
+        database: Option<String>,
     ) -> Self {
-        let client = Client::default().with_url(addr);
-        let client = if let Some(user) = user {
-            client.with_user(user)
-        } else {
+        let connection_str= format!("host={} port={} dbname={} user={} password={}",
+                                    host, port,
+                                    database.unwrap_or_default(),
+                                    user.unwrap_or_default(),
+                                    password.unwrap_or_default());
+
+
+        let (client, connection) =
+            connect(&connection_str, postgres::NoTls).await.unwrap();
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("connection error: {}", e);
+            }
+        });
+
+        Self {
             client
-        };
-        let client = if let Some(password) = password {
-            client.with_password(password)
-        } else {
-            client
-        };
-        let client = if let Some(db) = db {
-            client.with_database(db)
-        } else {
-            client
-        };
-        DbClient { client, use_acc_after_trx }
+        }
     }
 
-
     fn block<F, Fu, R>(&self, f: F) -> R
-    where
-        F: FnOnce(Client) -> Fu,
-        Fu: std::future::Future<Output = R>,
+        where
+            F: FnOnce() -> Fu,
+            Fu: std::future::Future<Output = R>,
     {
-        let client = self.client.clone();
         block_in_place(|| {
             let handle = tokio::runtime::Handle::current();
-            handle.block_on(f(client))
+            handle.block_on(f())
         })
     }
 
-    #[tracing::instrument]
-    pub fn get_slot(&self) -> Result<Slot, Error> {
-        let slot = self.block(|client| async move {
-            client
-                .query("SELECT max(slot) FROM transactions")
-                .fetch_one::<u64>()
+    pub fn get_slot(&self) -> Result<u64, Error> {
+        let slot: i64 = self.block(|| async {
+            self.client.query_one("SELECT MAX(slot) FROM public.slot", &[])
                 .await
-        })?;
-        Ok(slot)
+        })?.try_get(0)?;
+
+        Ok(slot as u64)
     }
 
-    #[tracing::instrument]
-    pub fn get_block_time(&self, slot: Slot) -> Result<i64, Error> {
-        let time = self.block(|client| async move {
-            client
-                .query("SELECT toUnixTimestamp(date_time) from transactions where slot = ?")
-                .bind(slot)
-                .fetch_one::<i64>()
-                .await
-        })?;
+    pub fn get_block_time(&self, slot: u64) -> Result<i64, Error> {
+        let time = self.block(|| async {
+            self.client.query_one(
+                "SELECT block_time FROM public.block WHERE slot = $1",
+                &[&(slot as i64)],
+            ).await
+        })?.try_get(0)?;
+
         Ok(time)
-    }
-
-    fn get_accounts_table(&self) -> &str {
-        static ACCOUNTS_AFTER_TABLE: &str = "accounts_after_transaction";
-        static ACCOUNTS_TABLE: &str = "accounts";
-
-        if self.use_acc_after_trx {
-            ACCOUNTS_AFTER_TABLE
-        } else {
-            ACCOUNTS_TABLE
-        }
     }
 
     pub fn get_accounts_at_slot(
         &self,
         pubkeys: impl Iterator<Item = Pubkey>,
-        slot: Slot,
+        slot: u64,
     ) -> DbResult<Vec<(Pubkey, Account)>> {
-        let pubkeys = pubkeys
-            .map(|pubkey| hex::encode(&pubkey.to_bytes()[..]))
-            .fold(String::new(), |old, addr| {
-                format!("{} unhex('{}'),", old, addr)
-            });
+        // SELECT * FROM get_accounts_at_slot(ARRAY[decode('5991510ef1cc9da133f4dd51e34ef00318ab4dfa517a4fd00baef9e83f7a7751', 'hex')], 10000000)
+        let pubkey_bytes = pubkeys
+            .map(|entry| entry.to_bytes())
+            .collect_vec();
 
-        let accounts = self.block(|client| async move {
-            client
-                .query(&format!(
-                    "SELECT
-                        public_key,
-                        argMax(lamports, T.slot),
-                        argMax(data, T.slot),
-                        argMax(owner,T.slot),
-                        argMax(executable,T.slot),
-                        argMax(rent_epoch,T.slot)
-                     FROM {} A
-                     JOIN transactions T
-                     ON A.transaction_signature = T.transaction_signature
-                     WHERE T.slot <= ? AND public_key IN ({})
-                     GROUP BY public_key",
-                    self.get_accounts_table(), pubkeys
-                ))
-                .bind(slot)
-                .fetch_all::<AccountRow>()
-                .await
+        let pubkey_slices = pubkey_bytes
+            .iter()
+            .map(|entry| entry.as_byte_slice())
+            .collect_vec();
+        let mut result = Vec::new();
+
+        let rows = self.block(|| async {
+            self.client.query(
+                "SELECT * FROM get_accounts_at_slot($1, $2)",
+                &[&pubkey_slices, &(slot as i64)]
+            ).await
         })?;
-        let accounts = accounts
-            .into_iter()
-            .map(|row| (Pubkey::new_from_array(row.pubkey), Account::from(row)))
-            .collect();
-        debug!("found account: {:?}", accounts);
-        Ok(accounts)
+
+        for row in rows {
+            let lamports: i64 = row.try_get(2)?;
+            let rent_epoch: i64 = row.try_get(4)?;
+            result.push((
+                Pubkey::new(row.try_get(0)?),
+                Account {
+                    lamports: lamports as u64,
+                    data: row.try_get(5)?,
+                    owner: Pubkey::new(row.try_get(1)?),
+                    executable: row.try_get(3)?,
+                    rent_epoch: rent_epoch as u64,
+                }
+            ));
+        }
+
+        Ok(result)
     }
 
-    #[tracing::instrument]
-    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: Slot) -> DbResult<Option<Account>> {
+    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: u64) -> DbResult<Option<Account>> {
         let accounts = self.get_accounts_at_slot(std::iter::once(pubkey.to_owned()), slot)?;
         let account = accounts.get(0).map(|(_, account)| account).cloned();
         Ok(account)
