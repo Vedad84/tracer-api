@@ -170,14 +170,15 @@ services:
       LISTEN_ADDR: 0.0.0.0:8250
       SOLANA_URL: http://validator:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
-      TRACER_DB_URL: http://tracer-db:8123
-      TRACER_DB_NAME: tracer_api_db
-      TRACER_DB_USER: validator_user
-      TRACER_DB_PASSWORD: qwerty
+      TRACER_DB_HOST: postgres
+      TRACER_DB_PORT: 5432
+      TRACER_DB_NAME: solana
+      TRACER_DB_USER: solana-user
+      TRACER_DB_PASSWORD: solana-pass
       WEB3_PROXY: http://proxy:9090/solana
     image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-eip-1898}
     depends_on:
-      tracer-db:
+      postgres:
         condition: service_healthy
       validator:
         condition: service_healthy
