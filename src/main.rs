@@ -27,6 +27,7 @@ mod neon;
 mod utils;
 mod v1;
 mod syscall_stubs;
+mod postgres_db;
 
 #[derive(Debug, StructOpt)]
 struct Options {
