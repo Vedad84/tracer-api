@@ -41,23 +41,8 @@ pub struct DbClientConfig {
 
 #[derive(Error, Debug)]
 pub enum PostgresDbError {
-    #[error("Error connecting to the backend data store. Error message: ({msg})")]
-    DataStoreConnectionError { msg: String },
-
-    #[error("Error preparing data store schema. Error message: ({msg})")]
-    DataSchemaError { msg: String },
-
     #[error("Error preparing data store schema. Error message: ({msg})")]
     ConfigurationError { msg: String },
-
-    #[error("Replica account V0.0.1 not supported anymore")]
-    ReplicaAccountV001NotSupported,
-
-    #[error("Failed to parse account key from transaction message")]
-    AccountKeyParseError,
-
-    #[error("Failed to update transaction-account linkage: ({msg})")]
-    TransactionAccountUpdateError { msg: String },
 }
 
 impl DbClient {
