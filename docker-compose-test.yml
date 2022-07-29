@@ -3,7 +3,7 @@ version: "3"
 services:
   postgres:
     container_name: postgres
-    image: neonlabsorg/accountsdb:ci-master-dumper-plugin
+    image: neonlabsorg/accountsdb:v1.11.1-dumper-plugin
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
@@ -41,7 +41,7 @@ services:
     
   validator:
     container_name: validator
-    image: neonlabsorg/evm_loader:ci-master-dumper-plugin
+    image: neonlabsorg/evm_loader:ci-solana-v1.11.1-dumper-plugin
     environment:
       SOLANA_URL: http://validator:8899
       RUST_LOG: solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=debug,solana_bpf_loader=debug,solana_rbpf=debug
@@ -68,7 +68,7 @@ services:
 
   dbcreation:
     container_name: dbcreation
-    image: neonlabsorg/proxy:ci-755-return-zero-block
+    image: neonlabsorg/proxy:latest
     environment:
       SOLANA_URL: http://validator:8899
       POSTGRES_DB: solana
@@ -84,7 +84,7 @@ services:
         
   indexer:
     container_name: indexer
-    image: neonlabsorg/proxy:ci-755-return-zero-block
+    image: neonlabsorg/proxy:latest
     environment:
       SOLANA_URL: http://validator:8899
       POSTGRES_DB: solana
@@ -107,7 +107,7 @@ services:
   
   proxy:
     container_name: proxy
-    image: neonlabsorg/proxy:ci-755-return-zero-block
+    image: neonlabsorg/proxy:latest
     environment:
       SOLANA_URL: http://validator:8899
       FAUCET_URL: http://faucet:3333
@@ -150,7 +150,7 @@ services:
 
   deploy_contracts:
     container_name: deploy_contracts
-    image: neonlabsorg/evm_loader:ci-master-dumper-plugin
+    image: neonlabsorg/evm_loader:ci-solana-v1.11.1-dumper-plugin
     environment:
       - SOLANA_URL=http://validator:8899
       - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json
@@ -176,7 +176,7 @@ services:
       TRACER_DB_USER: solana-user
       TRACER_DB_PASSWORD: solana-pass
       WEB3_PROXY: http://proxy:9090/solana
-    image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-eip-1898}
+    image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-master-dumper-plugin}
     depends_on:
       postgres:
         condition: service_healthy
@@ -224,7 +224,7 @@ services:
   neon-rpc:
     container_name: neon-rpc
     hostname: neon-rpc
-    image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
+    image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-master-dumper-plugin}
     expose:
       - "9090"
     networks:
@@ -238,7 +238,7 @@ services:
   neon-tracer-test:
     container_name: neon-tracer-test
     hostname: neon-tracer-test
-    image: neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT:-ci-tracing-api-develop}
+    image: neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT:-ci-master-dumper-plugin}
     networks:
       - net
     depends_on:
