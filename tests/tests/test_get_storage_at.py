@@ -48,6 +48,9 @@ class TestGetStorageAt(TestCase):
     def test_get_storage_at_blockhash(self):
         value_idx = 0
 
+        blockhash0 = proxy.eth.get_block('latest')['hash']
+        value0 = 0
+
         value1 = 21255
         self.store_value(value1)
 
@@ -59,6 +62,15 @@ class TestGetStorageAt(TestCase):
 
         sleep(10) # wait for a while to changes be applied
         blockhash2 = proxy.eth.get_block('latest')['hash']
+
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(
+            self.storage_contract.address,
+            value_idx,
+            {
+                "blockHash": blockhash0.hex(),
+                "requireCanonical": False, # Should not make sense
+            }),
+            byteorder='big'), value0)
 
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(
             self.storage_contract.address,

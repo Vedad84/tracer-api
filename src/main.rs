@@ -24,7 +24,6 @@ type Result<T> = std::result::Result<T, Error>;
 
 mod db;
 mod neon;
-mod utils;
 mod v1;
 mod syscall_stubs;
 
