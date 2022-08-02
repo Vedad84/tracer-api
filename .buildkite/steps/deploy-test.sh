@@ -1,11 +1,8 @@
 #!/bin/bash
 set -euo pipefail
-set ${NEON_EVM_COMMIT:=develop}
+source .buildkite/steps/revision.sh
 
-echo "Start Tracer-API Tests..."
-echo "Tracer API revision=${BUILDKITE_COMMIT}"
-echo "Neon EVM revision=${NEON_EVM_COMMIT}"
-
+echo -e "\n\n\nRunning test"
 docker-compose -f docker-compose-test.yml up neon-tracer-test
 result=$?
 

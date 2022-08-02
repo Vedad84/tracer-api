@@ -1,9 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-set ${NEON_EVM_COMMIT:=develop}
+source .buildkite/steps/revision.sh
 
-echo "Pull Docker Images..."
-echo "Tracer API revision=${BUILDKITE_COMMIT}"
-echo "Neon EVM revision=${NEON_EVM_COMMIT}"
-
+echo -e "\n\n\nPull Docker Images..."
 docker-compose -f docker-compose-test.yml pull

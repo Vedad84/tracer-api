@@ -1,11 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-set ${NEON_EVM_COMMIT:=latest}
-set ${SOLANA_IMAGE:=neonlabsorg/solana:v1.11.3-dumper-plugin}
-
-echo "Tracer API revision=${BUILDKITE_COMMIT}"
-echo "Neon EVM revision=${NEON_EVM_COMMIT}"
-echo "Solana: ${SOLANA_IMAGE}"
+source .buildkite/steps/revision.sh
 
 echo -e "\n\n\nBuilding Tracer-API..."
 docker build -t neonlabsorg/neon-tracer:${BUILDKITE_COMMIT} --build-arg NEON_REVISION=${NEON_EVM_COMMIT} .
