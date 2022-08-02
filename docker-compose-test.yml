@@ -151,7 +151,7 @@ services:
 
   deploy_contracts:
     container_name: deploy_contracts
-    image: neonlabsorg/evm_loader:ci-solana-v1.11.3-dumper-plugin
+    image: neonlabsorg/neon-validator:${BUILDKITE_COMMIT:-ci-master-dumper-plugin}
     environment:
       - SOLANA_URL=http://validator:8899
       - SPL_TOKEN_AUTHORITY=/opt/contracts/ci-tokens/owner-keypair.json

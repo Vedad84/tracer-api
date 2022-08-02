@@ -1,9 +1,6 @@
 #!/bin/bash
 set -euo pipefail
-set ${NEON_EVM_COMMIT:=develop}
-
-echo "Tracer API revision=${BUILDKITE_COMMIT}"
-echo "Neon EVM revision=${NEON_EVM_COMMIT}"
+source .buildkite/steps/revision.sh
 
 docker images
 

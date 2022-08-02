@@ -1,24 +1,27 @@
-ARG NEON_EVM_COMMIT
-ARG SOLANA_IMAGE
-ARG ACCOUNT_DUMPER_IMAGE
+ARG NEON_EVM_REVISION
+ARG SOLANA_REVISION
+ARG ACCOUNT_DUMPER_REVISION
 
-FROM ${SOLANA_IMAGE} AS solana
+FROM solanalabs/solana:${SOLANA_REVISION} AS solana
 
-FROM ${ACCOUNT_DUMPER_IMAGE} AS neon-dumper-plugin
+FROM neonlabsorg/neon-dumper-plugin:${ACCOUNT_DUMPER_REVISION} AS neon-dumper-plugin
 
-FROM neonlabsorg/evm_loader:${NEON_EVM_COMMIT}
+FROM neonlabsorg/evm_loader:${NEON_EVM_REVISION}
 
 WORKDIR /opt
 
 COPY --from=solana \
-  /opt/solana/bin/solana \
-  /opt/solana/bin/solana-validator \
-  /opt/solana/bin/solana-keygen \
-  /opt/solana/bin/solana-faucet \
-  /opt/solana/bin/solana-genesis \
-  /opt/solana/run.sh \
-  /opt/solana/fetch-spl.sh \
-  /opt/solana/bin/
+    /usr/bin/solana \
+    /usr/bin/solana-validator \
+    /usr/bin/solana-keygen \
+    /usr/bin/solana-faucet \
+    /usr/bin/solana-genesis \
+    /usr/bin/solana-run.sh \
+    /usr/bin/fetch-spl.sh \
+    /usr/bin/spl* \
+    /opt/solana/bin/
+
+COPY --from=solana /usr/bin/spl-token /opt/spl-token
 
 COPY --from=neon-dumper-plugin \
     /opt/libneon_dumper_plugin.so \
