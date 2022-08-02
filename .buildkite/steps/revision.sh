@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set ${NEON_EVM_COMMIT:=latest}
+set ${NEON_EVM_COMMIT:=ci-solana-v1.11.3-dumper-plugin}
 set ${SOLANA_IMAGE:=neonlabsorg/solana:v1.11.3-dumper-plugin}
 
 echo "Tracer API revision=${BUILDKITE_COMMIT}"
