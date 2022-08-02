@@ -20,8 +20,8 @@ steps:
       - "indexer.log"
       - "neon-tracer.log"
       - "proxy.log"
-      - "tracer-db.log"
       - "neon-tracer-test.log"
+      - "neon-rpc.log"
 
   - wait
 

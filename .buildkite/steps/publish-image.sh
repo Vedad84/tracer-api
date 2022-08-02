@@ -19,10 +19,6 @@ docker pull neonlabsorg/neon-tracer:${REVISION}
 docker tag neonlabsorg/neon-tracer:${REVISION} neonlabsorg/neon-tracer:${TAG}
 docker push neonlabsorg/neon-tracer:${TAG}
 
-docker pull neonlabsorg/tracer-db:${REVISION}
-docker tag neonlabsorg/tracer-db:${REVISION} neonlabsorg/tracer-db:${TAG}
-docker push neonlabsorg/tracer-db:${TAG}
-
 docker pull neonlabsorg/neon-tracer-test:${REVISION}
 docker tag neonlabsorg/neon-tracer-test:${REVISION} neonlabsorg/neon-tracer-test:${TAG}
 docker push neonlabsorg/neon-tracer-test:${TAG}
@@ -30,3 +26,11 @@ docker push neonlabsorg/neon-tracer-test:${TAG}
 docker pull neonlabsorg/neon-rpc:${REVISION}
 docker tag neonlabsorg/neon-rpc:${REVISION} neonlabsorg/neon-rpc:${TAG}
 docker push neonlabsorg/neon-rpc:${TAG}
+
+docker pull neonlabsorg/neon-dumper-plugin:${REVISION}
+docker tag neonlabsorg/neon-dumper-plugin:${REVISION} neonlabsorg/neon-dumper-plugin:${TAG}
+docker push neonlabsorg/neon-dumper-plugin:${TAG}
+
+docker pull neonlabsorg/neon-validator:${REVISION}
+docker tag neonlabsorg/neon-validator:${REVISION} neonlabsorg/neon-dumper-plugin:${TAG}
+docker push neonlabsorg/neon-validator:${TAG}
