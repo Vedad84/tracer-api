@@ -3,7 +3,7 @@ version: "3"
 services:
   postgres:
     container_name: postgres
-    image: neonlabsorg/accountsdb:v1.11.3-dumper-plugin
+    image: neonlabsorg/neon-accountsdb:${BUILDKITE_COMMIT:-ci-master-dumper-plugin}
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana

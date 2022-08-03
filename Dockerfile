@@ -7,7 +7,7 @@ COPY . /opt
 WORKDIR /opt
 RUN cargo build --release
 
-FROM neonlabsorg/evm_loader:${NEON_EVM_REVISION} as evm
+FROM neonlabsorg/evm_loader:latest as evm
 
 FROM ubuntu:20.04
 RUN apt-get update && apt-get install -y libssl-dev
