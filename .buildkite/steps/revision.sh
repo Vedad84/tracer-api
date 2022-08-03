@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set ${NEON_EVM_REVISION:=latest}
+set ${NEON_EVM_REVISION:=ci-solana-v1.11.3}
 set ${SOLANA_REVISION:=v1.11.3}
 
 echo "Tracer API revision=${BUILDKITE_COMMIT}"

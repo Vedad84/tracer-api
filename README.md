@@ -12,7 +12,7 @@ also see `Dockerfile.build` to create a docker image with the Rust environment.
 
 ## Build the tracer-api
     export PATH="~/.cargo/bin:${PATH}"
-    export NEON_REVISION="true"
+    export NEON_EVM_REVISION="true"
     cargo build --release
 
 Now you can find the built binary at `target/release/neon-tracer`

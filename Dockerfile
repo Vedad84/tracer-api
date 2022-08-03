@@ -1,13 +1,13 @@
 FROM solanalabs/rust:1.59.0 AS builder
 
-ARG NEON_REVISION
-ENV NEON_REVISION $NEON_REVISION
+ARG NEON_EVM_REVISION
+ENV NEON_REVISION $NEON_EVM_REVISION
 
 COPY . /opt
 WORKDIR /opt
 RUN cargo build --release
 
-FROM neonlabsorg/evm_loader:latest as evm
+FROM neonlabsorg/evm_loader:${NEON_EVM_REVISION} as evm
 
 FROM ubuntu:20.04
 RUN apt-get update && apt-get install -y libssl-dev
