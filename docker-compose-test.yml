@@ -55,8 +55,6 @@ services:
       - "8001-8009/udp"
     networks:
       - net
-    volumes:
-      - ./accountsdb-plugin-config.json:/opt/accountsdb-plugin-config.json
     depends_on:
       postgres:
         condition: service_healthy

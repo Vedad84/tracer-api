@@ -26,3 +26,5 @@ COPY --from=solana /usr/bin/spl-token /opt/spl-token
 COPY --from=neon-dumper-plugin \
     /opt/libneon_dumper_plugin.so \
     /opt/
+
+COPY ./accountsdb-plugin-config.json /opt/
