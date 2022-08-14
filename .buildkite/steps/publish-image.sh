@@ -3,8 +3,6 @@ set -euo pipefail
 
 REVISION=$(git rev-parse HEAD)
 
-docker images
-
 docker login -u $DHUBU -p $DHUBP
 
 if [[ ${BUILDKITE_BRANCH} == "master" ]]; then
@@ -14,6 +12,8 @@ elif [[ ${BUILDKITE_BRANCH} == "develop" ]]; then
 else
     TAG=${BUILDKITE_BRANCH}
 fi
+
+echo "Publishing images with tag: ${TAG}"
 
 docker pull neonlabsorg/neon-tracer:${REVISION}
 docker tag neonlabsorg/neon-tracer:${REVISION} neonlabsorg/neon-tracer:${TAG}
