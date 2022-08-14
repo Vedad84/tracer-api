@@ -1,75 +1,47 @@
-# Build
-Building process is verified for Ubuntu 20.04
+# Neon Tracer-API
 
-## Install requirements
-    apt-get update
-    apt-get install -y build-essential curl pkg-config libssl-dev libudev-dev clang git jq unzip
+## Terms
 
-## Install Rust 
-    curl https://sh.rustup.rs -sSf | sh -s -- -y --default-toolchain $(cat rust-toolchain)
-    
-also see `Dockerfile.build` to create a docker image with the Rust environment.
+- **Neon-Dumper-Plugin** - special implementation of Solana-Geyser plugin suitable to save dumps of blockchain entities
+  for further transaction replaying/tracing, historical queries and so on.
+- **Dumper-DB** - database storing account/transaction/block/slot dumps produced by **Neon-Dumper-Plugin**
+- **Transaction dump (historical transaction)** - Solana transaction stored inside **Dumper-DB**.
+- **Account dump** - complete copy of some particular account at a given moment of time. Account dumped every time its
+  state changed (lamports, data etc.) therefore account can have several dumps at a given slot. In that case, every
+  particular dump is identified by write_version and transaction signature.
 
-## Build the tracer-api
-    export PATH="~/.cargo/bin:${PATH}"
-    export NEON_EVM_REVISION="true"
-    cargo build --release
+## Running full environment
 
-Now you can find the built binary at `target/release/neon-tracer`
-
-## Build a docker image (optionally)
-    docker build --tag neon-tracer:latest -f Dockerfile.dist
-
-# Prepare the environment
-
-## Database
-
-1. Install clickhouse-server version 21.8 or above.
-
-2. Create a database and apply the sql commands from `clickhouse/202110061400_initial.up.sql`
-
-3. Create two users:
-    - the user with write permissions for the validator
-    - the user with read permissions for the tracer-api (neon-tracer)
-
-
-# Run
-
-There are three methods to run neon-tracer.
-
-## Run binary
-    neon-tracer -l 0.0.0.0:8250 -c <clickhouse-server> -d <clickhouse-database> -u <clickhouse-user> -p <clickhouse-password>
-
-## Run the Docker image
-    docker run --rm -ti --network=host -p 0.0.0.0:8250:8250 neon-tracer:latest neon-tracer -l 0.0.0.0:8250 -c <clickhouse-server> -d <clickhouse-database> -u <clickhouse-user> -p <clickhouse-password>
-
-## Run the Docker image with docker-compose
-Create a neon-tracer-compose.yml file (see neon-tracer-compose.sample.yml) with content:
-
-    version: "3.7"
-    services:
-      neon-tracer:
-        network_mode: host
-        image: neon-tracer:latest
-        ports:
-          - "0.0.0.0:8250:8250"
-        command: neon-tracer -l 0.0.0.0:8250 -c <clickhouse-server> -d <clickhouse-database> -u <clickhouse-user> -p <clickhouse-password>
-
-And run it with the command:
-
-    docker-compose -f neon-tracer-compose.yml up -d
-
-
-# Command-line arguments
-
-`-l <bind-addrerss>:<port>` - Network interface address and port neon-tracer listens for connections.
-
-`-c <clickhouse-server>` - Clickhouse server URL to connect to HTTP interface.
-Example: http://clickhouse-server:8123/
-
-`-d <clickhouse-database>` - Database name
-
-`-u <clickhouse-user>` - User with read access
-
-`-p <clickhouse-password>` - User password
-
+Use **docker-compose-test.yml** as a template compose file. It contains next services:
+- **postgres** - Dumper-DB. Crucial parameters:
+  - POSTGRES_DB (env var) - name of database
+  - POSTGRES_USER (env var) - configured user
+  - POSTGRES_PASSWORD (env var) - password for configured user
+- **pgadmin (not necessary)** - Web interface to postgres database suitable for debugging
+- **validator** - Solana validator with Neon-Dumper-Plugin. Crucial parameters:
+  - GEYSER_PLUGIN_CONFIG - path to JSON file inside container containing Dumper-Plugin configuration. Refer to 
+  https://github.com/neonlabsorg/neon-dumper-plugin for details how to configure plugin. Default plugin configuration is
+  stored at /opt/accountsdb-plugin-config.json. You can replace it by mapping external file as a volume.
+- **dbcreation** - Database schema creation service for Neon Web3 Proxy 
+(refer to https://github.com/neonlabsorg/proxy-model.py for details). Test environment in docker-compose-test.yml uses 
+single postgres database for both dumper/tracer and proxy
+- **indexer** - Neon Web3 Indexer service. (refer to https://github.com/neonlabsorg/proxy-model.py for details). 
+Test environment in docker-compose-test.yml uses single postgres database for both dumper/tracer and indexer
+- **proxy** - Neon Web3 Proxy service. (refer to https://github.com/neonlabsorg/proxy-model.py for details).
+  Test environment in docker-compose-test.yml uses single postgres database for both dumper/tracer and proxy
+- **deploy_contracts (not necessary)** - utility service deploying test smart-contracts to Neon-EVM.
+- **neon-tracer** - Neon Tracer-API service. Parameters:
+  - LISTENER_ADDR - IP:PORT where to listen client connections
+  - SOLANA_URL - URL of Solana Validator RPC entrypoint
+  - EVM_LOADER - Address of Neon-EVM Loader smart-contract 
+  - TRACER_DB_HOST - Hostname of Dumper-DB (same as for **postgres** service)
+  - TRACER_DB_PORT - Port of Dumper-DB (same as for **postgres** service)
+  - TRACER_DB_NAME - Name Dumper-DB database (same as POSTGRES_DB of **postgres** service)
+  - TRACER_DB_USER - Username of Dumper-DB user (same as POSTGRES_USER of **postgres** service)
+  - TRACER_DB_PASSWORD - Password of Dumper-DB user (same as POSTGRES_PASSWORD of **postgres** service)
+  - WEB3_PROXY - URL of **proxy** service entrypoint
+- **faucet (not necessary)** - test faucet service
+- **neon-rpc** - Router-like service providing single entrypoint to both **proxy** and **neon-tracer** services. 
+Essentially just Nginx HTTP proxy server. Default test-configuration is stored inside image by path **/etc/nginx/nginx.conf**
+You can find source of this configuration file in this repo at **./neon-rpc/nginx.conf** You can replace default in-image 
+config by mapping external file inside **neon-rpc** container as volume
