@@ -26,15 +26,3 @@ docker push neonlabsorg/neon-tracer-test:${TAG}
 docker pull neonlabsorg/neon-rpc:${REVISION}
 docker tag neonlabsorg/neon-rpc:${REVISION} neonlabsorg/neon-rpc:${TAG}
 docker push neonlabsorg/neon-rpc:${TAG}
-
-docker pull neonlabsorg/neon-dumper-plugin:${REVISION}
-docker tag neonlabsorg/neon-dumper-plugin:${REVISION} neonlabsorg/neon-dumper-plugin:${TAG}
-docker push neonlabsorg/neon-dumper-plugin:${TAG}
-
-docker pull neonlabsorg/neon-accountsdb:${REVISION}
-docker tag neonlabsorg/neon-accountsdb:${REVISION} neonlabsorg/neon-accountsdb:${TAG}
-docker push neonlabsorg/neon-accountsdb:${TAG}
-
-docker pull neonlabsorg/neon-validator:${REVISION}
-docker tag neonlabsorg/neon-validator:${REVISION} neonlabsorg/neon-validator:${TAG}
-docker push neonlabsorg/neon-validator:${TAG}
