@@ -2,7 +2,7 @@ ARG NEON_EVM_REVISION
 ARG SOLANA_REVISION
 ARG ACCOUNT_DUMPER_REVISION
 
-FROM solanalabs/solana:${SOLANA_REVISION} AS solana
+FROM neonlabsorg/solana:${SOLANA_REVISION} AS solana
 
 FROM neonlabsorg/neon-dumper-plugin:${ACCOUNT_DUMPER_REVISION} AS neon-dumper-plugin
 
