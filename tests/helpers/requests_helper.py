@@ -14,7 +14,7 @@ def send_trace_request(url, payload) -> dict:
     return json.loads(response.text)
 
 
-def request_airdrop(address, amount: int = 10):
+def request_airdrop(address, amount: int = 1000):
     FAUCET_URL = os.environ.get('FAUCET_URL', 'http://faucet:3333')
     url = FAUCET_URL + '/request_neon'
     data = f'{{"wallet": "{address}", "amount": {amount}}}'
@@ -57,7 +57,7 @@ def deploy_storage_contract(proxy, deployer):
         nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
         chainId=proxy.eth.chain_id,
         gas=987654321,
-        gasPrice=2000000000,
+        gasPrice=150000000000,
         to='',
         value=0,
         data=storage.bytecode),
