@@ -4,28 +4,20 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use jsonrpsee::http_server::{HttpServerBuilder, RpcModule};
-use jsonrpsee::proc_macros::rpc;
-use jsonrpsee::types::error::Error;
 use secret_value::Secret;
 use structopt::StructOpt;
-use tracing::{info, warn, instrument};
+use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 use web3;
 
-use crate::neon::provider::DbProvider;
 use crate::v1::geth::types::trace as geth;
-use crate::v1::types::{
-    BlockNumber, EthCallObject,
-};
-use evm::{H160, U256, H256};
-use crate::v1::geth::types::trace::{H160T, H256T, U256T};
-
-type Result<T> = std::result::Result<T, Error>;
+use crate::service::{ ServerImpl, eip1898::EIP1898Server };
 
 mod db;
 mod neon;
 mod v1;
 mod syscall_stubs;
+mod service;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -49,121 +41,6 @@ struct Options {
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
     T::from_str(input).map(Secret::from)
-}
-
-#[rpc(server)]
-pub trait EIP1898 {
-    #[method(name = "eth_call")]
-    fn eth_call(
-        &self,
-        object: EthCallObject,
-        tag: BlockNumber,
-    ) -> Result<String>;
-
-    #[method(name = "eth_getStorageAt")]
-    fn eth_get_storage_at(
-        &self,
-        contract_id: H160T,
-        index: U256T,
-        tag: BlockNumber,
-    ) -> Result<U256T>;
-
-    #[method(name = "eth_getBalance")]
-    fn eth_get_balance(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T>;
-
-    #[method(name = "eth_getCode")]
-    fn eth_get_code(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<String>;
-
-    #[method(name = "eth_getTransactionCount")]
-    fn eth_get_transaction_count(
-        &self,
-        contract_id: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T>;
-}
-
-#[derive(Debug, Clone)]
-pub struct ServerImpl {
-    tracer_core: neon::TracerCore,
-}
-
-impl ServerImpl {
-    fn get_slot_by_block(&self, bn: BlockNumber) -> Option<u64> {
-        match bn {
-            BlockNumber::Num(num) => Some(num),
-            BlockNumber::Latest => None,
-            _ => todo!(),
-        }
-    }
-}
-
-impl EIP1898Server for ServerImpl {
-    #[instrument]
-    fn eth_call(
-        &self,
-        object: EthCallObject,
-        tag: BlockNumber,
-    ) -> Result<String> {
-        self.tracer_core.eth_call(
-            object.from.map(|v| v.0),
-            object.to.0,
-            object.gas.map(|v| v.0),
-            object.gasprice.map(|v| v.0),
-            object.value.map(|v| v.0),
-            object.data.map(|v| v.0),
-            tag,
-        )
-            .map_err(|err| Error::Custom(err.to_string()))
-    }
-
-    #[instrument]
-    fn eth_get_storage_at(
-        &self,
-        contract_id: H160T,
-        index: U256T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        self.tracer_core.get_storage_at(&contract_id, &index, tag)
-            .map_err(|err| Error::Custom(err.to_string()))
-    }
-
-    #[instrument]
-    fn eth_get_balance(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        self.tracer_core.get_balance(&address, tag)
-            .map_err(|err|Error::Custom(err.to_string()))
-    }
-
-    #[instrument]
-    fn eth_get_code(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<String> {
-        self.tracer_core.get_code(&address, tag)
-            .map_err(|err|Error::Custom(err.to_string()))
-    }
-
-    #[instrument]
-    fn eth_get_transaction_count(
-        &self,
-        account_id: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        self.tracer_core.get_transaction_count(&account_id, tag)
-            .map_err(|err|Error::Custom(err.to_string()))
-    }
 }
 
 fn init_logs() {
@@ -209,13 +86,13 @@ async fn main() {
 
     let web3_client = web3::Web3::new(transport.unwrap());
 
-    let serv_impl = ServerImpl {
-        tracer_core: neon::TracerCore {
+    let serv_impl = ServerImpl::new(
+        neon::TracerCore {
             evm_loader: options.evm_loader,
             db_client: Arc::new(client),
             web3: Arc::new(web3_client),
-        },
-    };
+        }
+    );
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl));
