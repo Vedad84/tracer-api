@@ -28,7 +28,7 @@ use crate::db::DbClient;
 use crate::syscall_stubs::Stubs;
 
 use account_storage::EmulatorAccountStorage;
-use provider::{DbProvider, MapProvider, Provider};
+use provider::{DbProvider, Provider};
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use std::{borrow::BorrowMut, cell::RefCell, rc::Rc};
 
@@ -144,7 +144,7 @@ impl TracerCore {
             self.evm_loader,
         );
 
-        let syscall_stubs = Stubs::new(&provider, Some(block_number))?;
+        let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
         let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
@@ -163,7 +163,7 @@ impl TracerCore {
             self.evm_loader,
         );
 
-        let syscall_stubs = Stubs::new(&provider, Some(block_number))?;
+        let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
         let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
@@ -188,12 +188,10 @@ impl TracerCore {
         );
 
         let caller_id = from.unwrap_or_default();
-        let block_number = Some(block_number);
-
         let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
-        let storage = EmulatorAccountStorage::new(provider, block_number);
+        let storage = EmulatorAccountStorage::new(provider, Some(block_number));
         let mut executor =
             Machine::new(caller_id, &storage)?;
 
@@ -250,7 +248,7 @@ impl TracerCore {
             self.evm_loader,
         );
 
-        let syscall_stubs = Stubs::new(&provider, Some(block_number))?;
+        let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
         let code = EmulatorAccountStorage::new(provider, Some(block_number))
@@ -269,7 +267,7 @@ impl TracerCore {
             self.evm_loader,
         );
 
-        let syscall_stubs = Stubs::new(&provider, Some(block_number))?;
+        let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
 
         let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));

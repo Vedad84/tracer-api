@@ -11,7 +11,8 @@ use tracing_subscriber::{EnvFilter, fmt};
 use web3;
 
 use crate::v1::geth::types::trace as geth;
-use crate::service::{ ServerImpl, eip1898::EIP1898Server };
+use crate::service::{ eip1898::EIP1898Server };
+use crate::neon::TracerCore;
 
 mod db;
 mod neon;
@@ -86,13 +87,11 @@ async fn main() {
 
     let web3_client = web3::Web3::new(transport.unwrap());
 
-    let serv_impl = ServerImpl::new(
-        neon::TracerCore {
-            evm_loader: options.evm_loader,
-            db_client: Arc::new(client),
-            web3: Arc::new(web3_client),
-        }
-    );
+    let serv_impl = neon::TracerCore {
+        evm_loader: options.evm_loader,
+        db_client: Arc::new(client),
+        web3: Arc::new(web3_client),
+    };
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl));

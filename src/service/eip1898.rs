@@ -1,6 +1,7 @@
 use {
     crate::{
-        service::{ Result, ServerImpl },
+        neon::TracerCore,
+        service::Result,
         v1::{
             geth::types::trace::{H160T, H256T, U256T},
             types::{ BlockNumber, EthCallObject },
@@ -49,14 +50,14 @@ pub trait EIP1898 {
     ) -> Result<U256T>;
 }
 
-impl EIP1898Server for ServerImpl {
+impl EIP1898Server for TracerCore {
     #[instrument]
     fn eth_call(
         &self,
         object: EthCallObject,
         tag: BlockNumber,
     ) -> Result<String> {
-        self.tracer_core.eth_call(
+        self.eth_call(
             object.from.map(|v| v.0),
             object.to.0,
             object.gas.map(|v| v.0),
@@ -75,7 +76,7 @@ impl EIP1898Server for ServerImpl {
         index: U256T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-        self.tracer_core.get_storage_at(&contract_id, &index, tag)
+        self.get_storage_at(&contract_id, &index, tag)
             .map_err(|err| Error::Custom(err.to_string()))
     }
 
@@ -85,7 +86,7 @@ impl EIP1898Server for ServerImpl {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-        self.tracer_core.get_balance(&address, tag)
+        self.get_balance(&address, tag)
             .map_err(|err|Error::Custom(err.to_string()))
     }
 
@@ -95,7 +96,7 @@ impl EIP1898Server for ServerImpl {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<String> {
-        self.tracer_core.get_code(&address, tag)
+        self.get_code(&address, tag)
             .map_err(|err|Error::Custom(err.to_string()))
     }
 
@@ -105,7 +106,7 @@ impl EIP1898Server for ServerImpl {
         account_id: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-        self.tracer_core.get_transaction_count(&account_id, tag)
+        self.get_transaction_count(&account_id, tag)
             .map_err(|err|Error::Custom(err.to_string()))
     }
 }

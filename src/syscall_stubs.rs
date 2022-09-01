@@ -17,22 +17,22 @@ pub struct Stubs {
 }
 
 impl Stubs {
-    pub fn new<P>(provider: &P, block_number: Option<u64>) -> Result<Box<Stubs>, anyhow::Error>
+    pub fn new<P>(provider: &P, block_number: u64) -> Result<Box<Stubs>, anyhow::Error>
         where
             P: Provider
     {
-        let rent = Stubs::load_rent_account(provider, &block_number)?;
-        let clock = Stubs::load_clock_account(provider, &block_number)?;
+        let rent = Stubs::load_rent_account(provider, block_number)?;
+        let clock = Stubs::load_clock_account(provider, block_number)?;
         Ok(Box::new(Self { rent, clock }))
     }
 
-    fn load_rent_account<P>(provider: &P, block_number: &Option<u64>) -> Result<Rent, anyhow::Error>
+    fn load_rent_account<P>(provider: &P, block_number: u64) -> Result<Rent, anyhow::Error>
         where
             P: Provider
     {
         let rent_pubkey = solana_sdk::sysvar::rent::id();
         // TODO: remove u64::MAX after fix get_slot_by_block
-        let mut acc = provider.get_account_at_slot(&rent_pubkey, block_number.unwrap_or(u64::MAX))
+        let mut acc = provider.get_account_at_slot(&rent_pubkey, block_number)
             .map_err(|e| anyhow!("error load rent account {}", e))?;
 
         let acc = acc.ok_or(anyhow!("rent account is None"))?;
@@ -40,13 +40,13 @@ impl Stubs {
         bincode::deserialize(data).map_err(|e| anyhow!("error to deserialize rent account {}", e))
     }
 
-    fn load_clock_account<P>(provider: &P, block_number: &Option<u64>) -> Result<Clock, anyhow::Error>
+    fn load_clock_account<P>(provider: &P, block_number: u64) -> Result<Clock, anyhow::Error>
         where
             P: Provider
     {
         let clock_pubkey = solana_sdk::sysvar::clock::id();
         // TODO: remove u64::MAX after fix get_slot_by_block
-        let mut acc = provider.get_account_at_slot(&clock_pubkey, block_number.unwrap_or(u64::MAX))
+        let mut acc = provider.get_account_at_slot(&clock_pubkey, block_number)
             .map_err(|e| anyhow!("error load clock account {}", e))?;
 
         let acc = acc.ok_or(anyhow!("clock account is None"))?;
