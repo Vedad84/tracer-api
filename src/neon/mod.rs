@@ -6,6 +6,7 @@ use {
     arrayref::array_ref,
     crate::{
         db::DbClient,
+        neon::provider::DbProvider,
         v1::{
             geth::types::trace::{ H256T },
             types::BlockNumber,
@@ -28,9 +29,9 @@ type Error = jsonrpsee::types::error::Error;
 
 #[derive(Clone)]
 pub struct TracerCore {
-    pub evm_loader: Pubkey,
-    pub db_client: Arc<DbClient>,
-    pub web3: Arc<Web3<Http>>,
+    evm_loader: Pubkey,
+    db_client: Arc<DbClient>,
+    web3: Arc<Web3<Http>>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -41,6 +42,22 @@ fn convert_h256(inp: H256T) -> web3::types::H256 {
 }
 
 impl TracerCore {
+    pub fn new(
+        evm_loader: Pubkey,
+        db_client: Arc<DbClient>,
+        web3: Arc<Web3<Http>>,
+    ) -> Self {
+        Self {
+            evm_loader,
+            db_client,
+            web3,
+        }
+    }
+
+    pub fn db_provider(&self) -> DbProvider {
+        DbProvider::new(self.db_client.clone(), self.evm_loader)
+    }
+
     pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
         match tag {
             BlockNumber::Num(num) => Ok(num),

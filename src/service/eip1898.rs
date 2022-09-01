@@ -55,6 +55,18 @@ pub trait EIP1898 {
     ) -> Result<U256T>;
 }
 
+impl TracerCore {
+    fn create_account_storage(&self, tag: BlockNumber) -> Result<EmulatorAccountStorage<DbProvider>> {
+        let block_number = self.get_block_number(tag)?;
+        let provider = self.db_provider();
+        let syscall_stubs = Stubs::new(&provider, block_number)?;
+        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
+        let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+
+        Ok(account_storage)
+    }
+}
+
 impl EIP1898Server for TracerCore {
     #[instrument]
     fn eth_call(
@@ -65,18 +77,9 @@ impl EIP1898Server for TracerCore {
         let data = object.data.map(|v| v.0);
         let value = object.value.map(|v| v.0);
 
-        let block_number = self.get_block_number(tag)?;
-        let provider = DbProvider::new(
-            self.db_client.clone(),
-            self.evm_loader,
-        );
-
+        let account_storage = self.create_account_storage(tag)?;
         let caller_id = object.from.map(|v| v.0).unwrap_or_default();
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-
-        let storage = EmulatorAccountStorage::new(provider, Some(block_number));
-        let mut executor = Machine::new(caller_id, &storage)
+        let mut executor = Machine::new(caller_id, &account_storage)
             .map_err(|err| Error::Custom(format!("Failed to create Machine: {:?}", err)))?;
 
         // u64::MAX is too large, remix gives this error:
@@ -128,17 +131,7 @@ impl EIP1898Server for TracerCore {
         index: U256T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-
-        let block_number = self.get_block_number(tag)?;
-        let provider = DbProvider::new(
-            self.db_client.clone(),
-            self.evm_loader,
-        );
-
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-
-        let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+        let account_storage = self.create_account_storage(tag)?;
         Ok(U256T(account_storage.storage(&contract_id.0, &index.0)))
     }
 
@@ -148,17 +141,7 @@ impl EIP1898Server for TracerCore {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-
-        let block_number = self.get_block_number(tag)?;
-        let provider = DbProvider::new(
-            self.db_client.clone(),
-            self.evm_loader,
-        );
-
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-
-        let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+        let account_storage = self.create_account_storage(tag)?;
         Ok(U256T(account_storage.balance(&address.0)))
     }
 
@@ -168,17 +151,8 @@ impl EIP1898Server for TracerCore {
         address: H160T,
         tag: BlockNumber,
     ) -> Result<String> {
-        let block_number = self.get_block_number(tag)?;
-        let provider = DbProvider::new(
-            self.db_client.clone(),
-            self.evm_loader,
-        );
-
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-
-        let code = EmulatorAccountStorage::new(provider, Some(block_number))
-            .code(&address.0);
+        let account_storage = self.create_account_storage(tag)?;
+        let code = account_storage.code(&address.0);
         Ok(format!("0x{}", hex::encode(code)))
     }
 
@@ -188,16 +162,7 @@ impl EIP1898Server for TracerCore {
         account_id: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
-        let block_number = self.get_block_number(tag)?;
-        let provider = DbProvider::new(
-            self.db_client.clone(),
-            self.evm_loader,
-        );
-
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-
-        let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
+        let account_storage = self.create_account_storage(tag)?;
         Ok(U256T(account_storage.nonce(&account_id.0)))
     }
 }

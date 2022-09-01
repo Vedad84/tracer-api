@@ -87,11 +87,11 @@ async fn main() {
 
     let web3_client = web3::Web3::new(transport.unwrap());
 
-    let serv_impl = neon::TracerCore {
-        evm_loader: options.evm_loader,
-        db_client: Arc::new(client),
-        web3: Arc::new(web3_client),
-    };
+    let serv_impl = neon::TracerCore::new(
+        options.evm_loader,
+        Arc::new(client),
+        Arc::new(web3_client),
+    );
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl));
