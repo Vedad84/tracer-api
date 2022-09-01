@@ -1,12 +1,9 @@
 use {
-    anyhow::bail,
-    arrayref::array_ref,
     crate::{
-        neon::{ account_storage::EmulatorAccountStorage, provider::DbProvider, TracerCore },
-        service::Result,
+        neon::{ account_storage::EmulatorAccountStorage, provider::DbProvider, TracerCore, Result },
         syscall_stubs::Stubs,
         v1::{
-            geth::types::trace::{H160T, H256T, U256T},
+            geth::types::trace::{H160T, U256T},
             types::{ BlockNumber, EthCallObject },
         },
     },
@@ -16,9 +13,7 @@ use {
         executor::Machine,
     },
     jsonrpsee::{ proc_macros::rpc, types::Error },
-    tracing::{debug, info, instrument, warn},
-    tokio::task::block_in_place,
-    web3::types::BlockId,
+    tracing::{debug, instrument},
 };
 
 #[rpc(server)]
@@ -58,44 +53,6 @@ pub trait EIP1898 {
         contract_id: H160T,
         tag: BlockNumber,
     ) -> Result<U256T>;
-}
-
-fn convert_h256(inp: H256T) -> web3::types::H256 {
-    let bytes = array_ref![inp.0.as_bytes(), 0, 32];
-    web3::types::H256::from(bytes)
-}
-
-impl TracerCore {
-    fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
-        match tag {
-            BlockNumber::Num(num) => Ok(num),
-            BlockNumber::Hash { hash, .. } => {
-
-                let hash_str = hash.0.to_string();
-                info!("Get block number {:?}", &hash_str);
-
-                let future = self.web3
-                    .eth()
-                    .block(BlockId::Hash(convert_h256(hash)));
-
-                let result = block_in_place(|| {
-                    let handle = tokio::runtime::Handle::current();
-                    handle.block_on(future)
-                }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
-
-                info!("Web3 part ready");
-
-                Ok(result
-                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .number
-                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .as_u64())
-            },
-            _ => {
-                Err(Error::Custom(format!("Unsupported block tag")))
-            }
-        }
-    }
 }
 
 impl EIP1898Server for TracerCore {

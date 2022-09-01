@@ -31,7 +31,7 @@ use super::provider::Provider;
 use solana_sdk::account_info::AccountInfo;
 use std::collections::{BTreeMap, BTreeSet};
 use solana_sdk::program_error::ProgramError;
-use crate::neon::{Error, account_info};
+use crate::neon::{account_info};
 use std::env;
 use std::str::FromStr;
 

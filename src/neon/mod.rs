@@ -3,25 +3,74 @@ pub mod provider;
 
 use {
     anyhow::anyhow,
-    crate::db::DbClient,
+    arrayref::array_ref,
+    crate::{
+        db::DbClient,
+        v1::{
+            geth::types::trace::{ H256T },
+            types::BlockNumber,
+        },
+    },
     solana_sdk::{ account::Account, account_info::AccountInfo, pubkey::Pubkey },
     std::{
         cell::RefCell, convert::{TryFrom, TryInto}, fmt, rc::Rc, sync::Arc,
     },
-    web3::{ transports::Http, Web3 },
+    tokio::task::block_in_place,
+    web3::{ transports::Http, types::BlockId, Web3 },
+    tracing::{ info, warn },
 };
 
 pub trait To<T> {
     fn to(self) -> T;
 }
 
-type Error = anyhow::Error;
+type Error = jsonrpsee::types::error::Error;
 
 #[derive(Clone)]
 pub struct TracerCore {
     pub evm_loader: Pubkey,
     pub db_client: Arc<DbClient>,
     pub web3: Arc<Web3<Http>>,
+}
+
+pub type Result<T> = std::result::Result<T, Error>;
+
+fn convert_h256(inp: H256T) -> web3::types::H256 {
+    let bytes = array_ref![inp.0.as_bytes(), 0, 32];
+    web3::types::H256::from(bytes)
+}
+
+impl TracerCore {
+    pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
+        match tag {
+            BlockNumber::Num(num) => Ok(num),
+            BlockNumber::Hash { hash, .. } => {
+
+                let hash_str = hash.0.to_string();
+                info!("Get block number {:?}", &hash_str);
+
+                let future = self.web3
+                    .eth()
+                    .block(BlockId::Hash(convert_h256(hash)));
+
+                let result = block_in_place(|| {
+                    let handle = tokio::runtime::Handle::current();
+                    handle.block_on(future)
+                }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
+
+                info!("Web3 part ready");
+
+                Ok(result
+                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
+                    .number
+                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
+                    .as_u64())
+            },
+            _ => {
+                Err(Error::Custom(format!("Unsupported block tag")))
+            }
+        }
+    }
 }
 
 impl std::fmt::Debug for TracerCore {
