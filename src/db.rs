@@ -21,6 +21,9 @@ pub struct DbClient {
 
 #[derive(Error, Debug)]
 pub enum Error {
+    #[error("account not found: {acc}")]
+    AccNotFound{ acc: Pubkey },
+
     #[error("postgres: {}", .0)]
     Db(#[from] tokio_postgres::Error),
 }
@@ -87,50 +90,28 @@ impl DbClient {
         Ok(time)
     }
 
-    pub fn get_accounts_at_slot(
-        &self,
-        pubkeys: impl Iterator<Item = Pubkey>,
-        slot: u64,
-    ) -> DbResult<Vec<(Pubkey, Account)>> {
-        // SELECT * FROM get_accounts_at_slot(ARRAY[decode('5991510ef1cc9da133f4dd51e34ef00318ab4dfa517a4fd00baef9e83f7a7751', 'hex')], 10000000)
-        let pubkey_bytes = pubkeys
-            .map(|entry| entry.to_bytes())
-            .collect_vec();
-
-        let pubkey_slices = pubkey_bytes
-            .iter()
-            .map(|entry| entry.as_byte_slice())
-            .collect_vec();
-        let mut result = Vec::new();
-
+    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: u64) -> DbResult<Option<Account>> {
+        let pubkey_bytes = pubkey.to_bytes();
         let rows = self.block(|| async {
             self.client.query(
-                "SELECT * FROM get_accounts_at_slot($1, $2)",
-                &[&pubkey_slices, &(slot as i64)]
+                "SELECT * FROM get_account_at_slot($1, $2)",
+                &[&pubkey_bytes.as_slice(), &(slot as i64)]
             ).await
         })?;
 
-        for row in rows {
-            let lamports: i64 = row.try_get(2)?;
-            let rent_epoch: i64 = row.try_get(4)?;
-            result.push((
-                Pubkey::new(row.try_get(0)?),
-                Account {
-                    lamports: lamports as u64,
-                    data: row.try_get(5)?,
-                    owner: Pubkey::new(row.try_get(1)?),
-                    executable: row.try_get(3)?,
-                    rent_epoch: rent_epoch as u64,
-                }
-            ));
+        if rows.len() != 1 {
+            return Ok(None);
         }
 
-        Ok(result)
-    }
-
-    pub fn get_account_at_slot(&self, pubkey: &Pubkey, slot: u64) -> DbResult<Option<Account>> {
-        let accounts = self.get_accounts_at_slot(std::iter::once(pubkey.to_owned()), slot)?;
-        let account = accounts.get(0).map(|(_, account)| account).cloned();
-        Ok(account)
+        let row = &rows[0];
+        let lamports: i64 = row.try_get(2)?;
+        let rent_epoch: i64 = row.try_get(4)?;
+        Ok(Some(Account {
+                lamports: lamports as u64,
+                data: row.try_get(5)?,
+                owner: Pubkey::new(row.try_get(1)?),
+                executable: row.try_get(3)?,
+                rent_epoch: rent_epoch as u64,
+        }))
     }
 }

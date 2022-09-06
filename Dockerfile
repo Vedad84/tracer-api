@@ -10,7 +10,8 @@ RUN cargo build --release
 FROM neonlabsorg/evm_loader:latest as evm
 
 FROM ubuntu:20.04
-RUN apt-get update && apt-get install -y libssl-dev
+RUN apt-get update && apt install -y ca-certificates && update-ca-certificates --fresh
+RUN apt-get install -y libssl-dev
 
 WORKDIR /usr/sbin
 COPY --from=builder /opt/target/release/neon-tracer .
