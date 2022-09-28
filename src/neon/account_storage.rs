@@ -69,25 +69,19 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
         provider: P,
         block_number: Option<u64>,
     ) -> EmulatorAccountStorage<P> {
-        eprintln!("backend::new");
-
         let slot = block_number.unwrap_or_else(|| {
             if let Ok(slot) = provider.get_slot() {
-                eprintln!("Got slot");
-                eprintln!("Slot {}", slot);
                 slot
             } else {
-                eprintln!("Get slot error");
+                warn!("Get slot error");
                 0
             }
         });
 
         let timestamp = if let Ok(timestamp) = provider.get_block_time(slot) {
-            eprintln!("Got timestamp");
-            eprintln!("timestamp {}", timestamp);
             timestamp
         } else {
-            eprintln!("Get timestamp error");
+            warn!("Get timestamp error");
             0
         };
 

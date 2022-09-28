@@ -27,7 +27,7 @@ class TestEthGetCode(TestCase):
             nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
             chainId=proxy.eth.chain_id,
             gas=987654321,
-            gasPrice=150000000000,
+            gasPrice=163000000000,
             to='',
             value=0,
             data=bytes.fromhex(DEPLOY_CODE)),

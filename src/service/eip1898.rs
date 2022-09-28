@@ -1,5 +1,6 @@
 use {
     crate::{
+        metrics,
         neon::{ account_storage::EmulatorAccountStorage, provider::DbProvider, TracerCore, Result },
         syscall_stubs::Stubs,
         v1::{
@@ -65,15 +66,14 @@ impl TracerCore {
 
         Ok(account_storage)
     }
-}
 
-impl EIP1898Server for TracerCore {
     #[instrument]
-    fn eth_call(
+    fn eth_call_impl(
         &self,
         object: EthCallObject,
         tag: BlockNumber,
     ) -> Result<String> {
+        let timer = metrics::report_incoming_request("eth_call");
         let data = object.data.map(|v| v.0);
         let value = object.value.map(|v| v.0);
 
@@ -125,7 +125,7 @@ impl EIP1898Server for TracerCore {
     }
 
     #[instrument]
-    fn eth_get_storage_at(
+    fn eth_get_storage_at_impl(
         &self,
         contract_id: H160T,
         index: U256T,
@@ -136,7 +136,7 @@ impl EIP1898Server for TracerCore {
     }
 
     #[instrument]
-    fn eth_get_balance(
+    fn eth_get_balance_impl(
         &self,
         address: H160T,
         tag: BlockNumber,
@@ -146,7 +146,7 @@ impl EIP1898Server for TracerCore {
     }
 
     #[instrument]
-    fn eth_get_code(
+    fn eth_get_code_impl(
         &self,
         address: H160T,
         tag: BlockNumber,
@@ -157,12 +157,75 @@ impl EIP1898Server for TracerCore {
     }
 
     #[instrument]
-    fn eth_get_transaction_count(
+    fn eth_get_transaction_count_impl(
         &self,
         account_id: H160T,
         tag: BlockNumber,
     ) -> Result<U256T> {
         let account_storage = self.create_account_storage(tag)?;
         Ok(U256T(account_storage.nonce(&account_id.0)))
+    }
+}
+
+impl EIP1898Server for TracerCore {
+    #[instrument]
+    fn eth_call(
+        &self,
+        object: EthCallObject,
+        tag: BlockNumber,
+    ) -> Result<String> {
+        let started = metrics::report_incoming_request("eth_call");
+        let result = self.eth_call_impl(object, tag);
+        metrics::report_request_finished(started, "eth_call", result.is_ok());
+        result
+    }
+
+    #[instrument]
+    fn eth_get_storage_at(
+        &self,
+        contract_id: H160T,
+        index: U256T,
+        tag: BlockNumber,
+    ) -> Result<U256T> {
+        let started = metrics::report_incoming_request("eth_getStorageAt");
+        let result = self.eth_get_storage_at_impl(contract_id, index, tag);
+        metrics::report_request_finished(started, "eth_getStorageAt", result.is_ok());
+        result
+    }
+
+    #[instrument]
+    fn eth_get_balance(
+        &self,
+        address: H160T,
+        tag: BlockNumber,
+    ) -> Result<U256T> {
+        let started = metrics::report_incoming_request("eth_getBalance");
+        let result = self.eth_get_balance_impl(address, tag);
+        metrics::report_request_finished(started, "eth_getBalance", result.is_ok());
+        result
+    }
+
+    #[instrument]
+    fn eth_get_code(
+        &self,
+        address: H160T,
+        tag: BlockNumber,
+    ) -> Result<String> {
+        let started = metrics::report_incoming_request("eth_getCode");
+        let result = self.eth_get_code_impl(address, tag);
+        metrics::report_request_finished(started, "eth_getCode", result.is_ok());
+        result
+    }
+
+    #[instrument]
+    fn eth_get_transaction_count(
+        &self,
+        account_id: H160T,
+        tag: BlockNumber,
+    ) -> Result<U256T> {
+        let started = metrics::report_incoming_request("eth_getTransactionCount");
+        let result = self.eth_get_transaction_count_impl(account_id, tag);
+        metrics::report_request_finished(started, "eth_getTransactionCount", result.is_ok());
+        result
     }
 }

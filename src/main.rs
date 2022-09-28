@@ -1,5 +1,6 @@
 #![allow(unused, clippy::too_many_arguments)]
 
+use std::net::Ipv4Addr;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -9,6 +10,7 @@ use structopt::StructOpt;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
 use web3;
+use crate::metrics::start_monitoring;
 
 use crate::v1::geth::types::trace as geth;
 use crate::service::{ eip1898::EIP1898Server };
@@ -19,6 +21,7 @@ mod neon;
 mod v1;
 mod syscall_stubs;
 mod service;
+mod metrics;
 
 #[derive(Debug, StructOpt)]
 struct Options {
@@ -38,6 +41,10 @@ struct Options {
     evm_loader: solana_sdk::pubkey::Pubkey,
     #[structopt(short = "w", long = "web3-proxy")]
     web3_proxy: String,
+    #[structopt(short = "i", long = "metrics-ip", default_value = "0.0.0.0")]
+    metrics_ip: Ipv4Addr,
+    #[structopt(short = "m", long = "metrics-port", default_value = "9292")]
+    metrics_port: u16,
 }
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
@@ -71,13 +78,13 @@ async fn main() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let client = DbClient::new(
+    let client = Arc::new(DbClient::new(
         &options.ch_host.clone(),
         &options.ch_port.clone(),
         options.ch_user.clone(),
         options.ch_password.clone().map(Secret::inner),
         options.ch_database.clone(),
-    ).await;
+    ).await);
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
     if transport.is_err() {
@@ -85,19 +92,24 @@ async fn main() {
         return;
     }
 
-    let web3_client = web3::Web3::new(transport.unwrap());
+    let web3_client = Arc::new(web3::Web3::new(transport.unwrap()));
 
     let serv_impl = neon::TracerCore::new(
         options.evm_loader,
-        Arc::new(client),
-        Arc::new(web3_client),
+        client.clone(),
+        web3_client.clone(),
     );
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl));
 
+    info!("before start monitoring");
+
     let _handle = server.start(module).unwrap();
-    loop {
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-    }
+    start_monitoring(
+        client.clone(),
+        web3_client.clone(),
+        options.metrics_ip,
+        options.metrics_port
+    ).await;
 }
