@@ -30,7 +30,7 @@ Test environment in docker-compose-test.yml uses single postgres database for bo
 - **proxy** - Neon Web3 Proxy service. (refer to https://github.com/neonlabsorg/proxy-model.py for details).
   Test environment in docker-compose-test.yml uses single postgres database for both dumper/tracer and proxy
 - **deploy_contracts (not necessary)** - utility service deploying test smart-contracts to Neon-EVM.
-- **neon-tracer** - Neon Tracer-API service. Parameters:
+- **neon-tracer** - Neon Tracer-API service. Environment variables:
   - LISTENER_ADDR - IP:PORT where to listen client connections
   - SOLANA_URL - URL of Solana Validator RPC entrypoint
   - EVM_LOADER - Address of Neon-EVM Loader smart-contract 
@@ -40,6 +40,11 @@ Test environment in docker-compose-test.yml uses single postgres database for bo
   - TRACER_DB_USER - Username of Dumper-DB user (same as POSTGRES_USER of **postgres** service)
   - TRACER_DB_PASSWORD - Password of Dumper-DB user (same as POSTGRES_PASSWORD of **postgres** service)
   - WEB3_PROXY - URL of **proxy** service entrypoint
+  - METRICS_IP - IP address where to provide Prometheus metrics data
+  - METRICS_PORT - Port where to provide Prometheus metrics data (Finally, metrics will be provided at http://METRICS_IP:METRICS_PORT/metrics entrypoint)
+  - NEON_TOKEN_MINT - address of Neon SPL token
+  - NEON_CHAIN_ID - id of the network (e. g 111 for test environment)
+  - MONITORING_INTERVAL_SEC - monitoring interval in seconds
 - **faucet (not necessary)** - test faucet service
 - **neon-rpc** - Router-like service providing single entrypoint to both **proxy** and **neon-tracer** services. 
 Essentially just Nginx HTTP proxy server. Default test-configuration is stored inside image by path **/etc/nginx/nginx.conf**

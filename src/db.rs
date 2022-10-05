@@ -34,15 +34,12 @@ impl DbClient {
     pub async fn new(
         host: &str,
         port: &str,
-        user: Option<String>,
-        password: Option<String>,
-        database: Option<String>,
+        user: String,
+        password: String,
+        database: String,
     ) -> Self {
         let connection_str= format!("host={} port={} dbname={} user={} password={}",
-                                    host, port,
-                                    database.unwrap_or_default(),
-                                    user.unwrap_or_default(),
-                                    password.unwrap_or_default());
+                                    host, port, database, user, password);
 
 
         let (client, connection) =

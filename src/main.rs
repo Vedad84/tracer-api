@@ -22,30 +22,7 @@ mod v1;
 mod syscall_stubs;
 mod service;
 mod metrics;
-
-#[derive(Debug, StructOpt)]
-struct Options {
-    #[structopt(short = "l", long = "listen", default_value = "127.0.0.1:8080")]
-    addr: String,
-    #[structopt(short = "h", long = "db-host", default_value = "127.0.0.1")]
-    ch_host: String,
-    #[structopt(short = "P", long = "db-port", default_value = "5432")]
-    ch_port: String,
-    #[structopt(short = "p", long = "ch-password", parse(try_from_str = parse_secret))]
-    ch_password: Option<Secret<String>>,
-    #[structopt(short = "u", long = "ch-user")]
-    ch_user: Option<String>,
-    #[structopt(short = "d", long = "ch-database")]
-    ch_database: Option<String>,
-    #[structopt(long = "evm-loader")]
-    evm_loader: solana_sdk::pubkey::Pubkey,
-    #[structopt(short = "w", long = "web3-proxy")]
-    web3_proxy: String,
-    #[structopt(short = "i", long = "metrics-ip", default_value = "0.0.0.0")]
-    metrics_ip: Ipv4Addr,
-    #[structopt(short = "m", long = "metrics-port", default_value = "9292")]
-    metrics_port: u16,
-}
+mod config;
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
     T::from_str(input).map(Secret::from)
@@ -68,7 +45,7 @@ async fn main() {
     use crate::db::DbClient;
     use std::str::FromStr;
 
-    let options = Options::from_args();
+    let options = config::read_config();
 
     init_logs();
 
@@ -79,11 +56,11 @@ async fn main() {
         .unwrap();
 
     let client = Arc::new(DbClient::new(
-        &options.ch_host.clone(),
-        &options.ch_port.clone(),
-        options.ch_user.clone(),
-        options.ch_password.clone().map(Secret::inner),
-        options.ch_database.clone(),
+        &options.db_host.clone(),
+        &options.db_port.clone(),
+        options.db_user.clone(),
+        options.db_password.clone(),
+        options.db_database.clone(),
     ).await);
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
