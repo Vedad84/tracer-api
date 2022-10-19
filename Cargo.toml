@@ -27,8 +27,8 @@ postgres-openssl = { version = "0.5.0"}
 tokio-postgres = {version="0.7.6", features=["with-uuid-0_8"]}
 postgres-types = { version = "0.2.2", features = ["derive"] }
 
-evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false }
-evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false }
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.12.x", default_features = false }
+evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.12.x", default_features = false }
 
 solana-sdk = "=1.11.10"
 solana-program = { version = "=1.11.10", default_features = false }
