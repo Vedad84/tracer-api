@@ -2,11 +2,12 @@ use evm::{H160, H256, U256};
 use ethereum_types::U64;
 use rustc_hex::{FromHex, ToHex};
 use serde::{
-    de::Error, de::MapAccess, de::Visitor, Deserialize, Deserializer, Serialize, Serializer,
+    de::Error, de::MapAccess, de::Visitor, de::SeqAccess, Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::fmt;
 
 use crate::v1::geth::types::trace::{H160T, H256T, U256T};
+use std::str::FromStr;
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Eq)]
@@ -300,10 +301,203 @@ impl<'a> Visitor<'a> for IndexVisitor {
 #[serde(deny_unknown_fields)]
 #[serde(rename_all = "camelCase")]
 pub struct EthCallObject {
+    // (optional) String of the address the transaction is sent from.
     pub from: Option<H160T>,
+
+    // String of the address the transaction is directed to.
     pub to: H160T,
+
+    // (optional) Integer of the gas provided for the transaction execution.
     pub gas: Option<U256T>,
+
+    // (optional) Integer of the gasPrice used for each paid gas encoded as a hexadecimal.
     pub gasprice: Option<U256T>,
+
+    // (optional) Integer of the value sent with this transaction encoded as a hexadecimal.
     pub value: Option<U256T>,
+
+    // (optional) String of the hash of the method signature and encoded parameters
     pub data: Option<Bytes>,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum FilterAddress {
+    Single(H160T),
+    Many(Vec<H160T>),
+}
+
+impl<'a> Deserialize<'a> for FilterAddress {
+    fn deserialize<D>(deserializer: D) -> Result<FilterAddress, D::Error>
+        where
+            D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(FilterAddressVisitor)
+    }
+}
+
+struct FilterAddressVisitor;
+
+impl<'a> Visitor<'a> for FilterAddressVisitor {
+    type Value = FilterAddress;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "H160 hex encoded address or sequence of H160 addresses expected"
+        )
+    }
+
+    fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+        where
+            V: SeqAccess<'a>,
+    {
+        let mut addresses: Vec<H160T> = Vec::new();
+        loop {
+            let entry: Option<H160T> = seq.next_element()?;
+            match entry {
+                Some(entry) => addresses.push(entry),
+                None => break,
+            }
+        }
+
+        Ok(FilterAddress::Many(addresses))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: Error,
+    {
+        Ok(FilterAddress::Single(H160T(
+            H160::from_str(value)
+                .map_err(|err| E::custom(format!("Failed to deserialize H160T: {:?}", err)))?
+        )))
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: Error,
+    {
+        self.visit_str(value.as_ref())
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub enum FilterTopic {
+    Single(H256T),
+    Many(Vec<H256T>),
+}
+
+impl<'a> Deserialize<'a> for FilterTopic {
+    fn deserialize<D>(deserializer: D) -> Result<FilterTopic, D::Error>
+        where
+            D: Deserializer<'a>,
+    {
+        deserializer.deserialize_any(FilterTopicVisitor)
+    }
+}
+
+struct FilterTopicVisitor;
+
+impl<'a> Visitor<'a> for FilterTopicVisitor
+{
+    type Value = FilterTopic;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            formatter,
+            "H256 hex encoded address or sequence of H256 addresses expected"
+        )
+    }
+
+    fn visit_seq<V>(self, mut seq: V) -> Result<Self::Value, V::Error>
+        where
+            V: SeqAccess<'a>,
+    {
+        let mut topics: Vec<H256T> = Vec::new();
+        loop {
+            let entry: Option<H256T> = seq.next_element()?;
+            match entry {
+                Some(entry) => topics.push(entry),
+                None => break,
+            }
+        }
+
+        Ok(FilterTopic::Many(topics))
+    }
+
+    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+        where
+            E: Error,
+    {
+        Ok(FilterTopic::Single(H256T(
+            H256::from_str(value)
+                .map_err(|err| E::custom(format!("Failed to deserialize H256T: {:?}", err)))?
+        )))
+    }
+
+    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
+        where
+            E: Error,
+    {
+        self.visit_str(value.as_ref())
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Deserialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct FilterObject {
+    // Integer block number encoded as a hexadecimal, "latest","pending", or "earliest" tags.
+    pub from_block: Option<BlockNumber>,
+
+    // Integer block number encoded as a hexadecimal, "latest","pending", or "earliest" tags.
+    pub to_block: Option<BlockNumber>,
+
+    // Contract address or a list of addresses from which logs should originate.
+    pub address: Option<FilterAddress>,
+
+    // Array of DATA topics. Topics are order-dependent.
+    pub topics: Option<Vec<FilterTopic>>,
+
+    // With the addition of EIP-234, blockHash will be a new filter option
+    // which restricts the logs returned to the single block with the 32-byte
+    // hash blockHash. Using blockHash is equivalent to
+    // fromBlock = toBlock = the block number with hash blockHash.
+    // If blockHash is present in in the filter criteria,
+    // then neither fromBlock nor toBlock are allowed.
+    pub block_hash: Option<H256T>,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(deny_unknown_fields)]
+#[serde(rename_all = "camelCase")]
+pub struct LogObject {
+    // Boolean true if log was removed, due to a chain reorganization. false if its a valid log.
+    pub removed: bool,
+
+    // Integer of log index position in the block encoded as a hexadecimal. null if pending.
+    pub log_index: String,
+
+    // Integer of transactions index position log was created from. null if pending.
+    pub transaction_index: String,
+
+    pub transaction_log_index: String,
+
+    // Hash of the transactions this log was created from. null if pending.
+    pub transaction_hash: U256T,
+
+    // Hash of the block where this log was in. null when its pending. null if pending.
+    pub block_hash: U256T,
+
+    // The block number where this log was, encoded as a hexadecimal. null if pending.
+    pub block_number: String,
+
+    // The address from which this log originated.
+    pub address: H160T,
+
+    // Contains one or more 32 Bytes non-indexed arguments of the log.
+    pub data: String,
+
+    // Array of 0 to 4 32 Bytes of indexed log arguments.
+    pub topics: Vec<U256T>,
 }

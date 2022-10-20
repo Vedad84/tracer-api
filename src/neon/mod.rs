@@ -83,6 +83,16 @@ impl TracerCore {
                     .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
                     .as_u64())
             },
+            BlockNumber::Earliest => {
+                self.db_client.get_earliest_slot().map_err(
+                    |err| Error::Custom(format!("Failed to retrieve earliest block: {:?}", err))
+                )
+            },
+            BlockNumber::Latest => {
+                self.db_client.get_slot().map_err(
+                    |err| Error::Custom(format!("Failed to retrieve latest block: {:?}", err))
+                )
+            },
             _ => {
                 Err(Error::Custom(format!("Unsupported block tag")))
             }

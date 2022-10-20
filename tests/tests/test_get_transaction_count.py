@@ -1,6 +1,6 @@
 from unittest import TestCase
 from web3 import Web3
-from helpers.requests_helper import request_airdrop, deploy_storage_contract
+from helpers.requests_helper import request_airdrop, deploy_contract, STORAGE_SOLIDITY_SOURCE
 from time import sleep
 
 NEON_URL = "http://neon-rpc:9090"
@@ -28,7 +28,7 @@ class TestGetTransactionCount(TestCase):
             "requireCanonical": True
         }), 0)
 
-        deploy_storage_contract(proxy, eth_account)
+        deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
         block_num2 = proxy.eth.block_number
         block_hash2 = proxy.eth.get_block('latest')['hash']
         sleep(10)

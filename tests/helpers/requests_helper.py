@@ -49,18 +49,18 @@ contract Storage {
 }
 '''
 
-def deploy_storage_contract(proxy, deployer):
-    compiled_sol = compile_source(STORAGE_SOLIDITY_SOURCE)
+def deploy_contract(proxy, deployer, contract_source):
+    compiled_sol = compile_source(contract_source)
     contract_id, contract_interface = compiled_sol.popitem()
-    storage = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
+    contract = proxy.eth.contract(abi=contract_interface['abi'], bytecode=contract_interface['bin'])
     trx_deploy = proxy.eth.account.sign_transaction(dict(
-        nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
+        nonce=proxy.eth.get_transaction_count(deployer.address),
         chainId=proxy.eth.chain_id,
         gas=987654321,
         gasPrice=163000000000,
         to='',
         value=0,
-        data=storage.bytecode),
+        data=contract.bytecode),
         deployer.key
     )
     print('trx_deploy:', trx_deploy)
@@ -77,7 +77,7 @@ def deploy_storage_contract(proxy, deployer):
     return (
         proxy.eth.contract(
             address=trx_deploy_receipt.contractAddress,
-            abi=storage.abi
+            abi=contract.abi
         ),
         deploy_block_num,
     )

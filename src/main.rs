@@ -13,7 +13,7 @@ use web3;
 use crate::metrics::start_monitoring;
 
 use crate::v1::geth::types::trace as geth;
-use crate::service::{ eip1898::EIP1898Server };
+use crate::service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer };
 use crate::neon::TracerCore;
 
 mod db;
@@ -78,7 +78,8 @@ async fn main() {
     );
 
     let mut module = RpcModule::new(());
-    module.merge(EIP1898Server::into_rpc(serv_impl));
+    module.merge(EIP1898Server::into_rpc(serv_impl.clone()));
+    module.merge(NeonProxyServer::into_rpc(serv_impl));
 
     info!("before start monitoring");
 

@@ -1,23 +1,29 @@
-use byte_slice_cast::AsByteSlice;
-use itertools::Itertools;
 use {
+    crate::v1::types::{FilterAddress, FilterObject, LogObject},
+    evm::{H160, H256, U256},
     log::*,
     openssl::ssl::{SslConnector, SslFiletype, SslMethod},
-    tokio_postgres::{ connect, Client },
+    tokio_postgres::{ connect, Client, Row },
+    parity_bytes::ToPretty,
     postgres::{ NoTls },
     postgres_openssl::MakeTlsConnector,
     solana_sdk::{
         account::Account,
         pubkey::Pubkey,
     },
-    std::error,
+    std::{ error, collections::HashSet, str::FromStr },
     thiserror::Error,
     tokio::task::block_in_place,
 };
+use crate::geth::{H160T, H256T, U256T};
 
 pub struct DbClient {
     client: Client,
+    pub transaction_logs_column_list: Vec<&'static str>,
 }
+
+const TRANSACTION_LOGS_TABLE_NAME: &str = "neon_transaction_logs";
+const BLOCKS_TABLE_NAME: &str = "solana_blocks";
 
 #[derive(Error, Debug)]
 pub enum Error {
@@ -26,6 +32,9 @@ pub enum Error {
 
     #[error("postgres: {}", .0)]
     Db(#[from] tokio_postgres::Error),
+
+    #[error("Failed to parse topics: {entity}")]
+    ParseErr{ entity: &'static str },
 }
 
 type DbResult<T> = std::result::Result<T, Error>;
@@ -52,7 +61,11 @@ impl DbClient {
         });
 
         Self {
-            client
+            client,
+            transaction_logs_column_list: vec![
+                "block_slot", "tx_idx", "tx_log_idx", "log_idx",
+                "address", "log_data", "tx_hash", "topic", "topic_list"
+            ],
         }
     }
 
@@ -110,5 +123,159 @@ impl DbClient {
                 executable: row.try_get(3)?,
                 rent_epoch: rent_epoch as u64,
         }))
+    }
+
+    pub fn get_earliest_slot(&self) -> Result<u64, Error> {
+        let slot: i64 = self.block(|| async {
+            self.client.query_one("SELECT MIN(slot) FROM public.slot", &[])
+                .await
+        })?.try_get(0)?;
+
+        Ok(slot as u64)
+    }
+
+    pub fn get_logs(
+        &self,
+        block_hash: Option<H256T>,
+        from_block: Option<u64>,
+        to_block: Option<u64>,
+        topics: Option<Vec<H256T>>,
+        address: Option<FilterAddress>,
+    ) -> Result<Vec<LogObject>, Error> {
+        let mut query_list = Vec::new();
+
+        if let Some(block_hash) = block_hash {
+            query_list.push(format!("b.block_hash = '0x{}'", block_hash.0.to_hex()));
+        } else {
+            if from_block.is_none() || to_block.is_none() {
+                warn!("from_block AND to_block must be specified");
+                return Ok(Vec::new());
+            }
+
+            let from_block = from_block.unwrap();
+            let to_block = to_block.unwrap();
+
+            if from_block > to_block {
+                warn!("from_block [{}] > to_block [{}]", from_block, to_block);
+                return Ok(Vec::new());
+            }
+
+            query_list.push(format!("a.block_slot >= {}", from_block));
+            query_list.push(format!("a.block_slot <= {}", to_block));
+        }
+
+        if let Some(topic_list) = topics {
+            let topic_list = topic_list.iter()
+                .map(|entry| format!("'0x{}'", entry.0.to_hex()))
+                .collect::<Vec<String>>();
+            query_list.push(format!("a.topic IN ({})", topic_list.join(", ")))
+        }
+
+        if let Some(address) = address {
+            let address_list = match address {
+                FilterAddress::Single(address) => vec![format!("'0x{}'", address.0.to_hex())],
+                FilterAddress::Many(address_list) =>
+                    address_list.iter()
+                        .map(|entry| format!("'0x{}'", entry.0.to_hex()))
+                        .collect::<Vec<String>>(),
+            };
+            query_list.push(format!("a.address IN ({})", address_list.join(", ")));
+        }
+
+        let column_list = self.transaction_logs_column_list
+            .iter()
+            .map(|&entry| format!("a.{}", entry))
+            .collect::<Vec<String>>()
+            .join(", ");
+
+        let query_string = format!("
+            SELECT {}, b.block_hash
+            FROM {} AS a
+            INNER JOIN {} AS b
+            ON b.block_slot = a.block_slot
+            AND b.is_active = True
+            WHERE {}
+            ORDER BY a.block_slot DESC
+            LIMIT 1000",
+                                   column_list,
+                                   TRANSACTION_LOGS_TABLE_NAME,
+                                   BLOCKS_TABLE_NAME,
+                                   query_list.join(" AND "),
+        );
+
+        debug!("Querying logs: {}", query_string);
+
+        let rows = self.block(|| async {
+            self.client.query(&query_string, &[]).await
+        })?;
+
+        debug!("Found {} results", rows.len());
+
+        let mut log_list = Vec::new();
+        let mut unique_log_set: HashSet<String> = HashSet::new();
+        for row in rows {
+            let block_slot: i64 = row.try_get(0)?;
+            let tx_idx: i32 = row.try_get(1)?;
+            let tx_log_idx: i32 = row.try_get(2)?;
+            let ident = format!("{}:{}:{}", block_slot, tx_idx, tx_log_idx);
+
+            if unique_log_set.contains(&ident) {
+                continue;
+            }
+
+            unique_log_set.insert(ident);
+            log_list.push(self.log_from_row(row)?);
+        }
+
+        Ok(log_list)
+    }
+
+    fn log_from_row(&self, row: Row) -> Result<LogObject, Error> {
+        let blocknumber: i64 = row.try_get(0)?;
+
+        let address: String = row.try_get(4)?;
+        let address = H160T(H160::from_str(&address)
+            .map_err(|_| Error::ParseErr { entity: "address" })?);
+
+        let logindex: i32 = row.try_get(3)?;
+
+        let transactionindex: i32 = row.try_get(1)?;
+
+        let transactionlogindex: i32 = row.try_get(2)?;
+
+        let transactionhash: String = row.try_get(6)?;
+        let transactionhash = U256T(U256::from_str(&transactionhash)
+            .map_err(|_| Error::ParseErr { entity: "transactionhash" })?);
+
+        let blockhash: String = row.try_get(9)?;
+        let blockhash = U256T(U256::from_str(&blockhash)
+            .map_err(|_| Error::ParseErr { entity: "blockhash" })?);
+
+        let data: String = row.try_get(5)?;
+
+        let topics: Vec<u8> = row.try_get(8)?;
+
+        let topics: Vec<String> = serde_pickle::from_slice(&topics, serde_pickle::DeOptions::new())
+            .map_err(|_| Error::ParseErr { entity: "topics" })?;
+
+        let mut topic_list: Vec<U256T> = Vec::new();
+        for topic in topics {
+            let v = U256::from_str(&topic)
+                .map_err(|_| Error::ParseErr { entity: "topics" })?;
+            topic_list.push(U256T(v));
+        }
+
+        Ok(LogObject {
+            removed: false,
+            log_index: format!("0x{:X}", logindex),
+            transaction_index: format!("0x{:X}", transactionindex),
+            transaction_log_index: format!("0x{:X}", transactionlogindex),
+            transaction_hash: transactionhash,
+            block_hash: blockhash,
+            block_number: format!("0x{:X}", blocknumber),
+            address,
+            data,
+            topics: topic_list,
+        })
     }
 }

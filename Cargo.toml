@@ -71,3 +71,4 @@ environmental = { version = "1", default-features = false }
 dukt = "0.1"
 
 prometheus = { version = "0.9", features = ["process"] }
+serde-pickle = "1.1.1"
