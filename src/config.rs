@@ -6,11 +6,16 @@ use {
 #[derive(std::fmt::Debug)]
 pub struct Options {
     pub addr: String,
-    pub db_host: String,
-    pub db_port: String,
-    pub db_password: String,
-    pub db_user: String,
-    pub db_database: String,
+    pub tracer_db_host: String,
+    pub tracer_db_port: String,
+    pub tracer_db_password: String,
+    pub tracer_db_user: String,
+    pub tracer_db_database: String,
+    pub indexer_db_host: String,
+    pub indexer_db_port: String,
+    pub indexer_db_password: String,
+    pub indexer_db_user: String,
+    pub indexer_db_database: String,
     pub evm_loader: solana_sdk::pubkey::Pubkey,
     pub web3_proxy: String,
     pub metrics_ip: Ipv4Addr,
@@ -22,11 +27,16 @@ pub fn read_config() -> Options {
         .expect(format!("Failed to read env var {}", var_name).as_str());
 
     let addr = read_env("LISTEN_ADDR");
-    let db_host = read_env("TRACER_DB_HOST");
-    let db_port = read_env("TRACER_DB_PORT");
-    let db_user = read_env("TRACER_DB_USER");
-    let db_password = read_env("TRACER_DB_PASSWORD");
-    let db_name = read_env("TRACER_DB_NAME");
+    let tracer_db_host = read_env("TRACER_DB_HOST");
+    let tracer_db_port = read_env("TRACER_DB_PORT");
+    let tracer_db_user = read_env("TRACER_DB_USER");
+    let tracer_db_password = read_env("TRACER_DB_PASSWORD");
+    let tracer_db_database = read_env("TRACER_DB_NAME");
+    let indexer_db_host = read_env("INDEXER_DB_HOST");
+    let indexer_db_port = read_env("INDEXER_DB_PORT");
+    let indexer_db_user = read_env("INDEXER_DB_USER");
+    let indexer_db_password = read_env("INDEXER_DB_PASSWORD");
+    let indexer_db_database = read_env("INDEXER_DB_NAME");
     let evm_loader = read_env("EVM_LOADER");
     let web3_proxy = read_env("WEB3_PROXY");
     let metrics_ip = read_env("METRICS_IP");
@@ -34,11 +44,16 @@ pub fn read_config() -> Options {
 
     Options {
         addr,
-        db_host,
-        db_port,
-        db_password,
-        db_user,
-        db_database: db_name,
+        tracer_db_host,
+        tracer_db_port,
+        tracer_db_password,
+        tracer_db_user,
+        tracer_db_database,
+        indexer_db_host,
+        indexer_db_port,
+        indexer_db_password,
+        indexer_db_user,
+        indexer_db_database,
         evm_loader: solana_sdk::pubkey::Pubkey::from_str(evm_loader.as_str())
             .expect(format!("Failed to parse EVM_LOADER {}", evm_loader).as_str()),
         web3_proxy,

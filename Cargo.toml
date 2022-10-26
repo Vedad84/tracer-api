@@ -1,6 +1,6 @@
 [package]
 name = "neon-tracer"
-version = "0.1.0"
+version = "0.1.3-dev"
 edition = "2018"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -27,8 +27,8 @@ postgres-openssl = { version = "0.5.0"}
 tokio-postgres = {version="0.7.6", features=["with-uuid-0_8"]}
 postgres-types = { version = "0.2.2", features = ["derive"] }
 
-evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.12.x", default_features = false }
-evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.12.x", default_features = false }
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.13.x", default_features = false }
+evm = { git = "https://github.com/neonlabsorg/neon-evm", branch = "v0.13.x", default_features = false }
 
 solana-sdk = "=1.11.10"
 solana-program = { version = "=1.11.10", default_features = false }

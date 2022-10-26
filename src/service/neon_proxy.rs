@@ -52,7 +52,7 @@ impl NeonProxyServer for TracerCore {
                         FilterTopic::Many(mut topics) => all_topics.append(&mut topics),
                     }));
 
-        self.db_provider().get_logs(
+        self.indexer_db_provider().get_logs(
             object.block_hash,
             from_block,
             to_block,

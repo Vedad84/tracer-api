@@ -59,7 +59,7 @@ pub trait EIP1898 {
 impl TracerCore {
     fn create_account_storage(&self, tag: BlockNumber) -> Result<EmulatorAccountStorage<DbProvider>> {
         let block_number = self.get_block_number(tag)?;
-        let provider = self.db_provider();
+        let provider = self.tracer_db_provider();
         let syscall_stubs = Stubs::new(&provider, block_number)?;
         solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
         let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));

@@ -30,7 +30,8 @@ type Error = jsonrpsee::types::error::Error;
 #[derive(Clone)]
 pub struct TracerCore {
     evm_loader: Pubkey,
-    db_client: Arc<DbClient>,
+    tracer_db_client: Arc<DbClient>,
+    indexer_db_client: Arc<DbClient>,
     web3: Arc<Web3<Http>>,
 }
 
@@ -44,18 +45,24 @@ fn convert_h256(inp: H256T) -> web3::types::H256 {
 impl TracerCore {
     pub fn new(
         evm_loader: Pubkey,
-        db_client: Arc<DbClient>,
+        tracer_db_client: Arc<DbClient>,
+        indexer_db_client: Arc<DbClient>,
         web3: Arc<Web3<Http>>,
     ) -> Self {
         Self {
             evm_loader,
-            db_client,
+            tracer_db_client,
+            indexer_db_client,
             web3,
         }
     }
 
-    pub fn db_provider(&self) -> DbProvider {
-        DbProvider::new(self.db_client.clone(), self.evm_loader)
+    pub fn tracer_db_provider(&self) -> DbProvider {
+        DbProvider::new(self.tracer_db_client.clone(), self.evm_loader)
+    }
+
+    pub fn indexer_db_provider(&self) -> DbProvider {
+        DbProvider::new(self.indexer_db_client.clone(), self.evm_loader)
     }
 
     pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
@@ -84,12 +91,12 @@ impl TracerCore {
                     .as_u64())
             },
             BlockNumber::Earliest => {
-                self.db_client.get_earliest_slot().map_err(
+                self.tracer_db_client.get_earliest_slot().map_err(
                     |err| Error::Custom(format!("Failed to retrieve earliest block: {:?}", err))
                 )
             },
             BlockNumber::Latest => {
-                self.db_client.get_slot().map_err(
+                self.tracer_db_client.get_slot().map_err(
                     |err| Error::Custom(format!("Failed to retrieve latest block: {:?}", err))
                 )
             },

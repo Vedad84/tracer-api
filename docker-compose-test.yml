@@ -1,27 +1,47 @@
 version: "3"
 
 services:
-  postgres:
-    container_name: postgres
+  tracer_db:
+    container_name: tracer_db
     image: neonlabsorg/neon-accountsdb:v1.10.38-neon-tracer
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
       POSTGRES_USER: solana-user
       POSTGRES_PASSWORD: solana-pass
-    hostname: postgres
-    ports:
-      - 127.0.0.1:5432:5432
+    hostname: tracer_db
     expose:
       - "5432"
     networks:
       - net
     healthcheck:
-      test: [ CMD-SHELL, "pg_isready -h postgres -p 5432 -U solana-user" ]
+      test: [ CMD-SHELL, "pg_isready -h tracer_db -p 5432 -U solana-user" ]
       interval: 5s
       timeout: 10s
       retries: 10
       start_period: 5s
+
+  postgres:
+    container_name: postgres
+    image: postgres:14.0
+    command: postgres -c 'max_connections=1000'
+    environment:
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+    hostname: postgres
+    healthcheck:
+      test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    expose:
+      - "5432"
+    ports:
+      - "5432"
+    networks:
+      - net
 
   pgadmin:
     container_name: pgadmin
@@ -36,7 +56,7 @@ services:
     networks:
       - net
     depends_on:
-      postgres:
+      tracer_db:
         condition: service_healthy
     
   validator:
@@ -56,7 +76,7 @@ services:
     networks:
       - net
     depends_on:
-      postgres:
+      tracer_db:
         condition: service_healthy
     healthcheck:
       # Must be available from outside (calling without -u causes premature result)
@@ -66,15 +86,19 @@ services:
       retries: 200
       start_period: 5s
     entrypoint: /opt/solana/bin/solana-run-neon.sh
+    ports:
+      - 127.0.0.1:8899:8899
+    volumes:
+      - ./accountsdb-plugin-config.json:/opt/accountsdb-plugin-config.json
 
   dbcreation:
     container_name: dbcreation
     image: neonlabsorg/proxy:latest
     environment:
       SOLANA_URL: http://validator:8899
-      POSTGRES_DB: solana
-      POSTGRES_USER: solana-user
-      POSTGRES_PASSWORD: solana-pass
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
       POSTGRES_HOST: postgres
     entrypoint: proxy/run-dbcreation.sh
     networks:
@@ -88,9 +112,9 @@ services:
     image: neonlabsorg/proxy:latest
     environment:
       SOLANA_URL: http://validator:8899
-      POSTGRES_DB: solana
-      POSTGRES_USER: solana-user
-      POSTGRES_PASSWORD: solana-pass
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
       POSTGRES_HOST: postgres
       GATHER_STATISTICS: "YES"
       LOG_FULL_OBJECT_INFO: "NO"
@@ -114,9 +138,9 @@ services:
     environment:
       SOLANA_URL: http://validator:8899
       FAUCET_URL: http://faucet:3333
-      POSTGRES_DB: solana
-      POSTGRES_USER: solana-user
-      POSTGRES_PASSWORD: solana-pass
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
       LOG_NEON_CLI_DEBUG: "YES"
       FUZZING_BLOCKHASH: "YES"
       CONFIG: ci
@@ -149,19 +173,6 @@ services:
       retries: 10
       start_period: 5s
 
-  deploy_contracts:
-    container_name: deploy_contracts
-    image: neonlabsorg/neon-validator:v1.10.38-neon-tracer
-    environment:
-      SOLANA_URL: http://validator:8899
-      SPL_TOKEN_AUTHORITY: /opt/contracts/ci-tokens/owner-keypair.json
-    networks:
-      - net
-    depends_on:
-      proxy:
-        condition: service_healthy
-    command: bash -c "create-test-accounts.sh 1 && deploy-contracts.sh"
-
   neon-tracer:
     container_name: neon-tracer
     hostname: neon-tracer
@@ -171,11 +182,16 @@ services:
       LISTEN_ADDR: 0.0.0.0:8250
       SOLANA_URL: http://validator:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
-      TRACER_DB_HOST: postgres
+      TRACER_DB_HOST: tracer_db
       TRACER_DB_PORT: 5432
       TRACER_DB_NAME: solana
       TRACER_DB_USER: solana-user
       TRACER_DB_PASSWORD: solana-pass
+      INDEXER_DB_HOST: postgres
+      INDEXER_DB_PORT: 5432
+      INDEXER_DB_NAME: neon-db
+      INDEXER_DB_USER: neon-proxy
+      INDEXER_DB_PASSWORD: neon-proxy-pass
       WEB3_PROXY: http://proxy:9090/solana
       METRICS_IP: 0.0.0.0
       METRICS_PORT: 9292
@@ -184,6 +200,8 @@ services:
       MONITORING_INTERVAL_SEC: 15
     image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-eip-1898}
     depends_on:
+      tracer_db:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       validator:
@@ -225,8 +243,6 @@ services:
     depends_on:
       proxy:
         condition: service_healthy
-      deploy_contracts:
-        condition: service_completed_successfully
 
   neon-rpc:
     container_name: neon-rpc

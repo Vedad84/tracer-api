@@ -55,12 +55,20 @@ async fn main() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let client = Arc::new(DbClient::new(
-        &options.db_host.clone(),
-        &options.db_port.clone(),
-        options.db_user.clone(),
-        options.db_password.clone(),
-        options.db_database.clone(),
+    let tracer_db_client = Arc::new(DbClient::new(
+        &options.tracer_db_host.clone(),
+        &options.tracer_db_port.clone(),
+        options.tracer_db_user.clone(),
+        options.tracer_db_password.clone(),
+        options.tracer_db_database.clone(),
+    ).await);
+
+    let indexer_db_client = Arc::new(DbClient::new(
+        &options.indexer_db_host.clone(),
+        &options.indexer_db_port.clone(),
+        options.indexer_db_user.clone(),
+        options.indexer_db_password.clone(),
+        options.indexer_db_database.clone(),
     ).await);
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
@@ -73,7 +81,8 @@ async fn main() {
 
     let serv_impl = neon::TracerCore::new(
         options.evm_loader,
-        client.clone(),
+        tracer_db_client.clone(),
+        indexer_db_client.clone(),
         web3_client.clone(),
     );
 
@@ -85,7 +94,7 @@ async fn main() {
 
     let _handle = server.start(module).unwrap();
     start_monitoring(
-        client.clone(),
+        indexer_db_client.clone(),
         web3_client.clone(),
         options.metrics_ip,
         options.metrics_port
