@@ -2,12 +2,10 @@ use {
     crate::neon::account_info,
     evm::{H160, H256, U256},
     evm_loader::{
-        account::{ ether_contract },
         account_storage::{AccountStorage},
-        account::{ ACCOUNT_SEED_VERSION, EthereumAccount },
+        account::{ ACCOUNT_SEED_VERSION, ether_contract, EthereumAccount, EthereumStorage },
         executor::{ OwnedAccountInfo, OwnedAccountInfoPartial },
         config::STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT,
-        account::EthereumStorage,
         precompile::is_precompile_address,
     },
     solana_program::sysvar::recent_blockhashes,
@@ -288,19 +286,19 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
     fn storage(&self, address: &H160, index: &U256) -> U256 {
         info!("storage {} -> {}", address, index);
 
-        if *index < U256::from(STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT) {
+        let value = if *index < U256::from(STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT) {
             let index: usize = index.as_usize() * 32;
-            return self.ethereum_contract_map_or(
+            self.ethereum_contract_map_or(
                 address,
                 U256::zero(),
                 |c| U256::from_big_endian(&c.storage()[index..index+32])
-            );
+            )
         } else {
             #[allow(clippy::cast_possible_truncation)]
             let subindex = (*index & U256::from(0xFF)).as_u64() as u8;
             let index = *index & !U256::from(0xFF);
 
-            let (solana_address, _) = self.get_storage_address(address, &index);
+            let solana_address = EthereumStorage::solana_address(self, address, &index);
 
             if !self.create_sol_acc_if_not_exists(&solana_address) {
                 warn!("storage: failed to read solana account {}", solana_address);
@@ -308,28 +306,27 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
             }
 
             let mut accounts = self.solana_accounts.borrow_mut();
-            let account = accounts.get_mut(&solana_address)
+            let mut account = accounts.get_mut(&solana_address)
                 .unwrap_or_else(|| panic!("Account {} - storage account not found", solana_address));
 
-            if &account.owner == self.program_id() {
-                let acc_info = account_info(&solana_address, account);
-                let storage_res = EthereumStorage::from_account(self.program_id(), &acc_info);
-                return match storage_res {
-                    Ok(storage) => storage.get(subindex),
-                    Err(err) => {
-                        error!("Failed to create EthereumAccount: {:?}", err);
-                        U256::zero()
-                    }
+            if solana_sdk::system_program::check_id(&account.owner) {
+                debug!("read storage system owned");
+                U256::zero()
+            } else {
+                let account_info = account_info(&solana_address, &mut account);
+                let storage = EthereumStorage::from_account(self.provider.evm_loader(), &account_info).unwrap();
+                if (storage.address != *address) || (storage.index != index) || (storage.generation != self.generation(address)) {
+                    debug!("storage collision");
+                    U256::zero()
+                } else {
+                    storage.get(subindex)
                 }
             }
+        };
 
-            if solana_program::system_program::check_id(&account.owner) {
-                return U256::zero()
-            }
+        debug!("Storage read {:?} -> {} = {}", address, index, value);
 
-            warn!("Account {} - expected system or program owned", solana_address);
-            return U256::zero();
-        }
+        value
     }
 
     fn generation(&self, address: &H160) -> u32 {
