@@ -1,6 +1,7 @@
 use warp::header::value;
 use {
     crate::{
+        metrics,
         neon::{ Result, TracerCore },
         v1::{
             geth::types::trace::{ H256T },
@@ -9,6 +10,7 @@ use {
     },
     jsonrpsee::{ proc_macros::rpc, types::Error },
     tracing::{ instrument, info },
+    log::warn,
 };
 
 #[rpc(server)]
@@ -20,9 +22,8 @@ pub trait NeonProxy {
     ) -> Result<Vec<LogObject>>;
 }
 
-impl NeonProxyServer for TracerCore {
-    #[instrument]
-    fn eth_get_logs(
+impl TracerCore {
+    fn eth_get_logs_impl(
         &self,
         object: FilterObject
     ) -> Result<Vec<LogObject>> {
@@ -60,5 +61,23 @@ impl NeonProxyServer for TracerCore {
             object.address
         )
             .map_err(|err| Error::Custom(format!("Failed to read logs: {:?}", err)))
+    }
+}
+
+impl NeonProxyServer for TracerCore {
+    #[instrument]
+    fn eth_get_logs(
+        &self,
+        object: FilterObject
+    ) -> Result<Vec<LogObject>> {
+        let started = metrics::report_incoming_request("eth_getLogs");
+        let result = self.eth_get_logs_impl(object);
+        metrics::report_request_finished(started, "eth_getLogs", result.is_ok());
+        return if let Err(err) = result {
+            warn!("eth_get_logs failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 }
