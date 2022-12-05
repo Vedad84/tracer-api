@@ -14,7 +14,7 @@ use {
         executor::Machine,
     },
     jsonrpsee::{ proc_macros::rpc, types::Error },
-    tracing::{debug, instrument},
+    tracing::{debug, warn, instrument},
 };
 
 #[rpc(server)]
@@ -177,7 +177,12 @@ impl EIP1898Server for TracerCore {
         let started = metrics::report_incoming_request("eth_call");
         let result = self.eth_call_impl(object, tag);
         metrics::report_request_finished(started, "eth_call", result.is_ok());
-        result
+        return if let Err(err) = result {
+            warn!("eth_call failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 
     #[instrument]
@@ -190,7 +195,12 @@ impl EIP1898Server for TracerCore {
         let started = metrics::report_incoming_request("eth_getStorageAt");
         let result = self.eth_get_storage_at_impl(contract_id, index, tag);
         metrics::report_request_finished(started, "eth_getStorageAt", result.is_ok());
-        result
+        return if let Err(err) = result {
+            warn!("eth_get_storage_at failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 
     #[instrument]
@@ -202,7 +212,12 @@ impl EIP1898Server for TracerCore {
         let started = metrics::report_incoming_request("eth_getBalance");
         let result = self.eth_get_balance_impl(address, tag);
         metrics::report_request_finished(started, "eth_getBalance", result.is_ok());
-        result
+        return if let Err(err) = result {
+            warn!("eth_get_balance failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 
     #[instrument]
@@ -214,7 +229,12 @@ impl EIP1898Server for TracerCore {
         let started = metrics::report_incoming_request("eth_getCode");
         let result = self.eth_get_code_impl(address, tag);
         metrics::report_request_finished(started, "eth_getCode", result.is_ok());
-        result
+        return if let Err(err) = result {
+            warn!("eth_get_code failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 
     #[instrument]
@@ -226,6 +246,11 @@ impl EIP1898Server for TracerCore {
         let started = metrics::report_incoming_request("eth_getTransactionCount");
         let result = self.eth_get_transaction_count_impl(account_id, tag);
         metrics::report_request_finished(started, "eth_getTransactionCount", result.is_ok());
-        result
+        return if let Err(err) = result {
+            warn!("eth_get_transaction_count failed: {:?}", err);
+            Err(Error::Custom("Internal server error".to_string()))
+        } else {
+            result
+        }
     }
 }
