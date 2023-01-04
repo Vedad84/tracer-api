@@ -7,17 +7,20 @@ use {
     parity_bytes::ToPretty,
     postgres::{ NoTls },
     postgres_openssl::MakeTlsConnector,
+    serde::{ Serialize, Deserialize },
+    serde_yaml,
     solana_sdk::{
         account::Account,
         pubkey::Pubkey,
     },
-    std::{ error, collections::HashSet, str::FromStr },
+    std::{ error, collections::HashSet, fs::File, io::self, path::Path, str::FromStr },
     thiserror::Error,
     tokio::task::block_in_place,
 };
 use crate::geth::{H160T, H256T, U256T};
 
 pub struct DbClient {
+    config: DBConfig,
     client: Client,
     pub transaction_logs_column_list: Vec<&'static str>,
 }
@@ -35,20 +38,37 @@ pub enum Error {
 
     #[error("Failed to parse topics: {entity}")]
     ParseErr{ entity: &'static str },
+
+    #[error("Failed to get recent update for account {account} before slot {slot}: {err}")]
+    GetRecentUpdateSlotErr{ account: String, slot: u64, err: tokio_postgres::Error },
 }
 
 type DbResult<T> = std::result::Result<T, Error>;
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct DBConfig{
+    pub host: String,
+    pub port: String,
+    pub database: String,
+    pub user: String,
+    pub password: String,
+}
+
+pub fn load_config_file<T, P>(config_file: P) -> Result<T, io::Error>
+    where
+        T: serde::de::DeserializeOwned,
+        P: AsRef<Path>,
+{
+    let file = File::open(config_file)?;
+    let config = serde_yaml::from_reader(file)
+        .map_err(|err| io::Error::new(io::ErrorKind::Other, format!("{:?}", err)))?;
+    Ok(config)
+}
+
 impl DbClient {
-    pub async fn new(
-        host: &str,
-        port: &str,
-        user: String,
-        password: String,
-        database: String,
-    ) -> Self {
+    pub async fn new(config: &DBConfig) -> Self {
         let connection_str= format!("host={} port={} dbname={} user={} password={}",
-                                    host, port, database, user, password);
+                                    config.host, config.port, config.database, config.user, config.password);
 
 
         let (client, connection) =
@@ -61,6 +81,7 @@ impl DbClient {
         });
 
         Self {
+            config: config.clone(),
             client,
             transaction_logs_column_list: vec![
                 "block_slot", "tx_idx", "tx_log_idx", "log_idx",
@@ -68,6 +89,8 @@ impl DbClient {
             ],
         }
     }
+
+    pub fn get_config(&self) -> &DBConfig { &self.config }
 
     fn block<F, Fu, R>(&self, f: F) -> R
         where
@@ -277,5 +300,27 @@ impl DbClient {
             data,
             topics: topic_list,
         })
+    }
+
+    // Returns number of the slot with latest update event of the given account
+    // on a closest moment before the given slot
+    pub async fn get_recent_update_slot(
+        &self,
+        pubkey: &Pubkey,
+        slot: u64
+    ) -> Result<Option<u64>, Error> {
+        let pubkey_bytes = pubkey.to_bytes();
+        let rows = self.client.query(
+            "SELECT slot, write_version FROM account_audit \
+            WHERE pubkey = $1 AND slot <= $2 ORDER BY slot, write_version DESC LIMIT 1;",
+            &[&pubkey_bytes.as_slice(), &(slot as i64)]
+        ).await.map_err(|err| Error::GetRecentUpdateSlotErr { account: pubkey.to_hex(), slot, err })?;
+
+        if rows.is_empty() {
+            Ok(None)
+        } else {
+            let slot: i64 = rows[0].try_get(0)?;
+            Ok(Some(slot as u64))
+        }
     }
 }

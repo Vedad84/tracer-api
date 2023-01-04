@@ -35,7 +35,7 @@ impl Stubs {
         let mut acc = provider.get_account_at_slot(&rent_pubkey, block_number)
             .map_err(|e| anyhow!("error load rent account {}", e))?;
 
-        let acc = acc.ok_or(anyhow!("rent account is None"))?;
+        let acc = acc.ok_or_else(|| anyhow!("rent account is None"))?;
         let data = acc.data();
         bincode::deserialize(data).map_err(|e| anyhow!("error to deserialize rent account {}", e))
     }
@@ -49,7 +49,7 @@ impl Stubs {
         let mut acc = provider.get_account_at_slot(&clock_pubkey, block_number)
             .map_err(|e| anyhow!("error load clock account {}", e))?;
 
-        let acc = acc.ok_or(anyhow!("clock account is None"))?;
+        let acc = acc.ok_or_else(|| anyhow!("clock account is None"))?;
         let data = acc.data();
         bincode::deserialize(data).map_err(|e| anyhow!("error to deserialize clock account {}", e))
     }

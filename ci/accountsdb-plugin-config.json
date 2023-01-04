@@ -9,6 +9,7 @@
     },
     "accounts_selector" : {
         "accounts" : [
+            "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
             "SysvarC1ock11111111111111111111111111111111",
             "SysvarEpochSchedu1e111111111111111111111111",
             "SysvarFees111111111111111111111111111111111",
@@ -16,6 +17,10 @@
             "SysvarS1otHashes111111111111111111111111111",
             "SysvarRecentB1ockHashes11111111111111111111",
             "SysvarStakeHistory1111111111111111111111111"
+        ],
+        "owners" : [
+            "53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io",
+            "BPFLoaderUpgradeab1e11111111111111111111111"
         ]
     }
 }

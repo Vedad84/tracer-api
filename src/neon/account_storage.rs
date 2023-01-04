@@ -86,7 +86,7 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
             // accounts: RefCell::new(HashMap::new()),
             ethereum_accounts:  RefCell::new(HashMap::new()),
             solana_accounts:  RefCell::new(HashMap::new()),
-            provider: provider,
+            provider,
             block_number: slot,
             block_timestamp: timestamp,
             token_mint,
@@ -187,7 +187,7 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
         if let Some(account) = accounts.get_mut(address) {
             let info = account_info(&account.key, &mut account.account);
             let ether_account_res = EthereumAccount::from_account(
-                &self.provider.evm_loader(),
+                self.provider.evm_loader(),
                 &info
             );
 
@@ -306,14 +306,14 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
             }
 
             let mut accounts = self.solana_accounts.borrow_mut();
-            let mut account = accounts.get_mut(&solana_address)
+            let account = accounts.get_mut(&solana_address)
                 .unwrap_or_else(|| panic!("Account {} - storage account not found", solana_address));
 
             if solana_sdk::system_program::check_id(&account.owner) {
                 debug!("read storage system owned");
                 U256::zero()
             } else {
-                let account_info = account_info(&solana_address, &mut account);
+                let account_info = account_info(&solana_address, account);
                 let storage = EthereumStorage::from_account(self.provider.evm_loader(), &account_info).unwrap();
                 if (storage.address != *address) || (storage.index != index) || (storage.generation != self.generation(address)) {
                     debug!("storage collision");

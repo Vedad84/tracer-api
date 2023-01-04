@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use {
     crate::db::DbClient,
     lazy_static::lazy_static,
@@ -7,7 +8,6 @@ use {
     tokio::{ self, time::Instant },
     tracing::{info, warn},
     warp::{ Filter, Reply, Rejection },
-    web3,
 };
 
 lazy_static!(
@@ -82,6 +82,7 @@ async fn start_metrics_server(ip: Ipv4Addr, port: u16) {
 
 static MONITORING_INTERVAL_SEC: &str = "MONITORING_INTERVAL_SEC";
 static MONITORING_INTERVAL_SEC_DEFAULT: &str = "60";
+static MONITORING_RUNNING: AtomicBool = AtomicBool::new(false);
 
 fn register_metrics() {
     info!("Registering metrics...");
@@ -105,26 +106,34 @@ pub async fn start_monitoring(
     metrics_ip: Ipv4Addr,
     metrics_port: u16,
 ) {
+    info!("Starting monitoring...");
     let monitoring_interval_sec = std::env::var(MONITORING_INTERVAL_SEC)
-        .unwrap_or(MONITORING_INTERVAL_SEC_DEFAULT.to_string());
+        .unwrap_or_else(|_| MONITORING_INTERVAL_SEC_DEFAULT.to_string());
 
     let monitoring_interval_sec = monitoring_interval_sec.parse::<u64>()
         .map_err(|err| warn!("Failed to parse MONITORING_INTERVAL_SEC = {:?}", err)).unwrap();
 
     register_metrics();
-    start_metrics_server(metrics_ip, metrics_port).await;
+    tokio::spawn(start_metrics_server(metrics_ip, metrics_port));
+    MONITORING_RUNNING.store(true, Ordering::Relaxed);
 
-    loop {
+    while MONITORING_RUNNING.load(Ordering::Relaxed) {
         tokio::time::sleep(std::time::Duration::from_secs(monitoring_interval_sec)).await;
         proxy.eth().block_number().await
             .map(|proxy_block_number|{
                 db.get_slot().map(|db_slot| {
                     SLOT_DIFFERENCE.observe((proxy_block_number.as_u64() - db_slot) as f64);
-                    ()
                 })
             })
             .map_err(|err| warn!("Failed to submit neon_tracer_slot_difference: {:?}", err));
     }
+
+    info!("Monitoring stopped.");
+}
+
+pub fn stop_monitoring() {
+    info!("Stop monitoring...");
+    MONITORING_RUNNING.store(false, Ordering::Relaxed);
 }
 
 pub fn report_incoming_request(req_tag: &str) -> Instant {

@@ -70,20 +70,20 @@ pub type Bytes = crate::v1::types::Bytes;
 
 
 #[derive(Debug, Default, Serialize, Deserialize)]
-#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
+#[derive(std::cmp::PartialEq, std::cmp::Eq)]
 pub struct H160T(
     #[serde(deserialize_with = "deserialize_hex_h160", serialize_with = "serialize_hex_h160")]
     pub H160
 );
 
-impl std::cmp::Ord for H160T {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
+impl std::cmp::PartialOrd for H160T {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(&other.0))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
+#[derive(std::cmp::PartialEq, std::cmp::Eq)]
 pub struct U256T(
     #[serde(deserialize_with = "deserialize_hex_u256", serialize_with = "serialize_hex_u256")]
     pub U256
@@ -95,14 +95,14 @@ impl From<U256> for U256T {
     }
 }
 
-impl std::cmp::Ord for U256T {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
+impl std::cmp::PartialOrd for U256T {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(&other.0))
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-#[derive(std::cmp::PartialEq, std::cmp::PartialOrd, std::cmp::Eq)]
+#[derive(std::cmp::PartialEq, std::cmp::Eq)]
 pub struct H256T(
     #[serde(deserialize_with = "deserialize_hex_h256", serialize_with = "serialize_hex_h256")]
     pub H256
@@ -114,9 +114,9 @@ impl From<H256> for H256T {
     }
 }
 
-impl std::cmp::Ord for H256T {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.0.cmp(&other.0)
+impl std::cmp::PartialOrd for H256T {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.0.cmp(&other.0))
     }
 }
 
@@ -138,7 +138,7 @@ fn deserialize_hex_h160<'de, D>(deserializer: D) -> Result<H160, D::Error>
                 E: de::Error,
         {
             if !v.starts_with("0x") || v.len() < 3 {
-                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
+                return Err(E::custom("Invalid bytes format. Expected a 0x-prefixed hex string".to_string()));
             }
 
             let v = v.split_at(2).1;
@@ -182,7 +182,7 @@ fn deserialize_hex_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
         {
 
             if !v.starts_with("0x") || v.len() < 3 {
-                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
+                return Err(E::custom("Invalid bytes format. Expected a 0x-prefixed hex string".to_string()));
             }
 
             let v = v.split_at(2).1;
@@ -221,7 +221,7 @@ fn deserialize_hex_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
         {
 
             if !v.starts_with("0x") || v.len() < 3 {
-                return Err(E::custom(format!("Invalid bytes format. Expected a 0x-prefixed hex string")));
+                return Err(E::custom("Invalid bytes format. Expected a 0x-prefixed hex string".to_string()));
             }
 
             let v = v.split_at(2).1;

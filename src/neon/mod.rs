@@ -6,6 +6,7 @@ use {
     arrayref::array_ref,
     crate::{
         db::DbClient,
+        evm_runtime::EVMRuntime,
         neon::provider::DbProvider,
         v1::{
             geth::types::trace::{ H256T },
@@ -33,6 +34,7 @@ pub struct TracerCore {
     tracer_db_client: Arc<DbClient>,
     indexer_db_client: Arc<DbClient>,
     web3: Arc<Web3<Http>>,
+    pub evm_runtime: Arc<EVMRuntime>,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -48,12 +50,14 @@ impl TracerCore {
         tracer_db_client: Arc<DbClient>,
         indexer_db_client: Arc<DbClient>,
         web3: Arc<Web3<Http>>,
+        evm_runtime: Arc<EVMRuntime>,
     ) -> Self {
         Self {
             evm_loader,
             tracer_db_client,
             indexer_db_client,
             web3,
+            evm_runtime,
         }
     }
 
@@ -85,9 +89,9 @@ impl TracerCore {
                 info!("Web3 part ready");
 
                 Ok(result
-                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
+                    .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
                     .number
-                    .ok_or(Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
+                    .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
                     .as_u64())
             },
             BlockNumber::Earliest => {
@@ -101,7 +105,7 @@ impl TracerCore {
                 )
             },
             _ => {
-                Err(Error::Custom(format!("Unsupported block tag")))
+                Err(Error::Custom("Unsupported block tag".to_string()))
             }
         }
     }

@@ -9,8 +9,8 @@ use secret_value::Secret;
 use structopt::StructOpt;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
-use web3;
-use crate::metrics::start_monitoring;
+use crate::metrics::{start_monitoring, stop_monitoring};
+use tokio::signal;
 
 use crate::v1::geth::types::trace as geth;
 use crate::service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer };
@@ -23,6 +23,7 @@ mod syscall_stubs;
 mod service;
 mod metrics;
 mod config;
+mod evm_runtime;
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
     T::from_str(input).map(Secret::from)
@@ -55,21 +56,8 @@ async fn main() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let tracer_db_client = Arc::new(DbClient::new(
-        &options.tracer_db_host.clone(),
-        &options.tracer_db_port.clone(),
-        options.tracer_db_user.clone(),
-        options.tracer_db_password.clone(),
-        options.tracer_db_database.clone(),
-    ).await);
-
-    let indexer_db_client = Arc::new(DbClient::new(
-        &options.indexer_db_host.clone(),
-        &options.indexer_db_port.clone(),
-        options.indexer_db_user.clone(),
-        options.indexer_db_password.clone(),
-        options.indexer_db_database.clone(),
-    ).await);
+    let tracer_db_client = Arc::new(DbClient::new(&options.tracer_db_config).await);
+    let indexer_db_client = Arc::new(DbClient::new(&options.indexer_db_config).await);
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
     if transport.is_err() {
@@ -79,24 +67,47 @@ async fn main() {
 
     let web3_client = Arc::new(web3::Web3::new(transport.unwrap()));
 
+    let evm_runtime = Arc::new(evm_runtime::EVMRuntime::new(
+        &options.evm_runtime_config,
+        tracer_db_client.clone(),
+    ).await.unwrap_or_else(|err| panic!("{:?}", err)));
+
     let serv_impl = neon::TracerCore::new(
         options.evm_loader,
         tracer_db_client.clone(),
         indexer_db_client.clone(),
         web3_client.clone(),
+        evm_runtime.clone(),
     );
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl.clone()));
     module.merge(NeonProxyServer::into_rpc(serv_impl));
 
-    info!("before start monitoring");
+    let server_handle = server.start(module).unwrap();
 
-    let _handle = server.start(module).unwrap();
-    start_monitoring(
+    let monitor_task = tokio::spawn(start_monitoring(
         indexer_db_client.clone(),
         web3_client.clone(),
         options.metrics_ip,
         options.metrics_port
-    ).await;
+    ));
+
+    let evm_runtime_cloned = evm_runtime.clone();
+    let evm_runtime_task = tokio::spawn(async move { evm_runtime_cloned.start().await });
+
+    match signal::ctrl_c().await {
+        Ok(_) => {
+            info!("Terminating Tracer API...");
+        },
+        Err(err) => {
+            info!("Error while awaiting termination signal: {:?}. Stop application", err);
+        }
+    };
+
+    evm_runtime.stop();
+    stop_monitoring();
+    server_handle.stop();
+
+    tokio::join!(evm_runtime_task, monitor_task);
 }

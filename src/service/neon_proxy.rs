@@ -1,4 +1,3 @@
-use warp::header::value;
 use {
     crate::{
         metrics,
@@ -9,7 +8,7 @@ use {
         }
     },
     jsonrpsee::{ proc_macros::rpc, types::Error },
-    tracing::{ instrument, info },
+    log::{ info },
     log::warn,
 };
 
@@ -45,13 +44,13 @@ impl TracerCore {
 
         let mut all_topics: Vec<H256T> = Vec::new();
 
-        object.topics.map(
-            |topics|
-                topics.into_iter().for_each(
-                    |topic| match topic {
-                        FilterTopic::Single(topic) => all_topics.push(topic),
-                        FilterTopic::Many(mut topics) => all_topics.append(&mut topics),
-                    }));
+        if let Some(topics) = object.topics {
+            topics.into_iter().for_each(
+                |topic| match topic {
+                    FilterTopic::Single(topic) => all_topics.push(topic),
+                    FilterTopic::Many(mut topics) => all_topics.append(&mut topics),
+                })
+        }
 
         self.indexer_db_provider().get_logs(
             object.block_hash,
@@ -65,7 +64,6 @@ impl TracerCore {
 }
 
 impl NeonProxyServer for TracerCore {
-    #[instrument]
     fn eth_get_logs(
         &self,
         object: FilterObject
