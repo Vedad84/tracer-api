@@ -2,6 +2,9 @@
 set -euo pipefail
 source .buildkite/steps/revision.sh
 
+echo -e "\n\n\nPulling images"
+docker-compose -f docker-compose-test.yml pull
+
 echo -e "\n\n\nRunning test"
 docker-compose -f docker-compose-test.yml up neon-tracer-test
 result=$?

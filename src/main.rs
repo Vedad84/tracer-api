@@ -96,14 +96,10 @@ async fn main() {
     let evm_runtime_cloned = evm_runtime.clone();
     let evm_runtime_task = tokio::spawn(async move { evm_runtime_cloned.start().await });
 
-    match signal::ctrl_c().await {
-        Ok(_) => {
-            info!("Terminating Tracer API...");
-        },
-        Err(err) => {
-            info!("Error while awaiting termination signal: {:?}. Stop application", err);
-        }
-    };
+    let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
+        .expect("Unable to wait on signal SIGTERM");
+    sigterm.recv().await;
+    info!("Terminating Tracer API...");
 
     evm_runtime.stop();
     stop_monitoring();
