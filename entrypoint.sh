@@ -7,4 +7,15 @@ fi
 
 tar -xf $EVM_RUNTIME_DB_CONFIG -C /opt/
 
-./neon-tracer
+_term() {
+  echo "Caught SIGTERM signal!"
+  kill -TERM "$child" 2>/dev/null
+}
+
+trap _term SIGTERM
+
+echo "Starting Neon Tracer API. EVM Runtime DB Config: $EVM_RUNTIME_DB_CONFIG"
+./neon-tracer &
+
+child=$!
+wait "$child"

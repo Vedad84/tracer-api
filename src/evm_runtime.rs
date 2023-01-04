@@ -777,6 +777,8 @@ impl EVMRuntime {
     }
 
     async fn get_evm_revision(&self, slot: u64) -> Result<Option<String>, EVMRuntimeError> {
+        const BPF_LOADER_HEADER_SIZE: usize = 0x2d;
+
         debug!("Reading evm revision for slot {}", slot);
         if let Some(loader_account) = self.db_client.get_account_at_slot(&self.config.evm_loader, slot)
             .map_err(|err| EVMRuntimeError::ParseElfError { slot, err: format!("Failed to read EVM loader account: {:?}", err) })? {
@@ -794,7 +796,7 @@ impl EVMRuntime {
                     slot, err: format!("Failed to read EVM Code account: {:?}", err)
                 })? {
                 info!("Code account size {}", code_acc.data.len());
-                let params = Self::parse_elf_params(code_acc.data.as_slice())?;
+                let params = Self::parse_elf_params(&code_acc.data.as_slice()[BPF_LOADER_HEADER_SIZE..])?;
                 if let Some(revision) = params.get("NEON_REVISION") {
                     return Ok(Some(revision.clone()));
                 }
@@ -829,7 +831,6 @@ impl EVMRuntime {
                     None,
                     None);
 
-                let mut was_errors = false;
                 while let Some(res) = stream.next().await {
                     match res {
                         Ok(create_info) => {
@@ -845,8 +846,12 @@ impl EVMRuntime {
                         }
                     }
                 }
+
+                info!("Image {} pulled successfully", image_name);
             },
-            Ok(image_info) => {},
+            Ok(image_info) => {
+                info!("Image {} found. Image Id {:?} ", image_name, image_info.id);
+            },
         }
 
         Ok(())
@@ -971,20 +976,36 @@ impl EVMRuntime {
             &value_str,
         ];
 
+        let try_to_parse_json_from_str = |data: &str| -> Option<serde_json::Value> {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                Some(json)
+            } else {
+                None
+            }
+        };
+
         let result = self.run_command_with_slot_revision(command, data, slot, tout).await;
         return match result {
             Ok(result) => {
-                if let Ok(stdout) = std::str::from_utf8(&result.stderr) {
-                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(stdout) {
-                        Ok(json)
-                    } else {
-                        Err(EVMRuntimeError::Custom {
-                            msg: format!("Failed to parse JSON from string: {}", stdout)
-                        })
+                if let (Ok(stdout), Ok(stderr)) =
+                (std::str::from_utf8(&result.stdout), std::str::from_utf8(&result.stderr)) {
+                    info!("STDOUT: {}", stdout);
+                    info!("STDERR: {}", stderr);
+                    if let Some(json) = try_to_parse_json_from_str(stdout) {
+                        return Ok(json)
                     }
+
+                    warn!("Failed to parse stdout. Trying to parse from stderr");
+                    if let Some(json) = try_to_parse_json_from_str(&stderr) {
+                        return Ok(json)
+                    }
+
+                    return Err(EVMRuntimeError::Custom {
+                        msg: format!("Unable to parse emulation result")
+                    })
                 } else {
-                    Err(EVMRuntimeError::Custom {
-                        msg: format!("Failed to parse stdout as UTF-8: {:?}", result.stderr)
+                    return Err(EVMRuntimeError::Custom {
+                        msg: format!("Failed to parse stdout: {:?}\n or stderr: {:?}", result.stdout, result.stderr)
                     })
                 }
             },
