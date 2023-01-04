@@ -8,7 +8,7 @@ WORKDIR /opt
 RUN cargo build --release
 RUN cargo test --release
 
-FROM ubuntu:22.04
+FROM ubuntu:20.04
 RUN apt-get update && apt install -y ca-certificates && update-ca-certificates --fresh
 RUN apt-get install -y libssl-dev
 
