@@ -1,7 +1,7 @@
 use {
     crate::{
         metrics,
-        neon::{ Result, TracerCore },
+        neon::{ Result, tracer_core::TracerCore },
         v1::{
             geth::types::trace::{ H256T },
             types::{ FilterTopic, FilterObject, LogObject }

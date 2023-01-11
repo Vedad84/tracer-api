@@ -115,7 +115,7 @@ pub struct EVMRuntimeConfig {
 }
 
 pub struct EVMRuntime {
-    config: EVMRuntimeConfig,
+    pub config: EVMRuntimeConfig,
     docker: bollard::Docker,
     known_containers: RwLock<EVMContainerMap>,
     running: AtomicBool,
@@ -134,7 +134,6 @@ pub struct ExecResult {
 const INFINITE_WAIT_COMMAND: &str = "sleep infinity";
 const CONTAINER_NAME_PREFIX: &str = "neon_tracer_evm_container_";
 const IMAGE_NAME_PREFIX: &str = "neonlabsorg/evm_loader:";
-const NUM_STEPS_TO_EXECUTE: u32 = 500000;
 
 // Single entry of known revision in config
 #[derive(Debug, Deserialize)]
@@ -944,74 +943,6 @@ impl EVMRuntime {
         self.run_command_with_revision(command, stdin_data, &revision, tout).await
     }
 
-    pub async fn run_emulate_on_slot(
-        &self,
-        from: Option<H160>,
-        to: H160,
-        value: Option<U256>,
-        data: Option<Vec<u8>>,
-        slot: u64,
-        tout: &Duration,
-    ) -> Result<serde_json::Value, EVMRuntimeError> {
-        let chain_id_str = format!("{}", self.config.chain_id);
-        let num_steps_to_exec_str = format!("{}", NUM_STEPS_TO_EXECUTE);
-        let evm_loader_str = self.config.evm_loader.to_string();
-        let token_mint_str = self.config.token_mint.to_string();
-        let from_str = from.unwrap_or_default().to_hex();
-        let to_str = to.to_hex();
-        let value_str = value.unwrap_or_default().to_string();
-        let slot_str = slot.to_string();
-
-        let command = vec![
-            "neon-cli",
-            "--db_config", "/opt/db_config/tracer_db_config.yml",
-            "--slot", &slot_str,
-            "--evm_loader", &evm_loader_str,
-            "emulate",
-            "--token_mint", &token_mint_str,
-            "--chain_id", &chain_id_str,
-            "--max_steps_to_execute", num_steps_to_exec_str.as_str(),
-            &from_str,
-            &to_str,
-            &value_str,
-        ];
-
-        let try_to_parse_json_from_str = |data: &str| -> Option<serde_json::Value> {
-            if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
-                Some(json)
-            } else {
-                None
-            }
-        };
-
-        let result = self.run_command_with_slot_revision(command, data, slot, tout).await;
-        return match result {
-            Ok(result) => {
-                if let (Ok(stdout), Ok(stderr)) =
-                (std::str::from_utf8(&result.stdout), std::str::from_utf8(&result.stderr)) {
-                    info!("STDOUT: {}", stdout);
-                    info!("STDERR: {}", stderr);
-                    if let Some(json) = try_to_parse_json_from_str(stdout) {
-                        return Ok(json)
-                    }
-
-                    warn!("Failed to parse stdout. Trying to parse from stderr");
-                    if let Some(json) = try_to_parse_json_from_str(&stderr) {
-                        return Ok(json)
-                    }
-
-                    return Err(EVMRuntimeError::Custom {
-                        msg: format!("Unable to parse emulation result")
-                    })
-                } else {
-                    return Err(EVMRuntimeError::Custom {
-                        msg: format!("Failed to parse stdout: {:?}\n or stderr: {:?}", result.stdout, result.stderr)
-                    })
-                }
-            },
-            Err(err) => Err(err),
-        }
-    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,7 @@
 pub mod account_storage;
 pub mod provider;
+pub mod tracer_core;
+pub mod neon_cli;
 
 use {
     anyhow::anyhow,
@@ -9,8 +11,8 @@ use {
         evm_runtime::EVMRuntime,
         neon::provider::DbProvider,
         v1::{
-            geth::types::trace::{ H256T },
-            types::BlockNumber,
+            geth::types::trace::{ H256T, U256T, H160T },
+            types::{BlockNumber, EthCallObject},
         },
     },
     solana_sdk::{ account::Account, account_info::AccountInfo, pubkey::Pubkey },
@@ -20,6 +22,14 @@ use {
     tokio::task::block_in_place,
     web3::{ transports::Http, types::BlockId, Web3 },
     tracing::{ info, warn },
+    crate::{
+        neon::account_storage::EmulatorAccountStorage,
+        syscall_stubs::Stubs,
+    },
+    log::*,
+    serde::Serialize,
+    phf::phf_map,
+
 };
 
 pub trait To<T> {
@@ -28,99 +38,10 @@ pub trait To<T> {
 
 type Error = jsonrpsee::types::error::Error;
 
-#[derive(Clone)]
-pub struct TracerCore {
-    evm_loader: Pubkey,
-    tracer_db_client: Arc<DbClient>,
-    indexer_db_client: Arc<DbClient>,
-    web3: Arc<Web3<Http>>,
-    pub evm_runtime: Arc<EVMRuntime>,
-}
-
 pub type Result<T> = std::result::Result<T, Error>;
 
-fn convert_h256(inp: H256T) -> web3::types::H256 {
-    let bytes = array_ref![inp.0.as_bytes(), 0, 32];
-    web3::types::H256::from(bytes)
-}
 
-impl TracerCore {
-    pub fn new(
-        evm_loader: Pubkey,
-        tracer_db_client: Arc<DbClient>,
-        indexer_db_client: Arc<DbClient>,
-        web3: Arc<Web3<Http>>,
-        evm_runtime: Arc<EVMRuntime>,
-    ) -> Self {
-        Self {
-            evm_loader,
-            tracer_db_client,
-            indexer_db_client,
-            web3,
-            evm_runtime,
-        }
-    }
 
-    pub fn tracer_db_provider(&self) -> DbProvider {
-        DbProvider::new(self.tracer_db_client.clone(), self.evm_loader)
-    }
-
-    pub fn indexer_db_provider(&self) -> DbProvider {
-        DbProvider::new(self.indexer_db_client.clone(), self.evm_loader)
-    }
-
-    pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
-        match tag {
-            BlockNumber::Num(num) => Ok(num),
-            BlockNumber::Hash { hash, .. } => {
-
-                let hash_str = hash.0.to_string();
-                info!("Get block number {:?}", &hash_str);
-
-                let future = self.web3
-                    .eth()
-                    .block(BlockId::Hash(convert_h256(hash)));
-
-                let result = block_in_place(|| {
-                    let handle = tokio::runtime::Handle::current();
-                    handle.block_on(future)
-                }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
-
-                info!("Web3 part ready");
-
-                Ok(result
-                    .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .number
-                    .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .as_u64())
-            },
-            BlockNumber::Earliest => {
-                self.tracer_db_client.get_earliest_slot().map_err(
-                    |err| Error::Custom(format!("Failed to retrieve earliest block: {:?}", err))
-                )
-            },
-            BlockNumber::Latest => {
-                self.tracer_db_client.get_slot().map_err(
-                    |err| Error::Custom(format!("Failed to retrieve latest block: {:?}", err))
-                )
-            },
-            _ => {
-                Err(Error::Custom("Unsupported block tag".to_string()))
-            }
-        }
-    }
-}
-
-impl std::fmt::Debug for TracerCore {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            //"evm_loader={:?}, signer={:?}",
-            "evm_loader={:?}",
-            self.evm_loader //, self.signer
-        )
-    }
-}
 
 /// Creates new instance of `AccountInfo` from `Account`.
 pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInfo<'a> {
@@ -135,3 +56,38 @@ pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInf
         rent_epoch: account.rent_epoch,
     }
 }
+
+
+
+#[derive(Debug, Default, Serialize)]
+struct EthereumError {
+    pub code: u32,
+    pub message: Option<String>,
+    pub data: Option<String>,
+}
+
+const INTERNAL_SERVER_ERROR: fn()->Error = || Error::Custom("Internal server error".to_string());
+
+static ETHEREUM_ERROR_MAP: phf::Map<&'static str, &'static str> = phf_map! {
+    "StackUnderflow" => "trying to pop from an empty stack",
+    "StackOverflow" => "trying to push into a stack over stack limit",
+    "InvalidJump" => "jump destination is invalid",
+    "InvalidRange" => "an opcode accesses memory region, but the region is invalid",
+    "DesignatedInvalid" => "encountered the designated invalid opcode",
+    "CallTooDeep" => "call stack is too deep (runtime)",
+    "CreateCollision" => "create opcode encountered collision (runtime)",
+    "CreateContractLimit" => "create init code exceeds limit (runtime)",
+    "OutOfOffset" => "an opcode accesses external information, but the request is off offset limit (runtime)",
+    "OutOfGas" => "execution runs out of gas (runtime)",
+    "OutOfFund" => "not enough fund to start the execution (runtime)",
+    "PCUnderflow" => "PC underflow (unused)",
+    "CreateEmpty" => "attempt to create an empty account (runtime, unused)",
+    "StaticModeViolation" => "STATICCALL tried to change state",
+};
+
+static ETHEREUM_FATAL_ERROR_MAP: phf::Map<&'static str, &'static str> = phf_map! {
+    "NotSupported" => "the operation is not supported",
+    "UnhandledInterrupt" => "the trap (interrupt) is unhandled",
+    "CallErrorAsFatal" => "the environment explicitly set call errors as fatal error",
+};
+

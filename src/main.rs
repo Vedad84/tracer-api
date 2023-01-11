@@ -14,7 +14,7 @@ use tokio::signal;
 
 use crate::v1::geth::types::trace as geth;
 use crate::service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer };
-use crate::neon::TracerCore;
+use crate::neon::tracer_core::TracerCore;
 
 mod db;
 mod neon;
@@ -72,7 +72,7 @@ async fn main() {
         tracer_db_client.clone(),
     ).await.unwrap_or_else(|err| panic!("{:?}", err)));
 
-    let serv_impl = neon::TracerCore::new(
+    let serv_impl = TracerCore::new(
         options.evm_loader,
         tracer_db_client.clone(),
         indexer_db_client.clone(),
