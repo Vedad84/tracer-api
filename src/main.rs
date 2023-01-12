@@ -9,12 +9,13 @@ use secret_value::Secret;
 use structopt::StructOpt;
 use tracing::{info, warn};
 use tracing_subscriber::{EnvFilter, fmt};
-use crate::metrics::{start_monitoring, stop_monitoring};
+use crate::metrics::start_monitoring;
 use tokio::signal;
 
 use crate::v1::geth::types::trace as geth;
 use crate::service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer };
 use crate::neon::tracer_core::TracerCore;
+use crate::stop_handle::StopHandle;
 
 mod db;
 mod neon;
@@ -24,6 +25,7 @@ mod service;
 mod metrics;
 mod config;
 mod evm_runtime;
+mod stop_handle;
 
 fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
     T::from_str(input).map(Secret::from)
@@ -41,8 +43,7 @@ fn init_logs() {
     tracing_log::LogTracer::init().unwrap();
 }
 
-#[tokio::main]
-async fn main() {
+async fn run() {
     use crate::db::DbClient;
     use std::str::FromStr;
 
@@ -84,26 +85,33 @@ async fn main() {
     module.merge(EIP1898Server::into_rpc(serv_impl.clone()));
     module.merge(NeonProxyServer::into_rpc(serv_impl));
 
-    let server_handle = server.start(module).unwrap();
-
-    let monitor_task = tokio::spawn(start_monitoring(
+    let monitor_handle = start_monitoring(
         indexer_db_client.clone(),
         web3_client.clone(),
         options.metrics_ip,
         options.metrics_port
-    ));
+    );
 
-    let evm_runtime_cloned = evm_runtime.clone();
-    let evm_runtime_task = tokio::spawn(async move { evm_runtime_cloned.start().await });
+    let evm_runtime_handle = (*evm_runtime).clone().start();
+    let server_handle = server.start(module).unwrap();
 
-    let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
-        .expect("Unable to wait on signal SIGTERM");
-    sigterm.recv().await;
-    info!("Terminating Tracer API...");
+    let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap();
+    let mut sigint = signal::unix::signal(signal::unix::SignalKind::interrupt()).unwrap();
+    tokio::select! {
+        _ = sigterm.recv() => {}
+        _ = sigint.recv() => {}
+    }
 
-    evm_runtime.stop();
-    stop_monitoring();
-    server_handle.stop();
+    let handles = vec![
+        server_handle.stop().unwrap(),
+        evm_runtime_handle.stop().unwrap(),
+        monitor_handle.stop().unwrap(),
+    ];
 
-    tokio::join!(evm_runtime_task, monitor_task);
+    futures::future::join_all(handles).await;
+}
+
+fn main() {
+    let rt = tokio::runtime::Runtime::new().unwrap();
+    rt.block_on(run());
 }

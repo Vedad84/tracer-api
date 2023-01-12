@@ -1,4 +1,3 @@
-use futures_util::TryFutureExt;
 use {
     arrayref::array_ref,
     bollard::{
@@ -11,7 +10,10 @@ use {
         errors::Error as DockerError,
         models::ContainerStateStatusEnum,
     },
-    crate::db::{ DbClient, DBConfig, Error as DbError },
+    crate::{
+        db::{ DbClient, DBConfig, Error as DbError },
+        stop_handle::StopHandle,
+    },
     flate2,
     futures_util::{ future::join_all, StreamExt },
     goblin::elf::Elf,
@@ -114,12 +116,12 @@ pub struct EVMRuntimeConfig {
     pub network_name: Option<String>,
 }
 
+#[derive(Clone)]
 pub struct EVMRuntime {
     pub config: EVMRuntimeConfig,
     docker: bollard::Docker,
-    known_containers: RwLock<EVMContainerMap>,
-    running: AtomicBool,
-    known_revisions: RwLock<KnownRevisions>,
+    known_containers: Arc<RwLock<EVMContainerMap>>,
+    known_revisions: Arc<RwLock<KnownRevisions>>,
     db_client: Arc<DbClient>,
 }
 
@@ -279,21 +281,18 @@ impl EVMRuntime {
                 .map_err(|err| EVMRuntimeError::ClientCreationError {
                     err: format!("Failed to negotiate client version: {:?}", err)
                 })?,
-            known_containers: RwLock::new(HashMap::new()),
-            running: AtomicBool::new(true),
-            known_revisions: RwLock::new(KnownRevisions::new()),
+            known_containers: Arc::new(RwLock::new(HashMap::new())),
+            known_revisions: Arc::new(RwLock::new(KnownRevisions::new())),
             db_client,
         })
     }
 
-    pub fn stop(&self) {
-        debug!("Stop EVM Runtime...");
-        self.running.store(false, Ordering::Relaxed);
-    }
-
-    async fn remove_container(&self, revision: &str) {
-        let container_name = create_container_name(revision);
-        match self.docker.kill_container::<&str>(&container_name, None).await {
+    async fn remove_container(&self, container_name: &str) {
+        let options = bollard::container::RemoveContainerOptions {
+            force: true,
+            ..Default::default()
+        };
+        match self.docker.remove_container(container_name, Some(options)).await {
             Ok(_) => { info!("Container {} killed", container_name); },
             Err(err) => { warn!("Failed to killcontainer {}: {:?}", container_name, err); },
         };
@@ -319,7 +318,7 @@ impl EVMRuntime {
         }
     }
 
-    pub async fn start(&self) {
+    pub async fn run(mut self, mut stop_rcv: tokio::sync::mpsc::Receiver<()>) {
         info!("Starting EVM Runtime...");
         let known_revisions: KnownRevisionsData = serde_json::from_str(&self.config.known_revisions)
             .map_err(|err| EVMRuntimeError::ClientCreationError {
@@ -331,13 +330,32 @@ impl EVMRuntime {
             self.set_known_slot_revision(entry.slot, &entry.revision).await;
         }
 
-        while self.running.load(Ordering::Relaxed) {
-            self.heartbeat().await;
-            tokio::time::sleep(std::time::Duration::from_secs(self.config.update_interval_sec)).await;
+        let sleep_duration = Duration::from_secs(self.config.update_interval_sec);
+        let mut interval = tokio::time::interval(sleep_duration);
+        interval.tick().await;
+
+        loop {
+            tokio::select! {
+                _ = interval.tick() => {
+                    self.heartbeat().await;
+                }
+                _ = stop_rcv.recv() => {
+                    break;
+                }
+            }
         }
 
         self.clear_containers().await;
         info!("EVM runtime stopped");
+    }
+
+    pub fn start(mut self) -> StopHandle {
+        let (stop_snd, mut stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
+        let rt: tokio::runtime::Handle;
+        StopHandle::new(
+            tokio::spawn( self.run(stop_rcv)),
+            stop_snd,
+        )
     }
 
     async fn update_known_containers(&self, known_containers: &mut EVMContainerMap) -> Result<(), EVMRuntimeError> {
@@ -591,12 +609,15 @@ impl EVMRuntime {
         tout: &std::time::Duration
     ) -> Result<(), EVMRuntimeError> {
         let task = async {
+            let sleep_int = std::time::Duration::from_secs(1);
+            let mut interval = tokio::time::interval(sleep_int);
+            interval.tick().await;
             loop {
                 let current_status = self.get_container_status(container_name).await?;
                 if current_status == ContainerStateStatusEnum::RUNNING {
                     break;
                 }
-                tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+                interval.tick().await;
             }
 
             Ok::<(), EVMRuntimeError>(())

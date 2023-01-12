@@ -2904,6 +2904,7 @@ dependencies = [
  "evm",
  "evm-loader",
  "flate2",
+ "futures",
  "futures-core",
  "futures-util",
  "goblin 0.4.3",
