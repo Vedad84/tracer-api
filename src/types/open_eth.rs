@@ -1,13 +1,10 @@
-use evm::{H160, H256, U256};
-use ethereum_types::U64;
 use rustc_hex::{FromHex, ToHex};
 use serde::{
     de::Error, de::MapAccess, de::Visitor, de::SeqAccess, Deserialize, Deserializer, Serialize, Serializer,
 };
-use std::fmt;
-
-use crate::v1::geth::types::trace::{H160T, H256T, U256T};
-use std::str::FromStr;
+use std::{str::FromStr, fmt};
+use evm_loader::{H160, H256};
+use super::{H160T, H256T, U256T};
 
 /// Represents rpc api block number param.
 #[derive(Debug, PartialEq, Eq)]
@@ -37,27 +34,17 @@ impl Default for BlockNumber {
 
 impl<'a> Deserialize<'a> for BlockNumber {
     fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error>
-    where
-        D: Deserializer<'a>,
+        where
+            D: Deserializer<'a>,
     {
         deserializer.deserialize_any(BlockNumberVisitor)
     }
 }
 
-impl BlockNumber {
-    /// Convert block number to min block target.
-    pub fn to_min_block_num(&self) -> Option<u64> {
-        match *self {
-            BlockNumber::Num(ref x) => Some(*x),
-            _ => None,
-        }
-    }
-}
-
 impl Serialize for BlockNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
         match &*self {
             BlockNumber::Hash {
@@ -88,8 +75,8 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
     }
 
     fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
-    where
-        V: MapAccess<'a>,
+        where
+            V: MapAccess<'a>,
     {
         let (mut require_canonical, mut block_number, mut block_hash) =
             (false, None::<u64>, None::<H256T>);
@@ -108,11 +95,10 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
 
                             block_number = Some(number);
                             break;
-                        } else {
-                            return Err(Error::custom(
-                                "Invalid block number: missing 0x prefix".to_string(),
-                            ));
                         }
+                        return Err(Error::custom(
+                            "Invalid block number: missing 0x prefix".to_string(),
+                        ));
                     }
                     "blockHash" => {
                         block_hash = Some(visitor.next_value()?);
@@ -141,8 +127,8 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
+        where
+            E: Error,
     {
         match value {
             "latest" => Ok(BlockNumber::Latest),
@@ -158,8 +144,8 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
     }
 
     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: Error,
+        where
+            E: Error,
     {
         self.visit_str(value.as_ref())
     }
@@ -173,10 +159,6 @@ impl Bytes {
     /// Simple constructor.
     pub fn new(bytes: Vec<u8>) -> Bytes {
         Bytes(bytes)
-    }
-    /// Convert back to vector
-    pub fn into_vec(self) -> Vec<u8> {
-        self.0
     }
 }
 
@@ -194,19 +176,19 @@ impl Into<Vec<u8>> for Bytes {
 
 impl Serialize for Bytes {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+        where
+            S: Serializer,
     {
-        let mut serialized = "0x".to_owned();
-        serialized.push_str(self.0.to_hex::<String>().as_ref());
-        serializer.serialize_str(serialized.as_ref())
+        let mut value = "0x".to_owned();
+        value.push_str(self.0.to_hex::<String>().as_ref());
+        serializer.serialize_str(value.as_ref())
     }
 }
 
 impl<'a> Deserialize<'a> for Bytes {
     fn deserialize<D>(deserializer: D) -> Result<Bytes, D::Error>
-    where
-        D: Deserializer<'a>,
+        where
+            D: Deserializer<'a>,
     {
         deserializer.deserialize_any(BytesVisitor)
     }
@@ -222,8 +204,8 @@ impl<'a> Visitor<'a> for BytesVisitor {
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
+        where
+            E: Error,
     {
         if value.len() >= 2 && value.starts_with("0x") && value.len() & 1 == 0 {
             Ok(Bytes::new(FromHex::from_hex(&value[2..]).map_err(|e| {
@@ -237,65 +219,14 @@ impl<'a> Visitor<'a> for BytesVisitor {
     }
 
     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: Error,
+        where
+            E: Error,
     {
         self.visit_str(value.as_ref())
     }
 }
 
 
-/// Represents usize.
-#[derive(Debug, PartialEq)]
-pub struct Index(usize);
-
-impl Index {
-    /// Convert to usize
-    pub fn value(&self) -> usize {
-        self.0
-    }
-}
-
-impl<'a> Deserialize<'a> for Index {
-    fn deserialize<D>(deserializer: D) -> Result<Index, D::Error>
-    where
-        D: Deserializer<'a>,
-    {
-        deserializer.deserialize_any(IndexVisitor)
-    }
-}
-
-struct IndexVisitor;
-
-impl<'a> Visitor<'a> for IndexVisitor {
-    type Value = Index;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "a hex-encoded or decimal index")
-    }
-
-    fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        match value {
-            _ if value.starts_with("0x") => usize::from_str_radix(&value[2..], 16)
-                .map(Index)
-                .map_err(|e| Error::custom(format!("Invalid index: {}", e))),
-            _ => value
-                .parse::<usize>()
-                .map(Index)
-                .map_err(|e| Error::custom(format!("Invalid index: {}", e))),
-        }
-    }
-
-    fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-    where
-        E: Error,
-    {
-        self.visit_str(value.as_ref())
-    }
-}
 
 #[derive(Debug, Default, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]

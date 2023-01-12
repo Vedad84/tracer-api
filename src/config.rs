@@ -3,12 +3,9 @@ use {
         db::{ DBConfig, load_config_file },
         evm_runtime::EVMRuntimeConfig,
     },
-    flate2::{ bufread::GzEncoder, Compression },
-    secret_value::Secret,
     solana_sdk::pubkey::Pubkey,
-    std::{ io::{ Read, BufReader, Result as IOResult }, fs::File, net::Ipv4Addr, str::FromStr },
+    std::{net::Ipv4Addr, str::FromStr },
 };
-use crate::evm_runtime::EVMRuntime;
 
 // Environment variables
 const EVM_RUNTIME_DOCKER_SOCKET: &str = "EVM_RUNTIME_DOCKER_SOCKET";

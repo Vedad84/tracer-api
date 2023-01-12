@@ -1,26 +1,20 @@
 use {
-    crate::v1::types::{FilterAddress, FilterObject, LogObject},
-    evm::{H160, H256, U256},
-    log::*,
-    openssl::ssl::{SslConnector, SslFiletype, SslMethod},
+    evm_loader::{H160, U256},
+    log::{debug, error, warn},
     tokio_postgres::{ connect, Client, Row },
     parity_bytes::ToPretty,
-    postgres::{ NoTls },
-    postgres_openssl::MakeTlsConnector,
     serde::{ Serialize, Deserialize },
-    serde_yaml,
     solana_sdk::{
         account::Account,
         pubkey::Pubkey,
     },
-    std::{ error, collections::HashSet, fs::File, io::self, path::Path, str::FromStr },
+    std::{collections::HashSet, fs::File, io::self, path::Path, str::FromStr },
     thiserror::Error,
     tokio::task::block_in_place,
+    crate::types::{H160T, H256T, U256T, FilterAddress, LogObject},
 };
-use crate::geth::{H160T, H256T, U256T};
 
 pub struct DbClient {
-    config: DBConfig,
     client: Client,
     pub transaction_logs_column_list: Vec<&'static str>,
 }
@@ -30,9 +24,6 @@ const BLOCKS_TABLE_NAME: &str = "solana_blocks";
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("account not found: {acc}")]
-    AccNotFound{ acc: Pubkey },
-
     #[error("postgres: {}", .0)]
     Db(#[from] tokio_postgres::Error),
 
@@ -81,7 +72,6 @@ impl DbClient {
         });
 
         Self {
-            config: config.clone(),
             client,
             transaction_logs_column_list: vec![
                 "block_slot", "tx_idx", "tx_log_idx", "log_idx",
@@ -89,8 +79,6 @@ impl DbClient {
             ],
         }
     }
-
-    pub fn get_config(&self) -> &DBConfig { &self.config }
 
     fn block<F, Fu, R>(&self, f: F) -> R
         where

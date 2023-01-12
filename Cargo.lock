@@ -1583,7 +1583,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 [[package]]
 name = "evm"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=v0.14.x#852e41d25238823ff3ea9f1d3bd562106be70594"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#c02ab105c4aaf589bef483c30ec11c5fbc62c295"
 dependencies = [
  "evm-core",
  "evm-runtime",
@@ -1595,9 +1595,10 @@ dependencies = [
 [[package]]
 name = "evm-core"
 version = "0.18.2"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=v0.14.x#852e41d25238823ff3ea9f1d3bd562106be70594"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#c02ab105c4aaf589bef483c30ec11c5fbc62c295"
 dependencies = [
  "borsh",
+ "environmental",
  "fixed-hash",
  "impl-rlp",
  "impl-serde",
@@ -1610,8 +1611,8 @@ dependencies = [
 
 [[package]]
 name = "evm-loader"
-version = "0.14.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=v0.14.x#852e41d25238823ff3ea9f1d3bd562106be70594"
+version = "0.14.0-dev"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#c02ab105c4aaf589bef483c30ec11c5fbc62c295"
 dependencies = [
  "arrayref",
  "bincode",
@@ -1635,7 +1636,7 @@ dependencies = [
 [[package]]
 name = "evm-loader-macro"
 version = "1.0.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=v0.14.x#852e41d25238823ff3ea9f1d3bd562106be70594"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#c02ab105c4aaf589bef483c30ec11c5fbc62c295"
 dependencies = [
  "bs58",
  "itertools",
@@ -1648,7 +1649,7 @@ dependencies = [
 [[package]]
 name = "evm-runtime"
 version = "0.18.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=v0.14.x#852e41d25238823ff3ea9f1d3bd562106be70594"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#c02ab105c4aaf589bef483c30ec11c5fbc62c295"
 dependencies = [
  "borsh",
  "evm-core",
@@ -2901,7 +2902,6 @@ dependencies = [
  "dukt",
  "environmental",
  "ethereum-types",
- "evm",
  "evm-loader",
  "flate2",
  "futures",

@@ -1,6 +1,4 @@
-use {
-    tokio::{ task::JoinHandle, sync::mpsc::Sender },
-};
+use tokio::task::JoinHandle;
 
 pub struct StopHandle {
     join_handle: JoinHandle<()>,

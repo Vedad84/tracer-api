@@ -1,15 +1,13 @@
 use {
-    solana_sdk::pubkey::Pubkey,
-    crate::evm_runtime::{EVMRuntimeError, EVMRuntime,},
-    evm::{H160, U256},
-    std::time::Duration,
+    std::{time::Duration, sync::Arc},
     parity_bytes::ToPretty,
-    std::sync::Arc,
     log::*,
+    evm_loader::{H160, U256},
+    crate::evm_runtime::EVMRuntime,
     super::{EthereumError, Result, INTERNAL_SERVER_ERROR, ETHEREUM_ERROR_MAP, ETHEREUM_FATAL_ERROR_MAP,},
 };
 
-const NUM_STEPS_TO_EXECUTE: u32 = 500000;
+const NUM_STEPS_TO_EXECUTE: u32 = 500_000;
 
 
 #[derive(Clone)]
@@ -209,7 +207,7 @@ impl NeonCli{
                         data: None
                     }
                 },
-                serde_json::Value::Object(obj) => {
+                serde_json::Value::Object(_obj) => {
                     let mut error: Option<String> = None;
                     if let Some(err) = reason.get("Error") {
                         error = ETHEREUM_ERROR_MAP.get(err.to_string().as_str()).map(|s| s.to_string());
@@ -252,7 +250,7 @@ impl NeonCli{
         };
 
         serde_json::to_string(&error).map_err(|err| {
-            warn!("Failed to serialize error {:?} to string", error);
+            warn!("Failed to serialize error {:?} to string: {:?}", error, err);
             INTERNAL_SERVER_ERROR()
         })
     }

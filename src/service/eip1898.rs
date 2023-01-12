@@ -1,32 +1,11 @@
 use {
     async_trait::async_trait,
-    bollard::{
-        container::LogOutput as DockerLogOutput,
-        exec::StartExecResults,
-    },
-    crate::{
-        metrics,
-        neon::{ account_storage::EmulatorAccountStorage, provider::DbProvider, tracer_core::TracerCore,
-                Result},
-        syscall_stubs::Stubs,
-        v1::{
-            geth::types::trace::{H160T, U256T},
-            types::{ BlockNumber, EthCallObject },
-        },
-    },
-    futures_core::stream::Stream,
-    futures_util::{ pin_mut, stream::StreamExt },
     jsonrpsee::{ proc_macros::rpc, types::Error },
     log::*,
-    parity_bytes::ToPretty,
-    phf::phf_map,
-    serde::Serialize,
-    std::ops::Deref,
-    tokio::io::AsyncWriteExt,
-    evm::{ ExitReason, U256 },
-    evm_loader::{
-        account_storage::AccountStorage,
-        executor::Machine,
+    crate::{
+        metrics,
+        neon::{tracer_core::TracerCore,  Result},
+        types::{H160T, U256T, BlockNumber, EthCallObject},
     },
 };
 

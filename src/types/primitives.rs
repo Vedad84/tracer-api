@@ -1,18 +1,9 @@
-use std::{collections::BTreeMap, iter};
-
-use evm::{H160, U256, H256};
-use serde::{self, Deserialize, Serialize};
-
-use crate::neon;
-use serde::de;
+use evm_loader::{H160, U256, H256};
+use serde::{self, Deserialize, Serialize, de};
 use std::fmt;
 use byte_slice_cast::AsByteSlice;
 
 mod string {
-    use serde::{de, Deserialize, Deserializer, Serializer};
-    use std::fmt::Display;
-    use std::str::FromStr;
-
     pub trait HasRadix: Sized {
         type Error;
         fn from_radix(s: &str, radix: u32) -> Result<Self, std::num::ParseIntError>;
@@ -29,44 +20,7 @@ mod string {
         };
     }
     impl_radix!(u64);
-
-    pub fn serialize<T, S>(value: &T, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            T: Display,
-            S: Serializer,
-    {
-        serializer.collect_str(value)
-    }
-
-    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<T, D::Error>
-        where
-            T: HasRadix,
-            T::Error: Display,
-            D: Deserializer<'de>,
-    {
-        let value = String::deserialize(deserializer)?;
-        if let Some(value) = value.strip_prefix("0x") {
-            let number = HasRadix::from_radix(value, 16)
-                .map_err(|e| serde::de::Error::custom(format!("Invalid block number: {}", e)))?;
-            Ok(number)
-        } else {
-            Err(serde::de::Error::custom(
-                "Invalid block number: missing 0x prefix".to_string(),
-            ))
-        }
-    }
 }
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BlockNumber(#[serde(with = "string")] u64);
-
-impl From<BlockNumber> for u64 {
-    fn from(b: BlockNumber) -> u64 {
-        b.0
-    }
-}
-
-pub type Bytes = crate::v1::types::Bytes;
 
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -248,7 +202,7 @@ fn deserialize_hex_h256<'de, D>(deserializer: D) -> Result<H256, D::Error>
 fn serialize_hex_u256<S>(value: &U256, serializer: S)  -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer {
-    let mut tmp = value.as_byte_slice().iter().cloned().rev().collect::<Vec<u8>>();
+    let tmp = value.as_byte_slice().iter().cloned().rev().collect::<Vec<u8>>();
     serializer.serialize_str(format!("0x{}", hex::encode(tmp.as_slice())).as_str())
 }
 

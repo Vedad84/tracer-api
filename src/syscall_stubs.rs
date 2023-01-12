@@ -1,15 +1,14 @@
-use solana_sdk::{
-    program_error::ProgramError,
-    program_stubs::SyscallStubs,
-    sysvar::rent::Rent,
-    account::Account,
-    sysvar::clock::Clock,
+use {
+    solana_sdk::{
+        program_stubs::SyscallStubs,
+        sysvar::rent::Rent,
+        sysvar::clock::Clock,
+        account::ReadableAccount,
+    },
+    anyhow::anyhow,
+    crate::neon::provider::Provider
 };
 
-use solana_program::sysvar::recent_blockhashes;
-use anyhow::anyhow;
-use solana_sdk::account::ReadableAccount;
-use crate::neon::provider::Provider;
 
 pub struct Stubs {
     rent: Rent,
@@ -32,7 +31,7 @@ impl Stubs {
     {
         let rent_pubkey = solana_sdk::sysvar::rent::id();
         // TODO: remove u64::MAX after fix get_slot_by_block
-        let mut acc = provider.get_account_at_slot(&rent_pubkey, block_number)
+        let acc = provider.get_account_at_slot(&rent_pubkey, block_number)
             .map_err(|e| anyhow!("error load rent account {}", e))?;
 
         let acc = acc.ok_or_else(|| anyhow!("rent account is None"))?;
@@ -46,7 +45,7 @@ impl Stubs {
     {
         let clock_pubkey = solana_sdk::sysvar::clock::id();
         // TODO: remove u64::MAX after fix get_slot_by_block
-        let mut acc = provider.get_account_at_slot(&clock_pubkey, block_number)
+        let acc = provider.get_account_at_slot(&clock_pubkey, block_number)
             .map_err(|e| anyhow!("error load clock account {}", e))?;
 
         let acc = acc.ok_or_else(|| anyhow!("clock account is None"))?;

@@ -1,10 +1,10 @@
 use {
     crate::{ db::DbClient, stop_handle::StopHandle },
     lazy_static::lazy_static,
-    prometheus::{ Encoder, gather, IntCounter, Histogram, HistogramVec, HistogramOpts, TextEncoder,
+    prometheus::{ Encoder, gather, Histogram, HistogramVec, HistogramOpts, TextEncoder,
                   Registry, IntCounterVec, Opts },
     std::{ net::Ipv4Addr, sync::Arc },
-    tokio::{ self, task::JoinHandle, sync::mpsc::{ Receiver, Sender }, time::Instant },
+    tokio::{ self, sync::mpsc::Receiver, time::Instant },
     tracing::{info, warn},
     warp::{ Filter, Reply, Rejection },
 };
@@ -121,7 +121,7 @@ pub async fn run_monitoring(
     loop {
         tokio::select! {
             _ = interval.tick() => {
-                proxy.eth().block_number().await
+            let _ = proxy.eth().block_number().await
                     .map(|proxy_block_number|{
                         db.get_slot().map(|db_slot| {
                             SLOT_DIFFERENCE.observe((proxy_block_number.as_u64() - db_slot) as f64);
@@ -144,8 +144,7 @@ pub fn start_monitoring(
     metrics_ip: Ipv4Addr,
     metrics_port: u16,
 ) -> StopHandle {
-    let (stop_snd, mut stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
-    let rt: tokio::runtime::Handle;
+    let (stop_snd, stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
     StopHandle::new(
         tokio::spawn( run_monitoring(db, proxy, metrics_ip, metrics_port, stop_rcv)),
         stop_snd,
@@ -163,7 +162,7 @@ pub fn report_request_finished(started: Instant, req_tag: &str, success: bool) {
     }
 
     let elapsed = started.elapsed();
-    let elapsed = elapsed.as_secs() as f64 + elapsed.subsec_micros() as f64 / 1000000.0;
+    let elapsed = elapsed.as_secs() as f64 + elapsed.subsec_micros() as f64 / 1_000_000.0;
     RESPONSE_TIME_COLLECTOR
         .with_label_values(&[req_tag])
         .observe(elapsed);

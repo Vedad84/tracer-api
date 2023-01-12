@@ -1,35 +1,28 @@
-#![allow(unused, clippy::too_many_arguments)]
+#![deny(warnings)]
+#![deny(clippy::all, clippy::pedantic)]
 
-use std::net::Ipv4Addr;
-use std::str::FromStr;
-use std::sync::Arc;
-
-use jsonrpsee::http_server::{HttpServerBuilder, RpcModule};
-use secret_value::Secret;
-use structopt::StructOpt;
-use tracing::{info, warn};
-use tracing_subscriber::{EnvFilter, fmt};
-use crate::metrics::start_monitoring;
-use tokio::signal;
-
-use crate::v1::geth::types::trace as geth;
-use crate::service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer };
-use crate::neon::tracer_core::TracerCore;
-use crate::stop_handle::StopHandle;
+use {
+    std::sync::Arc,
+    jsonrpsee::http_server::{HttpServerBuilder, RpcModule},
+    tracing::{info, warn},
+    tracing_subscriber::{EnvFilter, fmt},
+    tokio::signal,
+    crate::{
+        service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer },
+        neon::tracer_core::TracerCore,
+        metrics::start_monitoring,
+    }
+};
 
 mod db;
 mod neon;
-mod v1;
 mod syscall_stubs;
 mod service;
 mod metrics;
 mod config;
 mod evm_runtime;
 mod stop_handle;
-
-fn parse_secret<T: FromStr>(input: &str) -> std::result::Result<Secret<T>, T::Err> {
-    T::from_str(input).map(Secret::from)
-}
+mod types;
 
 fn init_logs() {
     let writer = std::io::stdout;
@@ -45,7 +38,6 @@ fn init_logs() {
 
 async fn run() {
     use crate::db::DbClient;
-    use std::str::FromStr;
 
     let options = config::read_config();
 
@@ -82,8 +74,8 @@ async fn run() {
     );
 
     let mut module = RpcModule::new(());
-    module.merge(EIP1898Server::into_rpc(serv_impl.clone()));
-    module.merge(NeonProxyServer::into_rpc(serv_impl));
+    module.merge(EIP1898Server::into_rpc(serv_impl.clone())).expect("EIP1898Server error");
+    module.merge(NeonProxyServer::into_rpc(serv_impl)).expect("NeonProxyServer error");
 
     let monitor_handle = start_monitoring(
         indexer_db_client.clone(),

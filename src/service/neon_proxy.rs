@@ -1,15 +1,11 @@
 use {
+    jsonrpsee::{ proc_macros::rpc, types::Error },
+    log::{info, warn},
     crate::{
         metrics,
         neon::{ Result, tracer_core::TracerCore },
-        v1::{
-            geth::types::trace::{ H256T },
-            types::{ FilterTopic, FilterObject, LogObject }
-        }
+        types::{H256T, FilterTopic, FilterObject, LogObject},
     },
-    jsonrpsee::{ proc_macros::rpc, types::Error },
-    log::{ info },
-    log::warn,
 };
 
 #[rpc(server)]

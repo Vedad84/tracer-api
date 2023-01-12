@@ -1,12 +1,12 @@
-use std::{borrow::Borrow, collections::HashMap, convert::Infallible, sync::Arc};
-
-use solana_program::pubkey::Pubkey;
-use solana_sdk::account::Account;
-use web3::signing::Key;
-use crate::geth::{H160T, H256T, U256T};
-use crate::v1::types::BlockNumber;
-use crate::db::{DbClient, Error as DbError};
-use crate::v1::types::{FilterObject, LogObject, FilterAddress};
+use {
+    std::sync::Arc,
+    solana_program::pubkey::Pubkey,
+    solana_sdk::account::Account,
+    crate::{
+        types::{H256T, LogObject, FilterAddress},
+        db::{DbClient, Error as DbError},
+    }
+};
 
 pub trait Provider {
     type Error: std::fmt::Display + std::error::Error + Send + Sync + 'static;

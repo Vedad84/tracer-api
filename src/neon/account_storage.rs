@@ -1,13 +1,4 @@
 use {
-    crate::neon::account_info,
-    evm::{H160, H256, U256},
-    evm_loader::{
-        account_storage::{AccountStorage},
-        account::{ ACCOUNT_SEED_VERSION, ether_contract, EthereumAccount, EthereumStorage },
-        executor::{ OwnedAccountInfo, OwnedAccountInfoPartial },
-        config::STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT,
-        precompile::is_precompile_address,
-    },
     solana_program::sysvar::recent_blockhashes,
     solana_sdk::{
         account::Account,
@@ -19,15 +10,23 @@ use {
         },
     },
     std::{
-        borrow::BorrowMut,
         cell::RefCell,
         collections::HashMap,
         convert::TryInto,
         env,
         str::FromStr,
     },
-    super::provider::Provider,
     tracing::{ debug, info, warn, error },
+    evm_loader::{
+        H160, H256, U256,
+        account_storage::{AccountStorage},
+        account::{ ACCOUNT_SEED_VERSION, ether_contract, EthereumAccount, EthereumStorage },
+        executor::{ OwnedAccountInfo, OwnedAccountInfoPartial },
+        config::STORAGE_ENTRIES_IN_CONTRACT_ACCOUNT,
+        precompile::is_precompile_address,
+    },
+    crate::neon::account_info,
+    super::provider::Provider,
 };
 
 const FAKE_OPERATOR: Pubkey = pubkey!("neonoperator1111111111111111111111111111111");
@@ -135,9 +134,7 @@ impl<'a, P: Provider> EmulatorAccountStorage<P> {
                 solana_accounts.insert(*key, account);
                 return true;
             }
-            else {
-                return false;
-            }
+            return false;
         }
 
         true
@@ -353,10 +350,10 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
 
     fn neon_token_mint(&self) -> &Pubkey { &self.token_mint }
 
-    fn block_hash(&self, number: evm::U256) -> evm::H256 {
+    fn block_hash(&self, number: evm_loader::U256) -> evm_loader::H256 {
         if !self.create_sol_acc_if_not_exists(&recent_blockhashes::ID) {
             warn!("Failed to create/find recent_blockhashed account");
-            return evm::H256::default();
+            return evm_loader::H256::default();
         }
 
         let mut solana_accounts = self.solana_accounts.borrow_mut();
@@ -379,13 +376,11 @@ impl<P: Provider> AccountStorage for EmulatorAccountStorage<P> {
                 }
                 Err(err) => {
                     error!("Failed calculate offset: {}", err);
-                    evm::H256::default()
+                    evm_loader::H256::default()
                 }
             }
         }
-        else {
-            evm::H256::default()
-        }
+        evm_loader::H256::default()
     }
 
     fn chain_id(&self) -> u64 {

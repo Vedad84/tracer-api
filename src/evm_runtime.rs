@@ -2,23 +2,16 @@ use {
     arrayref::array_ref,
     bollard::{
         container::{
-            CreateContainerOptions, Config as ContainerConfig, InspectContainerOptions,
+            CreateContainerOptions, Config as ContainerConfig,
             LogOutput as DockerLogOutput,
         },
-        Docker,
         exec::{CreateExecOptions, StartExecOptions, StartExecResults},
         errors::Error as DockerError,
         models::ContainerStateStatusEnum,
     },
-    crate::{
-        db::{ DbClient, DBConfig, Error as DbError },
-        stop_handle::StopHandle,
-    },
-    flate2,
     futures_util::{ future::join_all, StreamExt },
     goblin::elf::Elf,
     log::*,
-    parity_bytes::ToPretty,
     solana_sdk::pubkey::Pubkey,
     std::{
         collections::{ HashMap, HashSet },
@@ -27,22 +20,16 @@ use {
         io::Read,
         ops::{ Deref, DerefMut },
         sync::Arc,
-        str::FromStr,
-        sync::atomic::{ AtomicBool, AtomicUsize, Ordering },
-        time::{ Duration, SystemTime },
+        sync::atomic::AtomicUsize,
+        time::Duration,
     },
     tokio::{ io::AsyncWriteExt, sync::RwLock },
-    serde_json,
     serde::Deserialize,
-    evm::{ H160, U256 },
+    crate::{db::{ DbClient, Error as DbError }, stop_handle::StopHandle,}
 };
 
 #[derive(Debug, thiserror::Error)]
 pub enum EVMRuntimeError {
-
-    #[error("Docker error: {err}")]
-    DockerError{ err: bollard::errors::Error },
-
     #[error("Failed to connect to docker: {err}")]
     ClientCreationError{ err: String },
 
@@ -58,17 +45,8 @@ pub enum EVMRuntimeError {
     #[error("Failed to read container {name} status: {err}")]
     ContainerStatusReadError{ name: String, err: String },
 
-    #[error("Unknown status for container {name}")]
-    UnknownContainerStatus{ name: String },
-
     #[error("Unable to wakeup container {name}: {err}")]
     WakeupContainerError{ name: String, err: String },
-
-    #[error("This error should not happen. Please, contact developers: {err}")]
-    UnexpectedError{ err: String },
-
-    #[error("Timeout occurred while waiting continaer {name}")]
-    WakeupToutError{ name: String },
 
     #[error("Failed to read EVM revision: {err}")]
     ReadEvmRevisionError{ err: String },
@@ -90,9 +68,6 @@ pub enum EVMRuntimeError {
 
     #[error("Timeout reached")]
     TimeoutError,
-
-    #[error("Custom message: {msg}")]
-    Custom{ msg: String },
 }
 
 // Aimed to store names of known containers - maps EVM revision to corresponding container name
@@ -133,7 +108,6 @@ pub struct ExecResult {
 }
 
 // Constants
-const INFINITE_WAIT_COMMAND: &str = "sleep infinity";
 const CONTAINER_NAME_PREFIX: &str = "neon_tracer_evm_container_";
 const IMAGE_NAME_PREFIX: &str = "neonlabsorg/evm_loader:";
 
@@ -165,7 +139,6 @@ impl KnownRevisions {
         let mut start_idx = 0;
         let mut stop_idx = (self.data.len() as i64 - 1) as usize;
         let mut int_len = (stop_idx as i64 - start_idx as i64 + 1) as usize;
-        let mut num_iter = 0;
 
         // using binary search
         while int_len != 0 {
@@ -201,7 +174,6 @@ impl KnownRevisions {
             }
 
             int_len = stop_idx - start_idx + 1;
-            num_iter += 1;
         }
 
         Ok(None)
@@ -245,10 +217,6 @@ impl KnownRevisions {
     pub fn last(&self) -> Option<String> {
         self.data.last().map(|e| e.revision.clone())
     }
-
-    pub fn iter(&self) -> std::slice::Iter<'_, KnownRevision> {
-        self.data.iter()
-    }
 }
 
 fn create_image_name(revision: &str) -> String {
@@ -272,7 +240,7 @@ impl EVMRuntime {
             config.docker_tout,
             &client_version
         ).map_err(|err| EVMRuntimeError::ClientCreationError {
-            err: format!("Failed to create docker connection to {}", config.docker_socket.clone())
+            err: format!("Failed to create docker connection to {}, {:?}", config.docker_socket.clone(), err)
         })?;
 
         Ok(Self {
@@ -302,7 +270,7 @@ impl EVMRuntime {
         info!("Cleaning containers...");
         let mut known_containers_lock = self.known_containers.write().await;
         let known_containers = known_containers_lock.deref_mut();
-        join_all(known_containers.iter().map(|(revision, container)| async move {
+        join_all(known_containers.iter().map(|(_, container)| async move {
             info!("Stopping container {}", container);
             self.remove_container(container).await;
         })).await;
@@ -318,16 +286,17 @@ impl EVMRuntime {
         }
     }
 
-    pub async fn run(mut self, mut stop_rcv: tokio::sync::mpsc::Receiver<()>) {
+    pub async fn run(self, mut stop_rcv: tokio::sync::mpsc::Receiver<()>) {
         info!("Starting EVM Runtime...");
         let known_revisions: KnownRevisionsData = serde_json::from_str(&self.config.known_revisions)
             .map_err(|err| EVMRuntimeError::ClientCreationError {
-                err: format!("Failed to deserialize known_revisions: {}", self.config.known_revisions),
+                err: format!("Failed to deserialize known_revisions: {}, {}", self.config.known_revisions, err),
             }).unwrap();
 
         for entry in known_revisions {
             info!("Set known revision for slot {}: {}", entry.slot, entry.revision);
-            self.set_known_slot_revision(entry.slot, &entry.revision).await;
+            self.set_known_slot_revision(entry.slot, &entry.revision).await
+                .expect(&format!("error set_known_slot_revision {} {}", entry.slot, &entry.revision));
         }
 
         let sleep_duration = Duration::from_secs(self.config.update_interval_sec);
@@ -349,9 +318,8 @@ impl EVMRuntime {
         info!("EVM runtime stopped");
     }
 
-    pub fn start(mut self) -> StopHandle {
-        let (stop_snd, mut stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
-        let rt: tokio::runtime::Handle;
+    pub fn start(self) -> StopHandle {
+        let (stop_snd, stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
         StopHandle::new(
             tokio::spawn( self.run(stop_rcv)),
             stop_snd,
@@ -501,7 +469,7 @@ impl EVMRuntime {
             .map_err(|err| EVMRuntimeError::UploadDBConfigError {
                 name: container_name.to_string(),
                 err: format!("Failed to read tarbal file {} content: {:?}", self.config.db_config.clone(), err),
-            });
+            })?;
 
         let options = Some(bollard::container::UploadToContainerOptions{
             path: "/opt",
@@ -661,8 +629,8 @@ impl EVMRuntime {
         if let Ok(result) = exec_res {
             match result {
                 StartExecResults::Attached { mut output, mut input } => {
-                    if let Some(mut stdin_data) = stdin_data {
-                        let mut stdin_data = Vec::from(hex::encode(stdin_data).as_bytes());
+                    if let Some(stdin_data) = stdin_data {
+                        let stdin_data = Vec::from(hex::encode(stdin_data).as_bytes());
                         info!("Write stdin: {:?}", &stdin_data);
                         if let Err(err) = input.write_all(&stdin_data).await {
                             return Err(EVMRuntimeError::ExecuteCommandError {
@@ -707,7 +675,6 @@ impl EVMRuntime {
                                     let mut tmp: Vec<u8> = message.into_iter().collect();
                                     result.stdin.append(&mut tmp);
                                 }
-                                _ => {}, //just skip StdIn, Console
                             },
                             Err(err) => {
                                 warn!("Failed to fetch data from output: {:?}", err);
@@ -740,7 +707,7 @@ impl EVMRuntime {
     ) -> Result<ExecResult, EVMRuntimeError> {
         debug!("run_command_with_revision('{:?}', '{}', {:?})", command, revision, tout);
         {
-            let mut known_containers_lock = self.known_containers.read().await;
+            let known_containers_lock = self.known_containers.read().await;
             let known_containers = known_containers_lock.deref();
 
             if let Some(container_name) = known_containers.get(revision) {
@@ -891,7 +858,7 @@ impl EVMRuntime {
             .map_err(|err| EVMRuntimeError::DbClientError{ err })?;
 
         if let Some(evm_update_slot) = evm_update_slot {
-            /// new revision found - parse account and add to list of known revisions
+            // new revision found - parse account and add to list of known revisions
             if let Some(revision) = self.get_evm_revision(evm_update_slot).await? {
                 self.set_known_slot_revision(evm_update_slot, &revision).await?;
                 return Ok(Some(revision));
@@ -904,7 +871,7 @@ impl EVMRuntime {
     async fn get_slot_revision(&self, slot: u64) -> Result<String, EVMRuntimeError> {
         debug!("get_slot_revision({})", slot);
 
-        let mut latest_revision: Option<String>;
+        let latest_revision: Option<String>;
         {
             let known_revisions_lock = self.known_revisions.read().await;
             let known_revisions = known_revisions_lock.deref();
@@ -940,14 +907,8 @@ impl EVMRuntime {
             }
         }
 
-        // Search EVM account in database
-        let evm_update_slot = self.db_client.get_recent_update_slot(&self.config.evm_loader, slot).await
-            .map_err(|err| EVMRuntimeError::DbClientError{ err })?;
-
-        if let Some(evm_update_slot) = evm_update_slot {
-            if let Some(db_revision) = self.get_db_slot_revision(slot).await? {
-                return Ok(db_revision);
-            }
+        if let Some(db_revision) = self.get_db_slot_revision(slot).await? {
+            return Ok(db_revision);
         }
 
         Err(EVMRuntimeError::ReadEvmRevisionError{ err: format!("Revision for slot {} not found", slot) },)

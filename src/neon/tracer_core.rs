@@ -1,30 +1,22 @@
 use {
-    anyhow::anyhow,
     arrayref::array_ref,
+    solana_sdk::pubkey::Pubkey,
+    std::{fmt, sync::Arc,},
+    tokio::task::block_in_place,
+    web3::{ transports::Http, types::BlockId, Web3 },
+    tracing::info,
+    log::*,
+    parity_bytes::ToPretty,
+    evm_loader::account_storage::{AccountStorage},
     crate::{
         db::DbClient,
         evm_runtime::EVMRuntime,
         neon::provider::DbProvider,
-        v1::{
-            geth::types::trace::{ H256T, U256T, H160T },
-            types::{BlockNumber, EthCallObject},
-        },
-    },
-    solana_sdk::{ account::Account, account_info::AccountInfo, pubkey::Pubkey },
-    std::{
-        cell::RefCell, convert::{TryFrom, TryInto}, fmt, rc::Rc, sync::Arc,
-    },
-    tokio::task::block_in_place,
-    web3::{ transports::Http, types::BlockId, Web3 },
-    tracing::{ info, warn },
-    crate::{
+        types::{H256T, U256T, H160T, BlockNumber, EthCallObject},
         neon::account_storage::EmulatorAccountStorage,
         syscall_stubs::Stubs,
     },
-    log::*,
     super::{Error, Result,  neon_cli::NeonCli},
-    parity_bytes::ToPretty,
-    evm_loader::account_storage::{AccountStorage},
 };
 
 fn convert_h256(inp: H256T) -> web3::types::H256 {

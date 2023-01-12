@@ -4,32 +4,10 @@ pub mod tracer_core;
 pub mod neon_cli;
 
 use {
-    anyhow::anyhow,
-    arrayref::array_ref,
-    crate::{
-        db::DbClient,
-        evm_runtime::EVMRuntime,
-        neon::provider::DbProvider,
-        v1::{
-            geth::types::trace::{ H256T, U256T, H160T },
-            types::{BlockNumber, EthCallObject},
-        },
-    },
     solana_sdk::{ account::Account, account_info::AccountInfo, pubkey::Pubkey },
-    std::{
-        cell::RefCell, convert::{TryFrom, TryInto}, fmt, rc::Rc, sync::Arc,
-    },
-    tokio::task::block_in_place,
-    web3::{ transports::Http, types::BlockId, Web3 },
-    tracing::{ info, warn },
-    crate::{
-        neon::account_storage::EmulatorAccountStorage,
-        syscall_stubs::Stubs,
-    },
-    log::*,
+    std::{cell::RefCell, rc::Rc,},
     serde::Serialize,
     phf::phf_map,
-
 };
 
 pub trait To<T> {
@@ -39,8 +17,6 @@ pub trait To<T> {
 type Error = jsonrpsee::types::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
-
-
 
 
 /// Creates new instance of `AccountInfo` from `Account`.
@@ -56,8 +32,6 @@ pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInf
         rent_epoch: account.rent_epoch,
     }
 }
-
-
 
 #[derive(Debug, Default, Serialize)]
 struct EthereumError {
