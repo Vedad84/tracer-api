@@ -16,7 +16,6 @@ use {
 
 mod db;
 mod neon;
-mod syscall_stubs;
 mod service;
 mod metrics;
 mod config;

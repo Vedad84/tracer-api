@@ -1,9 +1,9 @@
 use {
-    std::{time::Duration, sync::Arc},
+    std::{time::Duration, sync::Arc, str::FromStr},
     parity_bytes::ToPretty,
     log::*,
     evm_loader::{H160, U256},
-    crate::evm_runtime::EVMRuntime,
+    crate::{evm_runtime::EVMRuntime},
     super::{EthereumError, Result, INTERNAL_SERVER_ERROR, ETHEREUM_ERROR_MAP, ETHEREUM_FATAL_ERROR_MAP,},
 };
 
@@ -59,12 +59,6 @@ impl NeonCli{
             &to,
             &value,
         ];
-        self.execute(command, data, slot, tout).await
-    }
-
-    async fn execute (&self, command: Vec<&str>, data: Option<Vec<u8>>, slot: u64, tout: &Duration )
-        -> Result<String> {
-
         match self.evm_runtime.run_command_with_slot_revision(command, data, slot, tout).await {
             Ok(result) => {
                 let std_out = std::str::from_utf8(&result.stdout);
@@ -85,7 +79,7 @@ impl NeonCli{
                     Err(INTERNAL_SERVER_ERROR())
 
                 } else {
-                    warn!("Emulation failed: failed to parse stdout: {:?}\n or stderr: {:?}", result.stdout, result.stderr);
+                    warn!("Emulation error: failed to parse neon-cli result\n stdout: {:?}\n stderr: {:?}", result.stdout, result.stderr);
                     Err(INTERNAL_SERVER_ERROR())
                 }
             },
@@ -96,6 +90,126 @@ impl NeonCli{
         }
     }
 
+    pub async fn get_storage_at(&self, to: H160, index: U256, slot: u64, tout: &Duration) -> Result<U256> {
+        let slot_ = slot.to_string();
+        let to = to.to_hex();
+        let mut value = vec![0; 32];
+        index.to_big_endian(value.as_mut_slice());
+        let index = hex::encode(value);
+
+        let command = vec![
+            "neon-cli",
+            "--db_config", &self.db_config,
+            "--slot", &slot_,
+            "--evm_loader", &self.evm_loader,
+            "get-storage-at",
+            &to,
+            &index
+        ];
+        match self.evm_runtime.run_command_with_slot_revision(command, None, slot, tout).await {
+            Ok(result) => {
+                if let Ok(stderr) = std::str::from_utf8(&result.stderr) {
+                    info!("STDERR: {}", stderr);
+                    let value = U256::from_str(stderr.trim_start_matches("0x")).map_err(|e| {
+                        warn!("get_strorage_at cast error: {:?}", e);
+                        INTERNAL_SERVER_ERROR()
+                    })?;
+                    Ok(value)
+                } else {
+                    warn!("get_strorage_at error: failed to read neon-cli result\n stdout: {:?}\n stderr: {:?}", result.stdout, result.stderr);
+                    Err(INTERNAL_SERVER_ERROR())
+                }
+            },
+            Err(err) => {
+                warn!("get_strorage_at failed: {:?}", err);
+                Err(INTERNAL_SERVER_ERROR())
+            },
+        }
+    }
+
+    pub async fn get_balance(&self, address: H160, slot: u64, tout: &Duration) -> Result<U256> {
+        self.get_ether_account_data(address, slot, tout, U256::zero(), &NeonCli::parse_balance).await
+    }
+
+    pub async fn get_trx_count(&self, address: H160, slot: u64, tout: &Duration) -> Result<U256> {
+        self.get_ether_account_data(address, slot, tout, U256::zero(), &NeonCli::parse_nonce).await
+    }
+
+    pub async fn get_code(&self, address: H160, slot: u64, tout: &Duration) -> Result<String> {
+        self.get_ether_account_data(address, slot, tout, "".to_string(), &NeonCli::parse_code).await
+    }
+
+    async fn get_ether_account_data <F, D>(&self, address: H160, slot: u64, tout: &Duration, default: D, parse: F) -> Result<D>
+        where F: FnOnce(&str) -> Result<D>
+    {
+        let slot_ = slot.to_string();
+        let address = address.to_hex();
+
+        let command = vec![
+            "neon-cli",
+            "--db_config", &self.db_config,
+            "--slot", &slot_,
+            "--evm_loader", &self.evm_loader,
+            "get-ether-account-data",
+            &address,
+        ];
+        match self.evm_runtime.run_command_with_slot_revision(command, None, slot, tout).await {
+            Ok(result) => {
+                if let Ok(stderr) = std::str::from_utf8(&result.stderr) {
+                    info!("STDERR: {}", stderr);
+                    if stderr.starts_with("Account not found") {
+                        return Ok(default)
+                    }
+                    parse(stderr)
+                } else {
+                    warn!("get-ether-account-data error: failed to read neon_cli result\n stdout: {:?}\n stderr: {:?}", result.stdout, result.stderr);
+                    Err(INTERNAL_SERVER_ERROR())
+                }
+            },
+            Err(err) => {
+                warn!("get-ether-account-data failed: {:?}", err);
+                Err(INTERNAL_SERVER_ERROR())
+            },
+        }
+    }
+
+    fn parse_balance_nonce (output: &str, param: &str) -> Result<U256>{
+        for line in output.split('\n') {
+            let line = line.trim();
+            if line.starts_with(&format!("{}: ", param)){
+                let value= line.split(&format!("{}: ", param)).last().expect(&format!("{} error", param));
+                return Ok(U256::from_dec_str(value).expect(&format!("{} parse error", param)))
+            }
+        }
+        warn!("get_{} error: failed to parse neon-cli result\n output: {:?}", param, output);
+        Err(INTERNAL_SERVER_ERROR())
+    }
+
+    fn parse_balance(output: &str) -> Result<U256> {
+        NeonCli::parse_balance_nonce(output, "balance")
+    }
+
+    fn parse_nonce(output: &str) -> Result<U256> {
+        NeonCli::parse_balance_nonce(output, "trx_count")
+    }
+
+    fn parse_code (output: &str) -> Result<String> {
+        let mut found = false;
+        let mut code  = String::new();
+
+        for line in output.split('\n') {
+            let line = line.trim();
+
+            if found {
+                code = code + line;
+            } else{
+                if line.starts_with("code_size:"){
+                    found = true;
+                }
+            }
+        }
+        Ok(code)
+    }
 
     fn decode_result(&self, obj: &serde_json::Map<String, serde_json::Value>) -> Result<String> {
         return if let Some(data) = obj.get("result") {

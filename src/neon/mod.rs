@@ -1,11 +1,8 @@
-pub mod account_storage;
 pub mod provider;
 pub mod tracer_core;
 pub mod neon_cli;
 
 use {
-    solana_sdk::{ account::Account, account_info::AccountInfo, pubkey::Pubkey },
-    std::{cell::RefCell, rc::Rc,},
     serde::Serialize,
     phf::phf_map,
 };
@@ -18,20 +15,6 @@ type Error = jsonrpsee::types::error::Error;
 
 pub type Result<T> = std::result::Result<T, Error>;
 
-
-/// Creates new instance of `AccountInfo` from `Account`.
-pub fn account_info<'a>(key: &'a Pubkey, account: &'a mut Account) -> AccountInfo<'a> {
-    AccountInfo {
-        key,
-        is_signer: false,
-        is_writable: false,
-        lamports: Rc::new(RefCell::new(&mut account.lamports)),
-        data: Rc::new(RefCell::new(&mut account.data)),
-        owner: &account.owner,
-        executable: account.executable,
-        rent_epoch: account.rent_epoch,
-    }
-}
 
 #[derive(Debug, Default, Serialize)]
 struct EthereumError {

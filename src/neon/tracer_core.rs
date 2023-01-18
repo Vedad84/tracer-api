@@ -5,16 +5,11 @@ use {
     tokio::task::block_in_place,
     web3::{ transports::Http, types::BlockId, Web3 },
     tracing::info,
-    log::*,
-    parity_bytes::ToPretty,
-    evm_loader::account_storage::{AccountStorage},
     crate::{
         db::DbClient,
         evm_runtime::EVMRuntime,
         neon::provider::DbProvider,
-        types::{H256T, U256T, H160T, BlockNumber, EthCallObject},
-        neon::account_storage::EmulatorAccountStorage,
-        syscall_stubs::Stubs,
+        types::{H256T, BlockNumber},
     },
     super::{Error, Result,  neon_cli::NeonCli},
 };
@@ -31,7 +26,7 @@ pub struct TracerCore {
     tracer_db_client: Arc<DbClient>,
     indexer_db_client: Arc<DbClient>,
     web3: Arc<Web3<Http>>,
-    neon_cli: NeonCli,
+    pub neon_cli: NeonCli,
 }
 
 impl std::fmt::Debug for TracerCore {
@@ -62,10 +57,6 @@ impl TracerCore {
             web3,
             neon_cli: NeonCli::new(evm_runtime),
         }
-    }
-
-    pub fn tracer_db_provider(&self) -> DbProvider {
-        DbProvider::new(self.tracer_db_client.clone(), self.evm_loader)
     }
 
     pub fn indexer_db_provider(&self) -> DbProvider {
@@ -111,77 +102,5 @@ impl TracerCore {
                 Err(Error::Custom("Unsupported block tag".to_string()))
             }
         }
-    }
-
-    fn create_account_storage(&self, tag: BlockNumber) -> Result<EmulatorAccountStorage<DbProvider>> {
-        let block_number = self.get_block_number(tag)?;
-        let provider = self.tracer_db_provider();
-        let syscall_stubs = Stubs::new(&provider, block_number)?;
-        solana_sdk::program_stubs::set_syscall_stubs(syscall_stubs);
-        let account_storage = EmulatorAccountStorage::new(provider, Some(block_number));
-
-        Ok(account_storage)
-    }
-
-    pub async fn eth_call_impl(&self,  object: EthCallObject, tag: BlockNumber) -> Result<String> {
-        let data = object.data.map(|v| v.0);
-        let caller_id = object.from.map(|v| v.0);
-        let contract_id = object.to.0;
-        let value = object.value.map(|v| v.0);
-
-        debug!(
-            "eth_call_impl(caller_id={:?}, contract_id={:?}, data={:?}, value={:?})",
-            caller_id,
-            object.to.0,
-            data.as_ref().map(|vec| hex::encode(&vec)),
-            &value,
-        );
-
-        let slot = self.get_block_number(tag)?;
-        let tout = std::time::Duration::new(10, 0);
-
-        self.neon_cli.emulate(caller_id, contract_id, value, data,slot, &tout).await
-    }
-
-    pub fn eth_get_storage_at_impl(
-        &self,
-        contract_id: H160T,
-        index: U256T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        debug!("eth_get_storage_at_impl({:?}, {:?}, {:?})", contract_id.0.to_hex(), index.0.to_string(), tag);
-        let account_storage = self.create_account_storage(tag)?;
-        Ok(U256T(account_storage.storage(&contract_id.0, &index.0)))
-    }
-
-    pub fn eth_get_balance_impl(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        debug!("eth_get_balance_impl({:?}, {:?})", address.0.to_hex(), tag);
-        let account_storage = self.create_account_storage(tag)?;
-        Ok(U256T(account_storage.balance(&address.0)))
-    }
-
-    pub fn eth_get_code_impl(
-        &self,
-        address: H160T,
-        tag: BlockNumber,
-    ) -> Result<String> {
-        debug!("eth_get_code_impl({:?}, {:?})", address.0.to_hex(), tag);
-        let account_storage = self.create_account_storage(tag)?;
-        let code = account_storage.code(&address.0);
-        Ok(format!("0x{}", hex::encode(code)))
-    }
-
-    pub fn eth_get_transaction_count_impl(
-        &self,
-        account_id: H160T,
-        tag: BlockNumber,
-    ) -> Result<U256T> {
-        debug!("eth_get_transaction_count_impl({:?}, {:?})", account_id.0.to_hex(), tag);
-        let account_storage = self.create_account_storage(tag)?;
-        Ok(U256T(account_storage.nonce(&account_id.0)))
     }
 }
