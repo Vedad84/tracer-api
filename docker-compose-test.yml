@@ -3,7 +3,7 @@ version: "3"
 services:
   tracer_db:
     container_name: tracer_db
-    image: neonlabsorg/neon-accountsdb:v1.14.10-neon-tracer
+    image: neonlabsorg/neon-accountsdb:v1.14.12-neon-tracer
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
@@ -61,7 +61,7 @@ services:
     
   validator:
     container_name: validator
-    image: neonlabsorg/neon-validator:v1.14.10-neon-tracer
+    image: neonlabsorg/neon-validator:v1.14.12-neon-tracer
     environment:
       SOLANA_URL: http://validator:8899
       RUST_LOG: solana_runtime::system_instruction_processor=trace,solana_runtime::message_processor=error,solana_bpf_loader=debug,solana_rbpf=debug,neon_dumper_plugin::postgres_client=debug
@@ -191,13 +191,12 @@ services:
     hostname: neon-tracer
     environment:
       RUST_BACKTRACE: 1
-      RUST_LOG: neon_tracer::main=debug,neon_tracer=debug,neon_tracer::evm_runtime=debug,neon_tracer::metrics=debug,neon_tracer::service::eip1898=debug,neon_tracer::service::neon_proxy=debug
+      RUST_LOG: neon_tracer::main=debug,neon_tracer=debug,neon_tracer::evm_runtime=debug,neon_tracer::metrics=debug,neon_tracer::service::eip1898=debug
       LISTEN_ADDR: 0.0.0.0:8250
       SOLANA_URL: http://validator:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
-      TRACER_DB_CONFIG: /opt/db_config/tracer_db_config.yml
-      INDEXER_DB_CONFIG: /opt/db_config/indexer_db_config.yml
-      EVM_RUNTIME_DB_CONFIG: /opt/db_config.tar.gz
+      DB_CONFIG: /opt/db_config.yaml
+      EVM_RUNTIME_DB_CONFIG_TAR: /opt/db_config.tar.gz
       WEB3_PROXY: http://proxy:9090/solana
       METRICS_IP: 0.0.0.0
       METRICS_PORT: 9292

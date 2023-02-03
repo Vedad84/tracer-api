@@ -1,0 +1,217 @@
+{
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer"
+        },
+        "jsonrpc": {
+            "type": "string"
+        },
+        "result": {
+            "type": "object",
+            "properties": {
+                "output": {
+                    "type": "string"
+                },
+                "stateDiff": {
+                    "type": "object",
+                    "properties": {
+                        "0xd30f342ec0c9e96aa7dc9ce698d39c26a22d3d0a": {
+                            "type": "object",
+                            "properties": {
+                                "balance": {
+                                    "type": "object",
+                                    "properties": {
+                                        "+": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "code": {
+                                    "type": "object",
+                                    "properties": {
+                                        "+": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "nonce": {
+                                    "type": "object",
+                                    "properties": {
+                                        "+": {
+                                            "type": "string"
+                                        }
+                                    }
+                                },
+                                "storage": {
+                                    "type": "object",
+                                    "properties": {
+                                        "0x0000000000000000000000000000000000000000000000000000000000000000": {
+                                            "type": "object",
+                                            "properties": {
+                                                "+": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        "0xfd500307d3f7ceb2a6c0c46d4b10497e4daa8784": {
+                            "type": "object",
+                            "properties": {
+                                "balance": {
+                                    "type": "string"
+                                },
+                                "code": {
+                                    "type": "string"
+                                },
+                                "nonce": {
+                                    "type": "object",
+                                    "properties": {
+                                        "*": {
+                                            "type": "object",
+                                            "properties": {
+                                                "from": {
+                                                    "type": "string"
+                                                },
+                                                "to": {
+                                                    "type": "string"
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                "storage": {
+                                    "type": "object",
+                                    "properties": {}
+                                }
+                            }
+                        }
+                    }
+                },
+                "trace": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "object",
+                                "properties": {
+                                    "from": {
+                                        "type": "string"
+                                    },
+                                    "gas": {
+                                        "type": "string"
+                                    },
+                                    "init": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "object",
+                                "properties": {
+                                    "address": {
+                                        "type": "string"
+                                    },
+                                    "code": {
+                                        "type": "string"
+                                    },
+                                    "gasUsed": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "subtraces": {
+                                "type": "integer"
+                            },
+                            "traceAddress": {
+                                "type": "array",
+                                "items": {}
+                            },
+                            "type": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "vmTrace": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "ops": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "cost": {
+                                        "type": "integer"
+                                    },
+                                    "ex": {
+                                        "type": "object",
+                                        "properties": {
+                                            "mem": {
+                                                "type": [
+                                                    "null",
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "data": {
+                                                                "type": "string"
+                                                            },
+                                                            "off": {
+                                                                "type": "integer"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "push": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "store": {
+                                                "type": [
+                                                    "null",
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "val": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "used": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    },
+                                    "pc": {
+                                        "type": "integer"
+                                    },
+                                    "sub": {
+                                        "type": "null"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

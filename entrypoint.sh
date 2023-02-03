@@ -1,11 +1,11 @@
 #!/bin/bash
 
-if [ -z "$EVM_RUNTIME_DB_CONFIG" ]; then
-   echo "EVM_RUNTIME_DB_CONFIG not set"
+if [ -z "$EVM_RUNTIME_DB_CONFIG_TAR" ]; then
+   echo "EVM_RUNTIME_DB_CONFIG_TAR not set"
    exit 1
 fi
 
-tar -xf $EVM_RUNTIME_DB_CONFIG -C /opt/
+tar -xf $EVM_RUNTIME_DB_CONFIG_TAR -C /opt/
 
 _term() {
   echo "Caught SIGTERM signal!"
@@ -14,7 +14,7 @@ _term() {
 
 trap _term SIGTERM
 
-echo "Starting Neon Tracer API. EVM Runtime DB Config: $EVM_RUNTIME_DB_CONFIG"
+echo "Starting Neon Tracer API. EVM Runtime DB Config: $EVM_RUNTIME_DB_CONFIG_TAR"
 ./neon-tracer &
 
 child=$!

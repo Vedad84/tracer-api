@@ -1,0 +1,77 @@
+{
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer"
+        },
+        "jsonrpc": {
+            "type": "string"
+        },
+        "result": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "action": {
+                        "type": "object",
+                        "properties": {
+                            "callType": {
+                                "type": "string"
+                            },
+                            "from": {
+                                "type": "string"
+                            },
+                            "gas": {
+                                "type": "string"
+                            },
+                            "input": {
+                                "type": "string"
+                            },
+                            "to": {
+                                "type": "string"
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "blockHash": {
+                        "type": "string"
+                    },
+                    "blockNumber": {
+                        "type": "integer"
+                    },
+                    "result": {
+                        "type": "object",
+                        "properties": {
+                            "gasUsed": {
+                                "type": "string"
+                            },
+                            "output": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "subtraces": {
+                        "type": "integer"
+                    },
+                    "traceAddress": {
+                        "type": "array",
+                        "items": {
+                            "type": "integer"
+                        }
+                    },
+                    "transactionHash": {
+                        "type": "string"
+                    },
+                    "transactionPosition": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                }
+            }
+        }
+    }
+}

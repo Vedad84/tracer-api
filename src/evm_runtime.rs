@@ -84,7 +84,7 @@ pub struct EVMRuntimeConfig {
     pub suspended_to_stopped_time_sec: u64,
     pub stopped_to_dead_time_sec: u64,
     pub known_revisions: String,
-    pub db_config: String,
+    pub db_config_tar: String,
     pub evm_loader: Pubkey,
     pub token_mint: Pubkey,
     pub chain_id: u16,
@@ -457,18 +457,18 @@ impl EVMRuntime {
     }
 
     async fn upload_db_config(&self, container_name: &str) -> Result<(), EVMRuntimeError> {
-        debug!("upload_db_config({}, {})", container_name, self.config.db_config);
+        debug!("upload_db_config({}, {})", container_name, self.config.db_config_tar);
 
-        let mut file = std::fs::File::open(self.config.db_config.clone())
+        let mut file = std::fs::File::open(self.config.db_config_tar.clone())
             .map_err(|err| EVMRuntimeError::UploadDBConfigError {
                 name: container_name.to_string(),
-                err: format!("Unable to open tarbal file {}: {:?}", self.config.db_config.clone(), err),
+                err: format!("Unable to open tarbal file {}: {:?}", self.config.db_config_tar.clone(), err),
             })?;
         let mut contents = Vec::new();
         file.read_to_end(&mut contents)
             .map_err(|err| EVMRuntimeError::UploadDBConfigError {
                 name: container_name.to_string(),
-                err: format!("Failed to read tarbal file {} content: {:?}", self.config.db_config.clone(), err),
+                err: format!("Failed to read tarbal file {} content: {:?}", self.config.db_config_tar.clone(), err),
             })?;
 
         let options = Some(bollard::container::UploadToContainerOptions{
@@ -804,43 +804,36 @@ impl EVMRuntime {
 
     async fn prepare_image(&self, revision: &str) -> Result<(), EVMRuntimeError> {
         let image_name = create_image_name(revision);
-        match self.docker.inspect_image(&image_name).await {
-            Err(_) => {
-                info!("Trying to pull image {}", image_name);
-                let mut stream = self.docker.create_image(
-                    Some(
-                        bollard::image::CreateImageOptions {
-                            from_image: "neonlabsorg/evm_loader",
-                            tag: revision,
-                            ..Default::default()
-                        }
-                    ),
-                    None,
-                    None);
+        info!("Trying to pull image {}", image_name);
+        let mut stream = self.docker.create_image(
+            Some(
+                bollard::image::CreateImageOptions {
+                    from_image: "neonlabsorg/evm_loader",
+                    tag: revision,
+                    ..Default::default()
+                }
+            ),
+            None,
+            None
+        );
 
-                while let Some(res) = stream.next().await {
-                    match res {
-                        Ok(create_info) => {
-                            if let Some(ref image_id) = create_info.id {
-                                if let Some(ref progress) = create_info.progress {
-                                    info!("{} {}", image_id, progress);
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            warn!("Failed to pull image: {:?}", err);
-                            return Err(EVMRuntimeError::PullImageError{ image_name });
+        while let Some(res) = stream.next().await {
+            match res {
+                Ok(create_info) => {
+                    if let Some(ref image_id) = create_info.id {
+                        if let Some(ref progress) = create_info.progress {
+                            info!("{} {}", image_id, progress);
                         }
                     }
                 }
-
-                info!("Image {} pulled successfully", image_name);
-            },
-            Ok(image_info) => {
-                info!("Image {} found. Image Id {:?} ", image_name, image_info.id);
-            },
+                Err(err) => {
+                    warn!("Failed to pull image: {:?}", err);
+                    return Err(EVMRuntimeError::PullImageError{ image_name });
+                }
+            }
         }
 
+        info!("Image {} pulled successfully", image_name);
         Ok(())
     }
 

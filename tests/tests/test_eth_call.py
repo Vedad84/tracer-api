@@ -64,6 +64,7 @@ class TestEthCall(TestCase):
         self.assertEqual(self.eth_call(block1), block0)
         self.assertEqual(self.eth_call(block2), block1)
 
+        print("blockhash0.hex(): ",blockhash0.hex() )
         self.assertEqual(self.eth_call({
             "blockHash": blockhash0.hex(),
             "requireCanonical": True
@@ -93,3 +94,4 @@ class TestEthCall(TestCase):
 
         # wait for a while in order to changes to be applied
         sleep(10)
+

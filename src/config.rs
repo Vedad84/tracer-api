@@ -26,7 +26,7 @@ const EVM_RUNTIME_STOPPED_TO_DEAD_TIME_SEC: &str = "EVM_RUNTIME_STOPPED_TO_DEAD_
 const EVM_RUNTIME_STOPPED_TO_DEAD_TIME_SEC_SEC_DEFAULT: &str = "2400"; // 40 minutes
 const EVM_RUNTIME_KNOWN_REVISIONS: &str = "EVM_RUNTIME_KNOWN_REVISIONS";
 const EVM_RUNTIME_KNOWN_REVISIONS_DEFAULT: &str = "[]";
-const EVM_RUNTIME_DB_CONFIG: &str = "EVM_RUNTIME_DB_CONFIG";
+const EVM_RUNTIME_DB_CONFIG_TAR: &str = "EVM_RUNTIME_DB_CONFIG_TAR";
 const EVM_RUNTIME_NETWORK_NAME: &str = "EVM_RUNTIME_NETWORK_NAME";
 
 pub fn read_evm_runtime_config(
@@ -82,7 +82,7 @@ pub fn read_evm_runtime_config(
     let known_revisions = std::env::var(EVM_RUNTIME_KNOWN_REVISIONS)
         .unwrap_or_else(|_| EVM_RUNTIME_KNOWN_REVISIONS_DEFAULT.to_string());
 
-    let db_config = std::env::var(EVM_RUNTIME_DB_CONFIG)
+    let db_config_tar = std::env::var(EVM_RUNTIME_DB_CONFIG_TAR)
         .unwrap();
 
     let network_name = std::env::var(EVM_RUNTIME_NETWORK_NAME).ok();
@@ -97,7 +97,7 @@ pub fn read_evm_runtime_config(
         suspended_to_stopped_time_sec,
         stopped_to_dead_time_sec,
         known_revisions,
-        db_config,
+        db_config_tar,
         evm_loader: evm_loader.clone(),
         token_mint: token_mint.clone(),
         chain_id,
@@ -108,8 +108,7 @@ pub fn read_evm_runtime_config(
 #[derive(std::fmt::Debug)]
 pub struct Options {
     pub addr: String,
-    pub tracer_db_config: DBConfig,
-    pub indexer_db_config: DBConfig,
+    pub db_config: DBConfig,
     pub evm_loader: solana_sdk::pubkey::Pubkey,
     pub web3_proxy: String,
     pub metrics_ip: Ipv4Addr,
@@ -121,11 +120,9 @@ pub fn read_config() -> Options {
     let read_env = |var_name: &str| std::env::var(var_name)
         .unwrap_or_else(|_| panic!("Failed to read env var {}", var_name));
 
+    let db_config: DBConfig = load_config_file(read_env("DB_CONFIG")).unwrap();
+
     let addr = read_env("LISTEN_ADDR");
-    let tracer_db_config_file = read_env("TRACER_DB_CONFIG");
-    let tracer_db_config: DBConfig = load_config_file(tracer_db_config_file.clone()).unwrap();
-    let indexer_db_config_file = read_env("INDEXER_DB_CONFIG");
-    let indexer_db_config: DBConfig = load_config_file(indexer_db_config_file.clone()).unwrap();
     let evm_loader = read_env("EVM_LOADER");
     let evm_loader = Pubkey::from_str(evm_loader.as_str())
         .unwrap_or_else(|_| panic!("Failed to parse EVM_LOADER {}", evm_loader));
@@ -138,17 +135,18 @@ pub fn read_config() -> Options {
     let chain_id = read_env("NEON_CHAIN_ID");
     let chain_id = chain_id.parse::<u16>()
         .unwrap_or_else(|_| panic!("Failed to parse NEON_CHAIN_ID"));
+    let evm_runtime_config = read_evm_runtime_config(&evm_loader, &token_mint, chain_id);
+
 
     Options {
         addr,
-        tracer_db_config,
-        indexer_db_config,
+        db_config,
         evm_loader: evm_loader.clone(),
         web3_proxy,
         metrics_ip: Ipv4Addr::from_str(metrics_ip.as_str())
             .unwrap_or_else(|_| panic!("Failed to parse METRICS_IP {}", metrics_ip)),
         metrics_port: metrics_port.parse::<u16>()
             .unwrap_or_else(|_| panic!("Failed to parse metrics port {}", metrics_port)),
-        evm_runtime_config: read_evm_runtime_config(&evm_loader, &token_mint, chain_id),
+        evm_runtime_config
     }
 }

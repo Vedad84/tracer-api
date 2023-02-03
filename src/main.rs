@@ -8,7 +8,7 @@ use {
     tracing_subscriber::{EnvFilter, fmt},
     tokio::signal,
     crate::{
-        service::{ eip1898::EIP1898Server, neon_proxy::NeonProxyServer },
+        service::{ eip1898::EIP1898Server },
         neon::tracer_core::TracerCore,
         metrics::start_monitoring,
     }
@@ -48,8 +48,13 @@ async fn run() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let tracer_db_client = Arc::new(DbClient::new(&options.tracer_db_config).await);
-    let indexer_db_client = Arc::new(DbClient::new(&options.indexer_db_config).await);
+    let tracer_db_client = Arc::new(DbClient::new(
+        &options.db_config.tracer_host,
+        &options.db_config.tracer_port,
+        &options.db_config.tracer_database,
+        &options.db_config.tracer_user,
+        &options.db_config.tracer_password,
+    ).await);
 
     let transport = web3::transports::Http::new(&options.web3_proxy);
     if transport.is_err() {
@@ -67,17 +72,16 @@ async fn run() {
     let serv_impl = TracerCore::new(
         options.evm_loader,
         tracer_db_client.clone(),
-        indexer_db_client.clone(),
         web3_client.clone(),
         evm_runtime.clone(),
     );
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(serv_impl.clone())).expect("EIP1898Server error");
-    module.merge(NeonProxyServer::into_rpc(serv_impl)).expect("NeonProxyServer error");
+    // module.merge(GethTraceServer::into_rpc(serv_impl.clone())).expect("GethTraceServer error");
 
     let monitor_handle = start_monitoring(
-        indexer_db_client.clone(),
+        tracer_db_client.clone(),
         web3_client.clone(),
         options.metrics_ip,
         options.metrics_port

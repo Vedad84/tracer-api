@@ -1,2 +1,7 @@
 pub mod eip1898;
-pub mod neon_proxy;
+pub mod geth;
+
+
+pub trait To<T> {
+    fn to(self) -> T;
+}

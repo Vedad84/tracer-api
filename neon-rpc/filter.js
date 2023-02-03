@@ -41,11 +41,6 @@ function isEIP1898Method(req) {
     return false;
 }
 
-function consumeProxyMethod(req) {
-    let method = req.method;
-    return method === "eth_getLogs";
-}
-
 async function process(req) {
     let json = JSON.parse(req.requestText);
     if (isTracingMethod(json)) {
@@ -53,7 +48,7 @@ async function process(req) {
         return;
     }
 
-    if (!isEIP1898Method(json) && !consumeProxyMethod(json)) {
+    if (!isEIP1898Method(json)) {
         req.internalRedirect("/proxy");
         return;
     }

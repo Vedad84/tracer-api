@@ -1,0 +1,16 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "method":"trace_call",
+  "params":[
+      {
+          "from": "{{from}}",
+          "data": "{{input}}",
+          "to": "{{to}}",
+          "gas": "{{gas}}",
+          "gasPrice": "{{gasPrice}}",
+          "nonce": "{{nonce}}"
+      },
+      ["vmTrace","stateDiff"], "latest"
+    ]
+}

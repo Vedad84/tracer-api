@@ -8,15 +8,17 @@ use {
     crate::{
         db::DbClient,
         evm_runtime::EVMRuntime,
-        neon::provider::DbProvider,
-        types::{H256T, BlockNumber},
+        types::BlockNumber,
     },
     super::{Error, Result,  neon_cli::NeonCli},
+    ethnum::U256,
 };
 
-fn convert_h256(inp: H256T) -> web3::types::H256 {
-    let bytes = array_ref![inp.0.as_bytes(), 0, 32];
-    web3::types::H256::from(bytes)
+fn convert_h256(inp: U256) -> web3::types::H256 {
+    let a = inp.to_be_bytes();
+    let bytes = array_ref![a, 0, 32];
+    let hash = web3::types::H256::from(bytes);
+    hash
 }
 
 
@@ -24,7 +26,6 @@ fn convert_h256(inp: H256T) -> web3::types::H256 {
 pub struct TracerCore {
     evm_loader: Pubkey,
     tracer_db_client: Arc<DbClient>,
-    indexer_db_client: Arc<DbClient>,
     web3: Arc<Web3<Http>>,
     pub neon_cli: NeonCli,
 }
@@ -45,7 +46,6 @@ impl TracerCore {
     pub fn new(
         evm_loader: Pubkey,
         tracer_db_client: Arc<DbClient>,
-        indexer_db_client: Arc<DbClient>,
         web3: Arc<Web3<Http>>,
         evm_runtime: Arc<EVMRuntime>,
     ) -> Self {
@@ -53,14 +53,9 @@ impl TracerCore {
         Self {
             evm_loader,
             tracer_db_client,
-            indexer_db_client,
             web3,
             neon_cli: NeonCli::new(evm_runtime),
         }
-    }
-
-    pub fn indexer_db_provider(&self) -> DbProvider {
-        DbProvider::new(self.indexer_db_client.clone(), self.evm_loader)
     }
 
     pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
@@ -68,7 +63,7 @@ impl TracerCore {
             BlockNumber::Num(num) => Ok(num),
             BlockNumber::Hash { hash, .. } => {
 
-                let hash_str = hash.0.to_string();
+                let hash_str = format!("0x{}", hex::encode(hash.to_be_bytes()));
                 info!("Get block number {:?}", &hash_str);
 
                 let future = self.web3

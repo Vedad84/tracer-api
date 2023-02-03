@@ -1,0 +1,142 @@
+{
+    "type": "object",
+    "properties": {
+        "id": {
+            "type": "integer"
+        },
+        "jsonrpc": {
+            "type": "string"
+        },
+        "result": {
+            "type": "object",
+            "properties": {
+                "output": {
+                    "type": "string"
+                },
+                "stateDiff": {
+                    "type": "null"
+                },
+                "trace": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "action": {
+                                "type": "object",
+                                "properties": {
+                                    "from": {
+                                        "type": "string"
+                                    },
+                                    "gas": {
+                                        "type": "string"
+                                    },
+                                    "init": {
+                                        "type": "string"
+                                    },
+                                    "value": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "result": {
+                                "type": "object",
+                                "properties": {
+                                    "address": {
+                                        "type": "string"
+                                    },
+                                    "code": {
+                                        "type": "string"
+                                    },
+                                    "gasUsed": {
+                                        "type": "string"
+                                    }
+                                }
+                            },
+                            "subtraces": {
+                                "type": "integer"
+                            },
+                            "traceAddress": {
+                                "type": "array",
+                                "items": {}
+                            },
+                            "type": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "vmTrace": {
+                    "type": "object",
+                    "properties": {
+                        "code": {
+                            "type": "string"
+                        },
+                        "ops": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "cost": {
+                                        "type": "integer"
+                                    },
+                                    "ex": {
+                                        "type": "object",
+                                        "properties": {
+                                            "mem": {
+                                                "type": [
+                                                    "null",
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "data": {
+                                                                "type": "string"
+                                                            },
+                                                            "off": {
+                                                                "type": "integer"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "push": {
+                                                "type": "array",
+                                                "items": {
+                                                    "type": "string"
+                                                }
+                                            },
+                                            "store": {
+                                                "type": [
+                                                    "null",
+                                                    {
+                                                        "type": "object",
+                                                        "properties": {
+                                                            "key": {
+                                                                "type": "string"
+                                                            },
+                                                            "val": {
+                                                                "type": "string"
+                                                            }
+                                                        }
+                                                    }
+                                                ]
+                                            },
+                                            "used": {
+                                                "type": "integer"
+                                            }
+                                        }
+                                    },
+                                    "pc": {
+                                        "type": "integer"
+                                    },
+                                    "sub": {
+                                        "type": "null"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

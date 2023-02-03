@@ -1,0 +1,9 @@
+{
+  "id": 2,
+  "jsonrpc": "2.0",
+  "method":"debug_traceTransaction",
+  "params":[
+        {
+		  "tracer": "{data: [], fault: function(log) {}, step: function(log) { this.data.push([log.op.toString(), log.stack.peek(0)]); }, result: function() { return this.data; }}"
+	  }]
+}
