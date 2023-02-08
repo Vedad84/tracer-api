@@ -1,7 +1,7 @@
 use {
     super::Bytes,
     std::{collections::BTreeMap, iter},
-    neon_cli::types::trace::{TracedCall, VMTrace, VMOperation},
+    neon_cli_lib::types::trace::{TracedCall, VMTrace, VMOperation},
     serde::{self, Deserialize, Serialize},
     evm_loader::types::Address,
     ethnum::U256,
@@ -233,7 +233,3 @@ impl From<(usize, VMOperation)> for StructLog {
         }
     }
 }
-
-
-
-

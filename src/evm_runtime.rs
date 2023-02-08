@@ -25,7 +25,8 @@ use {
     },
     tokio::{ io::AsyncWriteExt, sync::RwLock },
     serde::Deserialize,
-    crate::{db::{ DbClient, Error as DbError }, stop_handle::StopHandle,}
+    crate::{stop_handle::StopHandle, data_source::tracer_db::TracerDbExtention },
+    neon_cli_lib::types::{TracerDb, PgError}
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -52,7 +53,7 @@ pub enum EVMRuntimeError {
     ReadEvmRevisionError{ err: String },
 
     #[error("Database error: {err}")]
-    DbClientError { err: DbError },
+    DbClientError { err: PgError },
 
     #[error("Known revisions data corrupted")]
     KnownRevisionsCorrupted,
@@ -97,7 +98,7 @@ pub struct EVMRuntime {
     docker: bollard::Docker,
     known_containers: Arc<RwLock<EVMContainerMap>>,
     known_revisions: Arc<RwLock<KnownRevisions>>,
-    db_client: Arc<DbClient>,
+    tracer_db: TracerDb,
 }
 
 pub struct ExecResult {
@@ -230,7 +231,7 @@ fn create_container_name(revision: &str) -> String {
 impl EVMRuntime {
     pub async fn new(
         config: &EVMRuntimeConfig,
-        db_client: Arc<DbClient>,
+        tracer_db: TracerDb,
     ) -> Result<Self, EVMRuntimeError> {
         let client_version = bollard::ClientVersion::from(
             &(AtomicUsize::new(config.docker_version_major), AtomicUsize::new(config.docker_version_minor))
@@ -251,7 +252,7 @@ impl EVMRuntime {
                 })?,
             known_containers: Arc::new(RwLock::new(HashMap::new())),
             known_revisions: Arc::new(RwLock::new(KnownRevisions::new())),
-            db_client,
+            tracer_db,
         })
     }
 
@@ -767,7 +768,7 @@ impl EVMRuntime {
         const BPF_LOADER_HEADER_SIZE: usize = 0x2d;
 
         debug!("Reading evm revision for slot {}", slot);
-        if let Some(loader_account) = self.db_client.get_account_at_slot(&self.config.evm_loader, slot)
+        if let Some(loader_account) = self.tracer_db.get_account_at(&self.config.evm_loader, slot)
             .map_err(|err| EVMRuntimeError::ParseElfError { slot, err: format!("Failed to read EVM loader account: {:?}", err) })? {
 
             if loader_account.data.len() != 36 {
@@ -778,7 +779,7 @@ impl EVMRuntime {
             let code_pubkey = Pubkey::from(code_addr_bytes.clone());
             info!("Code account is {}", code_pubkey.to_string());
 
-            if let Some(code_acc) = self.db_client.get_account_at_slot(&code_pubkey, slot)
+            if let Some(code_acc) = self.tracer_db.get_account_at(&code_pubkey, slot)
                 .map_err(|err| EVMRuntimeError::ParseElfError {
                     slot, err: format!("Failed to read EVM Code account: {:?}", err)
                 })? {
@@ -847,7 +848,7 @@ impl EVMRuntime {
 
     async fn get_db_slot_revision(&self, slot: u64) -> Result<Option<String>, EVMRuntimeError> {
         debug!("get_db_slot_revision({slot})");
-        let evm_update_slot = self.db_client.get_recent_update_slot(&self.config.evm_loader, slot).await
+        let evm_update_slot = self.tracer_db.get_recent_update_slot(&self.config.evm_loader, slot)
             .map_err(|err| EVMRuntimeError::DbClientError{ err })?;
 
         if let Some(evm_update_slot) = evm_update_slot {

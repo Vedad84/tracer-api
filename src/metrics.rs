@@ -1,5 +1,5 @@
 use {
-    crate::{ db::DbClient, stop_handle::StopHandle },
+    crate::stop_handle::StopHandle,
     lazy_static::lazy_static,
     prometheus::{ Encoder, gather, Histogram, HistogramVec, HistogramOpts, TextEncoder,
                   Registry, IntCounterVec, Opts },
@@ -7,6 +7,7 @@ use {
     tokio::{ self, sync::mpsc::Receiver, time::Instant },
     tracing::{info, warn},
     warp::{ Filter, Reply, Rejection },
+    neon_cli_lib::types::TracerDb,
 };
 
 lazy_static!(
@@ -99,7 +100,7 @@ fn register_metrics() {
 }
 
 pub async fn run_monitoring(
-    db: Arc<DbClient>,
+    tracer_db: TracerDb,
     proxy: Arc<web3::Web3<web3::transports::Http>>,
     metrics_ip: Ipv4Addr,
     metrics_port: u16,
@@ -123,7 +124,7 @@ pub async fn run_monitoring(
             _ = interval.tick() => {
             let _ = proxy.eth().block_number().await
                     .map(|proxy_block_number|{
-                        db.get_slot().map(|db_slot| {
+                        tracer_db.get_latest_block().map(|db_slot| {
                             SLOT_DIFFERENCE.observe((proxy_block_number.as_u64() - db_slot) as f64);
                         })
                     })
@@ -139,14 +140,14 @@ pub async fn run_monitoring(
 }
 
 pub fn start_monitoring(
-    db: Arc<DbClient>,
+    tracer_db: TracerDb,
     proxy: Arc<web3::Web3<web3::transports::Http>>,
     metrics_ip: Ipv4Addr,
     metrics_port: u16,
 ) -> StopHandle {
     let (stop_snd, stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
     StopHandle::new(
-        tokio::spawn( run_monitoring(db, proxy, metrics_ip, metrics_port, stop_rcv)),
+        tokio::spawn( run_monitoring(tracer_db, proxy, metrics_ip, metrics_port, stop_rcv)),
         stop_snd,
     )
 }

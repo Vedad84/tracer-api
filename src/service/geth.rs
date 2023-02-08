@@ -4,7 +4,8 @@ use {
     log::*,
     crate::{
         metrics,
-        neon::{tracer_core::TracerCore,  Result},
+        data_source::DataSource,
+        service::Result,
         types::{
             BlockNumber, geth::{TransactionArgs, TraceTransactionOptions, Trace, ExecutionResult},
         },
@@ -20,7 +21,7 @@ pub trait GethTrace {
 
 
 #[async_trait]
-impl GethTraceServer for TracerCore {
+impl GethTraceServer for DataSource {
     async fn trace_call(&self, a: TransactionArgs,  tag: BlockNumber, o: Option<TraceTransactionOptions>) -> Result<Trace> {
 
         let data = a.input.map(|v| v.0);

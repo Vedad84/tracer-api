@@ -1,61 +1,39 @@
+mod neon_cli;
+pub mod tracer_db;
+
 use {
-    arrayref::array_ref,
-    solana_sdk::pubkey::Pubkey,
-    std::{fmt, sync::Arc,},
-    tokio::task::block_in_place,
-    web3::{ transports::Http, types::BlockId, Web3 },
-    tracing::info,
+    std::sync::Arc,
+    web3::{ transports::Http, Web3, types::BlockId, },
     crate::{
-        db::DbClient,
         evm_runtime::EVMRuntime,
+        data_source::neon_cli::NeonCli,
+        service::{Error, Result},
         types::BlockNumber,
     },
-    super::{Error, Result,  neon_cli::NeonCli},
-    ethnum::U256,
+    neon_cli_lib::types::{TracerDb, IndexerDb},
+    tokio::task::block_in_place,
+    tracer_db::TracerDbExtention,
+    log::{info, debug},
+    arrayref::array_ref,
 };
-
-fn convert_h256(inp: U256) -> web3::types::H256 {
-    let a = inp.to_be_bytes();
-    let bytes = array_ref![a, 0, 32];
-    let hash = web3::types::H256::from(bytes);
-    hash
-}
 
 
 #[derive(Clone)]
-pub struct TracerCore {
-    evm_loader: Pubkey,
-    tracer_db_client: Arc<DbClient>,
+pub struct DataSource {
+    tracer_db: TracerDb,
+    pub indexer_db: IndexerDb,
     web3: Arc<Web3<Http>>,
     pub neon_cli: NeonCli,
 }
 
-impl std::fmt::Debug for TracerCore {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            //"evm_loader={:?}, signer={:?}",
-            "evm_loader={:?}",
-            self.evm_loader //, self.signer
-        )
-    }
-}
-
-
-impl TracerCore {
+impl DataSource {
     pub fn new(
-        evm_loader: Pubkey,
-        tracer_db_client: Arc<DbClient>,
+        tracer_db: TracerDb,
+        indexer_db: IndexerDb,
         web3: Arc<Web3<Http>>,
         evm_runtime: Arc<EVMRuntime>,
     ) -> Self {
-
-        Self {
-            evm_loader,
-            tracer_db_client,
-            web3,
-            neon_cli: NeonCli::new(evm_runtime),
-        }
+        Self {tracer_db, indexer_db,  web3, neon_cli: NeonCli::new(evm_runtime) }
     }
 
     pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
@@ -63,12 +41,17 @@ impl TracerCore {
             BlockNumber::Num(num) => Ok(num),
             BlockNumber::Hash { hash, .. } => {
 
-                let hash_str = format!("0x{}", hex::encode(hash.to_be_bytes()));
-                info!("Get block number {:?}", &hash_str);
+                let hash = hash.to_be_bytes();
+
+                let hash_str = format!("0x{}", hex::encode(hash));
+                debug!("Get block number {:?}", &hash_str);
+
+                let bytes = array_ref![hash, 0, 32];
+                let hash_web3 = web3::types::H256::from(bytes);
 
                 let future = self.web3
                     .eth()
-                    .block(BlockId::Hash(convert_h256(hash)));
+                    .block(BlockId::Hash(hash_web3));
 
                 let result = block_in_place(|| {
                     let handle = tokio::runtime::Handle::current();
@@ -84,12 +67,12 @@ impl TracerCore {
                     .as_u64())
             },
             BlockNumber::Earliest => {
-                self.tracer_db_client.get_earliest_slot().map_err(
+                self.tracer_db.get_earliest_slot().map_err(
                     |err| Error::Custom(format!("Failed to retrieve earliest block: {:?}", err))
                 )
             },
             BlockNumber::Latest => {
-                self.tracer_db_client.get_slot().map_err(
+                self.tracer_db.get_latest_block().map_err(
                     |err| Error::Custom(format!("Failed to retrieve latest block: {:?}", err))
                 )
             },
@@ -98,4 +81,5 @@ impl TracerCore {
             }
         }
     }
+
 }

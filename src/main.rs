@@ -9,13 +9,14 @@ use {
     tokio::signal,
     crate::{
         service::{ eip1898::EIP1898Server },
-        neon::tracer_core::TracerCore,
+        data_source::DataSource,
         metrics::start_monitoring,
-    }
+        evm_runtime::EVMRuntime
+    },
+    neon_cli_lib::types::{TracerDb, IndexerDb},
 };
 
-mod db;
-mod neon;
+mod data_source;
 mod service;
 mod metrics;
 mod config;
@@ -36,8 +37,6 @@ fn init_logs() {
 }
 
 async fn run() {
-    use crate::db::DbClient;
-
     let options = config::read_config();
 
     init_logs();
@@ -48,40 +47,32 @@ async fn run() {
         .build(options.addr.parse().unwrap())
         .unwrap();
 
-    let tracer_db_client = Arc::new(DbClient::new(
-        &options.db_config.tracer_host,
-        &options.db_config.tracer_port,
-        &options.db_config.tracer_database,
-        &options.db_config.tracer_user,
-        &options.db_config.tracer_password,
-    ).await);
+    let tracer_db = TracerDb::new(&options.db_config);
+    let indexer_db = IndexerDb::new(&options.db_config);
 
-    let transport = web3::transports::Http::new(&options.web3_proxy);
-    if transport.is_err() {
-        warn!("Failed to initialize HTTP transport for Web3 Proxy client");
-        return;
-    }
+    let transport = web3::transports::Http::new(&options.web3_proxy)
+        .map_err(|e| warn!("Failed to initialize HTTP transport for Web3 Proxy client: {:?}", e))
+        .unwrap();
 
-    let web3_client = Arc::new(web3::Web3::new(transport.unwrap()));
+    let web3_client = Arc::new(web3::Web3::new(transport));
 
-    let evm_runtime = Arc::new(evm_runtime::EVMRuntime::new(
-        &options.evm_runtime_config,
-        tracer_db_client.clone(),
-    ).await.unwrap_or_else(|err| panic!("{:?}", err)));
+    let evm_runtime = Arc::new(EVMRuntime::new(&options.evm_runtime_config,tracer_db.clone()).await
+        .map_err(|e| warn!("Filed to init emv_runtime: {:?}", e))
+        .unwrap());
 
-    let serv_impl = TracerCore::new(
-        options.evm_loader,
-        tracer_db_client.clone(),
+    let source = DataSource::new(
+        tracer_db.clone(),
+        indexer_db.clone(),
         web3_client.clone(),
         evm_runtime.clone(),
     );
 
     let mut module = RpcModule::new(());
-    module.merge(EIP1898Server::into_rpc(serv_impl.clone())).expect("EIP1898Server error");
-    // module.merge(GethTraceServer::into_rpc(serv_impl.clone())).expect("GethTraceServer error");
+    module.merge(EIP1898Server::into_rpc(source.clone())).expect("EIP1898Server error");
+//    module.merge(GethTraceServer::into_rpc(serv_impl.clone())).expect("GethTraceServer error");
 
     let monitor_handle = start_monitoring(
-        tracer_db_client.clone(),
+        tracer_db.clone(),
         web3_client.clone(),
         options.metrics_ip,
         options.metrics_port

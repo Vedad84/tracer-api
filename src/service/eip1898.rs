@@ -4,7 +4,8 @@ use {
     log::*,
     crate::{
         metrics,
-        neon::{tracer_core::TracerCore,  Result},
+        data_source::DataSource,
+        service::Result,
         types::{BlockNumber, geth::TransactionArgs},
     },
     evm_loader::types::Address,
@@ -27,7 +28,7 @@ pub trait EIP1898 {
 }
 
 #[async_trait]
-impl EIP1898Server for TracerCore {
+impl EIP1898Server for DataSource {
     async fn eth_call(&self, o: TransactionArgs, tag: BlockNumber) -> Result<String> {
 
         let data = o.input.map(|a| a.0);

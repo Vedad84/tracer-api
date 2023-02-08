@@ -2,9 +2,8 @@ use {
     std::{time::Duration, sync::Arc},
     log::*,
     evm_loader::types::Address,
-    neon_cli::types::trace::TracedCall,
-    crate::{evm_runtime::EVMRuntime},
-    super::{Result, Error},
+    neon_cli_lib::types::trace::TracedCall,
+    crate::{evm_runtime::EVMRuntime, service::{Result, Error}},
     ethnum::U256,
 };
 
@@ -53,9 +52,9 @@ impl NeonCli{
 
         if !result.stdout.is_empty() {
             let stdout = std::str::from_utf8(&result.stdout).map_err(|_|  ERR("read neon-cli stdout"))?;
-            warn!("neon_cli STDOUT: {}", stdout)
+            debug!("neon_cli STDOUT: {}", stdout)
         };
-        // warn!("neon_cli STDERR: {}", stderr);
+        debug!("neon_cli STDERR: {}", stderr);
 
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(stderr){
             if let serde_json::Value::Object(map) = json{
@@ -156,7 +155,7 @@ impl NeonCli{
         let gas;
         if let Some(value) = gas_limit {
             gas = value.to_string();
-            cmd.extend(vec!["--gas_slimit", &gas])
+            cmd.extend(vec!["--gas_limit", &gas])
         }
         let a: Vec<&str> = vec![&from, &to, &value];
         cmd.extend(a);

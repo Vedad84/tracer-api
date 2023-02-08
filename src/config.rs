@@ -1,10 +1,8 @@
 use {
-    crate::{
-        db::{ DBConfig, load_config_file },
-        evm_runtime::EVMRuntimeConfig,
-    },
+    crate::evm_runtime::EVMRuntimeConfig,
     solana_sdk::pubkey::Pubkey,
     std::{net::Ipv4Addr, str::FromStr },
+    neon_cli_lib::types::DbConfig,
 };
 
 // Environment variables
@@ -108,7 +106,7 @@ pub fn read_evm_runtime_config(
 #[derive(std::fmt::Debug)]
 pub struct Options {
     pub addr: String,
-    pub db_config: DBConfig,
+    pub db_config: DbConfig,
     pub evm_loader: solana_sdk::pubkey::Pubkey,
     pub web3_proxy: String,
     pub metrics_ip: Ipv4Addr,
@@ -120,7 +118,9 @@ pub fn read_config() -> Options {
     let read_env = |var_name: &str| std::env::var(var_name)
         .unwrap_or_else(|_| panic!("Failed to read env var {}", var_name));
 
-    let db_config: DBConfig = load_config_file(read_env("DB_CONFIG")).unwrap();
+    let path = read_env("DB_CONFIG");
+    let path = path.as_str();
+    let db_config: DbConfig = solana_cli_config::load_config_file(path).expect("load db-config error");
 
     let addr = read_env("LISTEN_ADDR");
     let evm_loader = read_env("EVM_LOADER");
