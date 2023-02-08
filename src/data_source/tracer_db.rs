@@ -18,7 +18,7 @@ impl TracerDbExtention for TracerDb {
 
         let rows = block(|| async {
             self.client.query(
-                "SELECT slot, write_version FROM account_audit \
+                "SELECT slot, write_version FROM neon_history.account_audit \
             WHERE pubkey = $1 AND slot <= $2 ORDER BY slot, write_version DESC LIMIT 1;",
                 &[&pubkey_bytes.as_slice(), &(slot as i64)]
             ).await
@@ -35,7 +35,7 @@ impl TracerDbExtention for TracerDb {
 
     fn get_earliest_slot(&self) -> PgResult<u64> {
         let row = block(|| async {
-            self.client.query_one("SELECT MIN(slot) FROM public.slot", &[]).await
+            self.client.query_one("SELECT MIN(slot) FROM neon_history.slot", &[]).await
         })?;
 
         let slot: i64 = row.try_get(0)?;
