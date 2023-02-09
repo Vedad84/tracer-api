@@ -3,7 +3,7 @@ version: "3"
 services:
   tracer_db:
     container_name: tracer_db
-    image: neonlabsorg/neon-accountsdb:v1.14.12-neon-tracer
+    image: neonlabsorg/tracerdb:latest
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
