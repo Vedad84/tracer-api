@@ -8,10 +8,10 @@ use {
     tracing_subscriber::{EnvFilter, fmt},
     tokio::signal,
     crate::{
-        service::{ eip1898::EIP1898Server },
+        service::{ eip1898::EIP1898Server, geth::GethTraceServer},
         data_source::DataSource,
         metrics::start_monitoring,
-        evm_runtime::EVMRuntime
+        evm_runtime::EVMRuntime,
     },
     neon_cli_lib::types::{TracerDb, IndexerDb},
 };
@@ -69,7 +69,7 @@ async fn run() {
 
     let mut module = RpcModule::new(());
     module.merge(EIP1898Server::into_rpc(source.clone())).expect("EIP1898Server error");
-//    module.merge(GethTraceServer::into_rpc(serv_impl.clone())).expect("GethTraceServer error");
+    module.merge(GethTraceServer::into_rpc(source.clone())).expect("GethTraceServer error");
 
     let monitor_handle = start_monitoring(
         tracer_db.clone(),
