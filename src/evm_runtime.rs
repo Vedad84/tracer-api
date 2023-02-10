@@ -88,7 +88,7 @@ pub struct EVMRuntimeConfig {
     pub db_config_tar: String,
     pub evm_loader: Pubkey,
     pub token_mint: Pubkey,
-    pub chain_id: u16,
+    pub chain_id: u32,
     pub network_name: Option<String>,
 }
 
