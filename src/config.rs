@@ -30,7 +30,7 @@ const EVM_RUNTIME_NETWORK_NAME: &str = "EVM_RUNTIME_NETWORK_NAME";
 pub fn read_evm_runtime_config(
     evm_loader: &Pubkey,
     token_mint: &Pubkey,
-    chain_id: u16,
+    chain_id: u32,
 ) -> EVMRuntimeConfig {
     let docker_socket = std::env::var(EVM_RUNTIME_DOCKER_SOCKET)
         .unwrap_or_else(|_| EVM_RUNTIME_DOCKER_SOCKET_DEFAULT.to_string());
@@ -133,7 +133,7 @@ pub fn read_config() -> Options {
     let token_mint = Pubkey::from_str(token_mint.as_str())
         .unwrap_or_else(|_| panic!("Failed to parse NEON_TOKEN_MINT {}", token_mint));
     let chain_id = read_env("NEON_CHAIN_ID");
-    let chain_id = chain_id.parse::<u16>()
+    let chain_id = chain_id.parse::<u32>()
         .unwrap_or_else(|_| panic!("Failed to parse NEON_CHAIN_ID"));
     let evm_runtime_config = read_evm_runtime_config(&evm_loader, &token_mint, chain_id);
 

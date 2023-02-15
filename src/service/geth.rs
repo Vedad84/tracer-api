@@ -1,15 +1,16 @@
 use {
     async_trait::async_trait,
-    jsonrpsee::{ proc_macros::rpc, types::Error },
+    jsonrpsee::proc_macros::rpc,
     log::*,
     crate::{
         metrics,
-        data_source::DataSource,
+        data_source::{DataSource, ERR},
         service::Result,
         types::{
             BlockNumber, geth::{TransactionArgs, TraceTransactionOptions, Trace, ExecutionResult},
         },
     },
+    ethnum::U256,
 };
 
 #[rpc(server)]
@@ -17,15 +18,17 @@ use {
 pub trait GethTrace {
     #[method(name = "debug_traceCall")]
     async fn trace_call(&self, a: TransactionArgs, b: BlockNumber, o: Option<TraceTransactionOptions>) -> Result<Trace>;
+    #[method(name = "debug_traceTransaction")]
+    async fn trace_transaction(&self, t: U256, o: Option<TraceTransactionOptions>) -> Result<Option<Trace>>;
 }
 
 
 #[async_trait]
 impl GethTraceServer for DataSource {
     async fn trace_call(&self, a: TransactionArgs,  tag: BlockNumber, o: Option<TraceTransactionOptions>) -> Result<Trace> {
+        let started = metrics::report_incoming_request("geth::debug_traceCall");
 
         let data = a.input.map(|v| v.0);
-
         debug!(
             "geth::trace_call (from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?})",
             a.from,
@@ -37,21 +40,39 @@ impl GethTraceServer for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-
-        let started = metrics::report_incoming_request("geth::debug_traceCall");
         let slot = self.get_block_number(tag)?;
         let result = self.neon_cli.trace(a.from, a.to, a.value, data, a.gas, slot, &tout).await;
-        metrics::report_request_finished(started, "geth::debug_traceCall", result.is_ok());
 
-        result.map(|trace_call| {
+        let result = result.map(|trace_call| {
             let o = o.unwrap_or_default();
             let response = Trace::Logs(ExecutionResult::new(trace_call,&o));
             debug!("response {:?}", response);
             response
-        })
-            .map_err(|e| {
-                warn!("trace_call failed: {:?}", e);
-                Error::Custom("Internal server error".to_string())
-            })
+        });
+        metrics::report_request_finished(started, "geth::debug_traceCall", result.is_ok());
+
+        result
+    }
+
+    async fn trace_transaction(&self, hash: U256, o: Option<TraceTransactionOptions>) -> Result<Option<Trace>> {
+        let started = metrics::report_incoming_request("geth::debug_traceTransaction");
+
+        debug!("geth::debug_traceTransaction (hash={:?})", hash.to_string() );
+
+        let tout = std::time::Duration::new(10, 0);
+        let h = hash.to_be_bytes();
+        let slot = self.indexer_db.get_slot(&h).map_err(|e | ERR(&format!("get_slot error: {}", e)))?;
+
+        let result = self.neon_cli.trace_hash(hash, slot, &tout).await;
+
+        let result = result.map(|trace_call| {
+            let o = o.unwrap_or_default();
+            let response = Trace::Logs(ExecutionResult::new(trace_call,&o));
+            debug!("response {:?}", response);
+            Some(response)
+        });
+        metrics::report_request_finished(started, "geth::debug_traceTransaction", result.is_ok());
+
+        result
     }
 }

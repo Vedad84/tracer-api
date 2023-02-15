@@ -13,10 +13,14 @@ use {
     neon_cli_lib::types::{TracerDb, IndexerDb},
     tokio::task::block_in_place,
     tracer_db::TracerDbExtention,
-    log::{info, debug},
+    log::{info, debug, warn},
     arrayref::array_ref,
 };
 
+pub const ERR: fn(&str)->Error = |e: &str| -> Error {
+    warn!("error: {}", e);
+    Error::Custom("Internal server error".to_string())
+};
 
 #[derive(Clone)]
 pub struct DataSource {

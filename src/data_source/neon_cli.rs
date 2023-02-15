@@ -3,13 +3,9 @@ use {
     log::*,
     evm_loader::types::Address,
     neon_cli_lib::types::trace::TracedCall,
-    crate::{evm_runtime::EVMRuntime, service::{Result, Error}},
+    crate::{evm_runtime::EVMRuntime, service::Result},
     ethnum::U256,
-};
-
-const ERR: fn(&str)->Error = |e: &str| -> Error {
-    warn!("error: {}", e);
-    Error::Custom("Internal server error".to_string())
+    super::ERR,
 };
 
 const NUM_STEPS_TO_EXECUTE: u32 = 500_000;
@@ -68,7 +64,7 @@ impl NeonCli{
                     } else
                     {
                         def.ok_or_else(|| {
-                            warn!("neon_cli STDERR: {}", stderr);
+                            debug!("neon_cli STDERR: {}", stderr);
                             ERR("neon-cli json.result != success")
                         })
                     }
@@ -165,6 +161,35 @@ impl NeonCli{
         };
 
         self.execute(cmd, data, slot, tout, f, None).await
+    }
+
+    #[allow(unused)]
+    pub async fn trace_hash (
+        &self,
+        hash: U256,
+        slot: u64,
+        tout: &Duration,
+    ) -> Result<TracedCall> {
+
+        let hash = hash.to_be_bytes();
+        let hash = format!("0x{}", hex::encode(hash));
+
+        let mut cmd = vec![
+            "neon-cli",
+            "--db_config", &self.db_config,
+            "--evm_loader", &self.evm_loader,
+            "trace_hash",
+            "--token_mint", &self.token_mint,
+            "--chain_id", &self.chain_id,
+            "--max_steps_to_execute", &self.steps_to_execute,
+            &hash
+        ];
+
+        let f = |value|-> Result<TracedCall> {
+            serde_json::from_value(value).map_err(|_| ERR("deserialize neon-cli json.value to TracedCall"))
+        };
+
+        self.execute(cmd, None, slot, tout, f, None).await
     }
 
     pub async fn get_storage_at(&self, to: Address, index: U256, slot: u64, tout: &Duration) -> Result<U256> {

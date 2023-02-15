@@ -56,38 +56,38 @@ def test_geth_debug_trace_call(tx_hex, url_node, url_trace, role):
         assert not response_dict.get('error'), 'There is error in response for trace request'
 
         method_scheme = f'{role}_{file}'
-        # print('\n' + blue_text('Reply'), end='\n')
+        print('\n' + blue_text('Reply'), end='\n')
 
-        # pprint(response_dict)
+        pprint(response_dict)
 
         print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
 
-#
-# @parameterized.expand(**level_test_parameters)
-# @assert_all()
-# def test_geth_debug_transaction_call(tx_hex, url_node, url_trace, role):
-#     for file in REQUESTS_TRANSACTION:
-#         with open(f'{RESOURCES}/{file}') as req:
-#             file_payload: dict = json.loads(req.read())
-#             file_payload['params'].insert(0, tx_hex)
-#
-#             payload = json.dumps(file_payload)
-#
-#         print('\n' + blue_text('Request'), end='\n')
-#
-#         pprint(file_payload)
-#
-#         response_dict = send_trace_request(url_trace, payload)
-#
-#         assert response_dict, 'There are no response for trace request'
-#         assert not response_dict.get('error'), 'There is error in response for trace request'
-#
-#         method_scheme = f'{role}_{file}'
-#         print('\n' + blue_text('Reply'), end='\n')
-#
-#         pprint(response_dict)
-#
-#         print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
-#
-#         validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
+
+@parameterized.expand(**level_test_parameters)
+@assert_all()
+def test_geth_debug_transaction_call(tx_hex, url_node, url_trace, role):
+    for file in REQUESTS_TRANSACTION:
+        with open(f'{RESOURCES}/{file}') as req:
+            file_payload: dict = json.loads(req.read())
+            file_payload['params'].insert(0, tx_hex)
+
+            payload = json.dumps(file_payload)
+
+        print('\n' + blue_text('Request'), end='\n')
+
+        pprint(file_payload)
+
+        response_dict = send_trace_request(url_trace, payload)
+
+        assert response_dict, 'There are no response for trace request'
+        assert not response_dict.get('error'), 'There is error in response for trace request'
+
+        method_scheme = f'{role}_{file}'
+        print('\n' + blue_text('Reply'), end='\n')
+
+        pprint(response_dict)
+
+        print('\n' + blue_text(f'Scheme to validate {method_scheme}'), end='\n')
+
+        validate_type_by_scheme(response_dict['result'], method_scheme, 'result')
