@@ -9,6 +9,10 @@ services:
       POSTGRES_DB: solana
       POSTGRES_USER: solana-user
       POSTGRES_PASSWORD: solana-pass
+      ACCOUNT_AUDIT_PART_SLOT_COUNT: 150
+      ACCOUNT_AUDIT_START_SLOT: 0
+      ACCOUNT_AUDIT_RETENTION_SLOTS: 450
+      ACCOUNT_AUDIT_MAINTENANCE_SCHEDULE: '*/1 * * * *'
     hostname: tracer_db
     expose:
       - "5432"
