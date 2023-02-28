@@ -195,7 +195,7 @@ services:
     hostname: neon-tracer
     environment:
       RUST_BACKTRACE: 1
-      RUST_LOG: neon_tracer::main=debug,neon_tracer=debug,neon_tracer::evm_runtime=debug,neon_tracer::metrics=debug,neon_tracer::service::eip1898=debug
+      RUST_LOG: neon_tracer::main=info,neon_tracer=info,neon_tracer::evm_runtime=info,neon_tracer::metrics=info,neon_tracer::service::eip1898=info,neon_tracer::data_source::neon_cli=debug
       LISTEN_ADDR: 0.0.0.0:8250
       SOLANA_URL: http://validator:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io

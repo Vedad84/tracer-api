@@ -13,7 +13,7 @@ use {
     neon_cli_lib::types::{TracerDb, IndexerDb},
     tokio::task::block_in_place,
     tracer_db::TracerDbExtention,
-    log::{info, debug, warn},
+    log::{debug, warn},
     arrayref::array_ref,
 };
 
@@ -61,8 +61,6 @@ impl DataSource {
                     let handle = tokio::runtime::Handle::current();
                     handle.block_on(future)
                 }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
-
-                info!("Web3 part ready");
 
                 Ok(result
                     .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?

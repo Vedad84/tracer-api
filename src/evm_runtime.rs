@@ -278,7 +278,6 @@ impl EVMRuntime {
     }
 
     async fn heartbeat(&self) {
-        info!("EVM Runtime Heartbeat");
         let mut known_containers_lock = self.known_containers.write().await;
         let known_containers = known_containers_lock.deref_mut();
 
