@@ -26,11 +26,11 @@ pub trait GethTrace {
 #[async_trait]
 impl GethTraceServer for DataSource {
     async fn trace_call(&self, a: TransactionArgs,  tag: BlockNumber, o: Option<TraceTransactionOptions>) -> Result<Trace> {
-        let started = metrics::report_incoming_request("geth::debug_traceCall");
+        let started = metrics::report_incoming_request("debug_traceCall");
 
         let data = a.input.map(|v| v.0);
-        debug!(
-            "geth::trace_call (from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?})",
+        info!(
+            "debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?})",
             a.from,
             a.to,
             data.as_ref().map(|v| hex::encode(&v)),
@@ -46,18 +46,18 @@ impl GethTraceServer for DataSource {
         let result = result.map(|trace_call| {
             let o = o.unwrap_or_default();
             let response = Trace::Logs(ExecutionResult::new(trace_call,&o));
-            debug!("response {:?}", response);
+            info!("debug_traceCall => {:?}", response);
             response
         });
-        metrics::report_request_finished(started, "geth::debug_traceCall", result.is_ok());
+        metrics::report_request_finished(started, "debug_traceCall", result.is_ok());
 
         result
     }
 
     async fn trace_transaction(&self, hash: U256, o: Option<TraceTransactionOptions>) -> Result<Option<Trace>> {
-        let started = metrics::report_incoming_request("geth::debug_traceTransaction");
+        let started = metrics::report_incoming_request("debug_traceTransaction");
 
-        debug!("geth::debug_traceTransaction (hash={:?})", hash.to_string() );
+        info!("debug_traceTransaction (hash={:?})", hash.to_string() );
 
         let tout = std::time::Duration::new(10, 0);
         let h = hash.to_be_bytes();
@@ -68,10 +68,10 @@ impl GethTraceServer for DataSource {
         let result = result.map(|trace_call| {
             let o = o.unwrap_or_default();
             let response = Trace::Logs(ExecutionResult::new(trace_call,&o));
-            debug!("response {:?}", response);
+            info!("debug_traceTransaction => {:?}", response);
             Some(response)
         });
-        metrics::report_request_finished(started, "geth::debug_traceTransaction", result.is_ok());
+        metrics::report_request_finished(started, "debug_traceTransaction", result.is_ok());
 
         result
     }

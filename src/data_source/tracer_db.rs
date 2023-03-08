@@ -18,8 +18,7 @@ impl TracerDbExtention for TracerDb {
 
         let rows = block(|| async {
             self.client.query(
-                "SELECT slot, write_version FROM account_audit \
-            WHERE pubkey = $1 AND slot <= $2 ORDER BY slot, write_version DESC LIMIT 1;",
+                "SELECT * FROM get_recent_update_slot($1, $2);",
                 &[&pubkey_bytes.as_slice(), &(slot as i64)]
             ).await
         })?;

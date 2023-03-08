@@ -3,12 +3,16 @@ version: "3"
 services:
   tracer_db:
     container_name: tracer_db
-    image: neonlabsorg/neon-accountsdb:v1.14.12-neon-tracer
+    image: neonlabsorg/tracerdb:latest
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
       POSTGRES_USER: solana-user
       POSTGRES_PASSWORD: solana-pass
+      ACCOUNT_AUDIT_PART_SLOT_COUNT: 150
+      ACCOUNT_AUDIT_START_SLOT: 0
+      ACCOUNT_AUDIT_RETENTION_SLOTS: 450
+      ACCOUNT_AUDIT_MAINTENANCE_SCHEDULE: '*/1 * * * *'
     hostname: tracer_db
     expose:
       - "5432"
@@ -191,7 +195,7 @@ services:
     hostname: neon-tracer
     environment:
       RUST_BACKTRACE: 1
-      RUST_LOG: neon_tracer::main=debug,neon_tracer=debug,neon_tracer::evm_runtime=debug,neon_tracer::metrics=debug,neon_tracer::service::eip1898=debug
+      RUST_LOG: neon_tracer::main=info,neon_tracer=info,neon_tracer::evm_runtime=info,neon_tracer::metrics=info,neon_tracer::service::eip1898=info,neon_tracer::data_source::neon_cli=debug
       LISTEN_ADDR: 0.0.0.0:8250
       SOLANA_URL: http://validator:8899
       EVM_LOADER: 53DfF883gyixYNXnM7s5xhdeyV8mVk9T4i2hGV9vG9io
