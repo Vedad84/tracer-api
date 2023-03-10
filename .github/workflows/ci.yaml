@@ -16,45 +16,40 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-#      - name: Build the neon-tracer image
-#        run: docker build . --file Dockerfile --tag neonlabsorg/neon-tracer:${{git.sha}} --build-arg NEON_REVISION=${{env.NEON_REVISION}}
+#      - name: Log in to Docker Hub
+#        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+#        with:
+#          username: ${{ secrets.DOCKER_USERNAME }}
+#          password: ${{ secrets.DOCKER_PASSWORD }}
 
-#      - name: Build the neon-tracer-test image
-#        run: docker build -t neonlabsorg/neon-tracer-test:${{git.sha}} ./tests
+#      - name: Build and push neon-tracer image
+#        uses: docker/build-push-action@v4.0.0
+#        with:
+#          context: .
+#          push: true
+#          file: Dockerfile
+#          build-args: NEON_REVISION=${{env.NEON_REVISION}}
+#          tags: neonlabsorg/neon-tracer:${{github.sha}}
+#          labels: neonlabsorg/neon-tracer:${{github.sha}}
 
-#      - name: Build neon-rpc image
-#        run: docker build -t neonlabsorg/neon-rpc:${{git.sha}} ./neon-rpc
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
-        with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Build and push neon-tracer image
+      - name: Build and push neon-tracer-test image
         uses: docker/build-push-action@v4.0.0
+        working-directory: ./test
         with:
           context: .
           push: true
           file: Dockerfile
-          build-args: NEON_REVISION=${{env.NEON_REVISION}}
-          tags: neonlabsorg/neon-tracer:${{github.sha}}
-          labels: neonlabsorg/neon-tracer:${{github.sha}}
-
-      - name: Build and push neon-tracer-test image
-        uses: docker/build-push-action@v4.0.0
-        with:
-          context: .
-          push: true
-          file: ./tests/Dockerfile
           tags: neonlabsorg/neon-tracer-test:${{github.sha}}
           labels: neonlabsorg/neon-tracer-test:${{github.sha}}
 
-      - name: Build and push neon-rpc image
-        uses: docker/build-push-action@v4.0.0
-        with:
-          context: .
-          push: true
-          file: ./neon-rpc/Dockerfile
-          tags: neonlabsorg/neon-rpc:${{github.sha}}
-          labels: neonlabsorg/neon-rpc:${{github.sha}}
+#      - name: Build and push neon-rpc image
+#        uses: docker/build-push-action@v4.0.0
+#        with:
+#          context: .
+#          push: true
+#          file: ./neon-rpc/Dockerfile
+#          tags: neonlabsorg/neon-rpc:${{github.sha}}
+#          labels: neonlabsorg/neon-rpc:${{github.sha}}
+#
+#      - name: Docker-compose pull
+#        run: docker-compose -f docker-compose-test.yml pull
