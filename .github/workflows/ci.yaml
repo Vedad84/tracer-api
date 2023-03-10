@@ -46,7 +46,7 @@ jobs:
         with:
           context: .
           push: true
-          file: ./test/Dockerfile
+          file: ./tests/Dockerfile
           tags: neonlabsorg/neon-tracer-test:${{github.sha}}
           labels: neonlabsorg/neon-tracer-test:${{github.sha}}
 
