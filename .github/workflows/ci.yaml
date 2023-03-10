@@ -6,7 +6,6 @@ on:
 
 env:
   NEON_REVISION: latest
-#  COMMIT: ${{github.sha}}
   REVISION: ${{github.sha}}
 
 jobs:
@@ -24,34 +23,34 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-#      - name: Build and push neon-tracer image
-#        uses: docker/build-push-action@v4.0.0
-#        with:
-#          context: .
-#          push: true
-#          file: Dockerfile
-#          build-args: NEON_REVISION=${{env.NEON_REVISION}}
-#          tags: neonlabsorg/neon-tracer:${{github.sha}}
-#          labels: neonlabsorg/neon-tracer:${{github.sha}}
+      - name: Build and push neon-tracer image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: .
+          push: true
+          file: Dockerfile
+          build-args: NEON_REVISION=${{env.NEON_REVISION}}
+          tags: neonlabsorg/neon-tracer:${{env.REVISION}}
+          labels: neonlabsorg/neon-tracer:${{env.REVISION}}
 
-#      - name: Build and push neon-tracer-test image
-#        uses: docker/build-push-action@v4.0.0
-#        with:
-#          context: tests
-#          push: true
-#          file: tests/Dockerfile
-#          tags: neonlabsorg/neon-tracer-test:${{github.sha}}
-#          labels: neonlabsorg/neon-tracer-test:${{github.sha}}
+      - name: Build and push neon-tracer-test image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: tests
+          push: true
+          file: tests/Dockerfile
+          tags: neonlabsorg/neon-tracer-test:${{env.REVISION}}
+          labels: neonlabsorg/neon-tracer-test:${{env.REVISION}}
 
 
-#      - name: Build and push neon-rpc image
-#        uses: docker/build-push-action@v4.0.0
-#        with:
-#          context: neon-rpc
-#          push: true
-#          file: neon-rpc/Dockerfile
-#          tags: neonlabsorg/neon-rpc:${{github.sha}}
-#          labels: neonlabsorg/neon-rpc:${{github.sha}}
+      - name: Build and push neon-rpc image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: neon-rpc
+          push: true
+          file: neon-rpc/Dockerfile
+          tags: neonlabsorg/neon-rpc:${{env.REVISION}}
+          labels: neonlabsorg/neon-rpc:${{env.REVISION}}
 
       - name: Docker-compose pull
         run: docker-compose -f docker-compose-test.yml pull
