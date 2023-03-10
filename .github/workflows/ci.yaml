@@ -36,9 +36,9 @@ jobs:
         uses: docker/build-push-action@v4.0.0
 #        work-directory: tests
         with:
-          context: .
+          context: tests
           push: true
-          file: Dockerfile_tests
+          file: tests/Dockerfile
           tags: neonlabsorg/neon-tracer-test:${{github.sha}}
           labels: neonlabsorg/neon-tracer-test:${{github.sha}}
 
