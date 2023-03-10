@@ -34,13 +34,13 @@ jobs:
 
       - name: Build and push neon-tracer-test image
         uses: docker/build-push-action@v4.0.0
-        working-directory: ./test
         with:
           context: .
           push: true
-          file: Dockerfile
+          file: ./tests/Dockerfile
           tags: neonlabsorg/neon-tracer-test:${{github.sha}}
           labels: neonlabsorg/neon-tracer-test:${{github.sha}}
+
 
 #      - name: Build and push neon-rpc image
 #        uses: docker/build-push-action@v4.0.0
