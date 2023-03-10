@@ -6,6 +6,7 @@ on:
 
 env:
   NEON_REVISION: latest
+  COMMIT: ${{github.sha}}
 
 jobs:
 
