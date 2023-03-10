@@ -38,8 +38,8 @@ jobs:
           push: true
           file: Dockerfile
           build-args: NEON_REVISION=${{env.NEON_REVISION}}
-          tags: neonlabsorg/neon-tracer:${{git.sha}}
-          labels: neonlabsorg/neon-tracer:${{git.sha}}
+          tags: neonlabsorg/neon-tracer:${{github.sha}}
+          labels: neonlabsorg/neon-tracer:${{github.sha}}
 
       - name: Build and push neon-tracer-test image
         uses: docker/build-push-action@v4.0.0
@@ -47,8 +47,8 @@ jobs:
           context: .
           push: true
           file: ./test/Dockerfile
-          tags: neonlabsorg/neon-tracer-test:${{git.sha}}
-          labels: neonlabsorg/neon-tracer-test:${{git.sha}}
+          tags: neonlabsorg/neon-tracer-test:${{github.sha}}
+          labels: neonlabsorg/neon-tracer-test:${{github.sha}}
 
       - name: Build and push neon-rpc image
         uses: docker/build-push-action@v4.0.0
@@ -56,5 +56,5 @@ jobs:
           context: .
           push: true
           file: ./neon-rpc/Dockerfile
-          tags: neonlabsorg/neon-rpc:${{git.sha}}
-          labels: neonlabsorg/neon-rpc:${{git.sha}}
+          tags: neonlabsorg/neon-rpc:${{github.sha}}
+          labels: neonlabsorg/neon-rpc:${{github.sha}}
