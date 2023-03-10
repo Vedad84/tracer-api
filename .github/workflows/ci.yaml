@@ -32,24 +32,24 @@ jobs:
 #          tags: neonlabsorg/neon-tracer:${{github.sha}}
 #          labels: neonlabsorg/neon-tracer:${{github.sha}}
 
-      - name: Build and push neon-tracer-test image
-        uses: docker/build-push-action@v4.0.0
-        with:
-          context: tests
-          push: true
-          file: tests/Dockerfile
-          tags: neonlabsorg/neon-tracer-test:${{github.sha}}
-          labels: neonlabsorg/neon-tracer-test:${{github.sha}}
+#      - name: Build and push neon-tracer-test image
+#        uses: docker/build-push-action@v4.0.0
+#        with:
+#          context: tests
+#          push: true
+#          file: tests/Dockerfile
+#          tags: neonlabsorg/neon-tracer-test:${{github.sha}}
+#          labels: neonlabsorg/neon-tracer-test:${{github.sha}}
 
 
-      - name: Build and push neon-rpc image
-        uses: docker/build-push-action@v4.0.0
-        with:
-          context: neon-rpc
-          push: true
-          file: neon-rpc/Dockerfile
-          tags: neonlabsorg/neon-rpc:${{github.sha}}
-          labels: neonlabsorg/neon-rpc:${{github.sha}}
+#      - name: Build and push neon-rpc image
+#        uses: docker/build-push-action@v4.0.0
+#        with:
+#          context: neon-rpc
+#          push: true
+#          file: neon-rpc/Dockerfile
+#          tags: neonlabsorg/neon-rpc:${{github.sha}}
+#          labels: neonlabsorg/neon-rpc:${{github.sha}}
 
-#      - name: Docker-compose pull
-#        run: docker-compose -f docker-compose-test.yml pull
+      - name: Docker-compose pull
+        run: docker-compose -f docker-compose-test.yml pull
