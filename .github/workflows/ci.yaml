@@ -5,7 +5,7 @@ on:
 
 env:
   NEON_REVISION: latest
-  REVISION: ${{github.sha}}
+  BUILDKITE_COMMIT: ${{github.sha}}
 
 jobs:
 
@@ -29,8 +29,8 @@ jobs:
           push: true
           file: Dockerfile
           build-args: NEON_REVISION=${{env.NEON_REVISION}}
-          tags: neonlabsorg/neon-tracer:${{env.REVISION}}
-          labels: neonlabsorg/neon-tracer:${{env.REVISION}}
+          tags: neonlabsorg/neon-tracer:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-tracer:${{env.BUILDKITE_COMMIT}}
 
       - name: Build and push neon-tracer-test image
         uses: docker/build-push-action@v4.0.0
@@ -38,8 +38,8 @@ jobs:
           context: tests
           push: true
           file: tests/Dockerfile
-          tags: neonlabsorg/neon-tracer-test:${{env.REVISION}}
-          labels: neonlabsorg/neon-tracer-test:${{env.REVISION}}
+          tags: neonlabsorg/neon-tracer-test:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-tracer-test:${{env.BUILDKITE_COMMIT}}
 
 
       - name: Build and push neon-rpc image
@@ -48,8 +48,8 @@ jobs:
           context: neon-rpc
           push: true
           file: neon-rpc/Dockerfile
-          tags: neonlabsorg/neon-rpc:${{env.REVISION}}
-          labels: neonlabsorg/neon-rpc:${{env.REVISION}}
+          tags: neonlabsorg/neon-rpc:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-rpc:${{env.BUILDKITE_COMMIT}}
 
       - name: Docker-compose pull
         run: docker-compose -f docker-compose-test.yml pull
@@ -98,15 +98,15 @@ jobs:
 
           echo "Publishing images with tag: ${TAG}"
 
-          docker pull neonlabsorg/neon-tracer:${REVISION}
-          docker tag neonlabsorg/neon-tracer:${REVISION} neonlabsorg/neon-tracer:${TAG}
+          docker pull neonlabsorg/neon-tracer:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-tracer:${BUILDKITE_COMMIT} neonlabsorg/neon-tracer:${TAG}
           docker push neonlabsorg/neon-tracer:${TAG}
 
-          docker pull neonlabsorg/neon-tracer-test:${REVISION}
-          docker tag neonlabsorg/neon-tracer-test:${REVISION} neonlabsorg/neon-tracer-test:${TAG}
+          docker pull neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT} neonlabsorg/neon-tracer-test:${TAG}
           docker push neonlabsorg/neon-tracer-test:${TAG}
 
-          docker pull neonlabsorg/neon-rpc:${REVISION}
-          docker tag neonlabsorg/neon-rpc:${REVISION} neonlabsorg/neon-rpc:${TAG}
+          docker pull neonlabsorg/neon-rpc:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-rpc:${BUILDKITE_COMMIT} neonlabsorg/neon-rpc:${TAG}
           docker push neonlabsorg/neon-rpc:${TAG}
 

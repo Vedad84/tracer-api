@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set ${NEON_REVISION:=latest}
-set ${REVISION:=$BUILDKITE_COMMIT}
 
-echo "Tracer API revision=${REVISION}"
+echo "Tracer API revision=${BUILDKITE_COMMIT}"
 echo "Neon EVM revision=${NEON_REVISION}"
