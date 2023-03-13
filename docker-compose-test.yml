@@ -209,7 +209,7 @@ services:
       MONITORING_INTERVAL_SEC: 1
       EVM_RUNTIME_KNOWN_REVISIONS: '[{"slot": 0, "revision": "latest"}]'
       EVM_RUNTIME_NETWORK_NAME: tracer-api_net
-    image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-ci-eip-1898}
+    image: neonlabsorg/neon-tracer:${REVISION:-ci-eip-1898}
     depends_on:
       tracer_db:
         condition: service_healthy
@@ -261,7 +261,7 @@ services:
   neon-rpc:
     container_name: neon-rpc
     hostname: neon-rpc
-    image: neonlabsorg/neon-rpc:${BUILDKITE_COMMIT:-ci-eip-1898}
+    image: neonlabsorg/neon-rpc:${REVISION:-ci-eip-1898}
     expose:
       - "9090"
     networks:
@@ -277,7 +277,7 @@ services:
   neon-tracer-test:
     container_name: neon-tracer-test
     hostname: neon-tracer-test
-    image: neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT:-ci-eip-1898}
+    image: neonlabsorg/neon-tracer-test:${REVISION:-ci-eip-1898}
     networks:
       - net
     depends_on:
