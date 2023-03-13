@@ -85,11 +85,11 @@ jobs:
           fi
       - name: Publish images
         if: |
-           ( github.ref_name == 'develop' ||
-             github.ref_name == 'master' ||
+           ( ${{github.ref_name}} == 'develop' ||
+             ${{github.ref_name}} == 'master' ||
              steps.is_version_branch.outputs.value) ||
-             startsWith(github.ref , 'refs/tags/') ||
-             startsWith(github.ref_name , 'ci-')
+             startsWith(${{github.ref}} , 'refs/tags/') ||
+             startsWith(${{github.ref_name}} , 'ci-')
         run: |
           if [[ ${{github.ref_name}} == "master" ]]; then
               TAG=latest
