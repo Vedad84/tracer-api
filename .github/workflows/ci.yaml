@@ -1,0 +1,112 @@
+name: ci_pipeline
+
+on:
+  push:
+
+env:
+  NEON_REVISION: latest
+  BUILDKITE_COMMIT: ${{github.sha}}
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Build and push neon-tracer image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: .
+          push: true
+          file: Dockerfile
+          build-args: NEON_REVISION=${{env.NEON_REVISION}}
+          tags: neonlabsorg/neon-tracer:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-tracer:${{env.BUILDKITE_COMMIT}}
+
+      - name: Build and push neon-tracer-test image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: tests
+          push: true
+          file: tests/Dockerfile
+          tags: neonlabsorg/neon-tracer-test:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-tracer-test:${{env.BUILDKITE_COMMIT}}
+
+
+      - name: Build and push neon-rpc image
+        uses: docker/build-push-action@v4.0.0
+        with:
+          context: neon-rpc
+          push: true
+          file: neon-rpc/Dockerfile
+          tags: neonlabsorg/neon-rpc:${{env.BUILDKITE_COMMIT}}
+          labels: neonlabsorg/neon-rpc:${{env.BUILDKITE_COMMIT}}
+
+      - name: Docker-compose pull
+        run: docker-compose -f docker-compose-test.yml pull
+
+      - name: Up neon-tracer-test
+        run: docker-compose -f docker-compose-test.yml up neon-tracer-test
+
+      - name: Dump docker logs
+        uses: jwalton/gh-docker-logs@v2
+        with:
+          dest: './logs'
+      - name: Tar logs
+        run: tar cvzf ./logs.tgz ./logs
+      - name: Upload logs to GitHub
+        uses: actions/upload-artifact@master
+        with:
+          name: logs.tgz
+          path: ./logs.tgz
+
+      - name: Down docker-compose
+        run: docker-compose -f docker-compose-test.yml down
+
+      - name: Check if it version branch
+        id: is_version_branch
+        run: |
+          if [[ "${{ github.ref }}" =~ "refs/heads/"[v][0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "value=true"
+              echo "value=true" >> $GITHUB_OUTPUT
+          else
+              echo "value=false"
+              echo "value=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Publish images
+        if: |
+           ( ${{github.ref_name}} == 'develop' ||
+             ${{github.ref_name}} == 'master' ||
+             steps.is_version_branch.outputs.value) ||
+             startsWith(${{github.ref}} , 'refs/tags/') ||
+             startsWith(${{github.ref_name}} , 'ci-')
+        run: |
+          if [[ ${{github.ref_name}} == "master" ]]; then
+              TAG=latest
+          else
+              TAG=${{github.ref_name}}
+          fi
+
+          echo "Publishing images with tag: ${TAG}"
+
+          docker pull neonlabsorg/neon-tracer:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-tracer:${BUILDKITE_COMMIT} neonlabsorg/neon-tracer:${TAG}
+          docker push neonlabsorg/neon-tracer:${TAG}
+
+          docker pull neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-tracer-test:${BUILDKITE_COMMIT} neonlabsorg/neon-tracer-test:${TAG}
+          docker push neonlabsorg/neon-tracer-test:${TAG}
+
+          docker pull neonlabsorg/neon-rpc:${BUILDKITE_COMMIT}
+          docker tag neonlabsorg/neon-rpc:${BUILDKITE_COMMIT} neonlabsorg/neon-rpc:${TAG}
+          docker push neonlabsorg/neon-rpc:${TAG}
+
