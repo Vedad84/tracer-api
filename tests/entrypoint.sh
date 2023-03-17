@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sleep 10 # Remove after switching to heatcheck in faucet
+sleep 300 # unload CI machines after validator start
 
 curl -X POST http://faucet:3333/request_neon \
    -H 'Content-Type: application/json'  \

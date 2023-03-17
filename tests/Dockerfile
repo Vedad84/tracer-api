@@ -1,7 +1,10 @@
 FROM ubuntu:20.04
 
-RUN apt-get update && apt-get install -y python3 python3-pip
-RUN apt-get install -y curl
+RUN apt-get update && \
+    apt install -y ca-certificates && \
+    update-ca-certificates --fresh && \
+    apt-get install -y python3 python3-pip && \
+    apt-get install -y curl
 
 ENV PRIVATE_KEY_1=0xf5c746b15e3bdd6bf8c516031a15de16ea161ce10552635abb27c9bd16e0a04a
 COPY requirements.txt /

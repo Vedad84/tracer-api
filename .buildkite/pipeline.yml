@@ -22,6 +22,7 @@ steps:
       - "proxy.log"
       - "neon-tracer-test.log"
       - "neon-rpc.log"
+      - "tracer_db.log"
 
   - wait
 
