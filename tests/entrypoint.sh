@@ -1,6 +1,6 @@
 #!/bin/bash
 
-sleep 300 # unload CI machines after validator start
+sleep 420 # unload CI machines after validator start
 
 curl -X POST http://faucet:3333/request_neon \
    -H 'Content-Type: application/json'  \
