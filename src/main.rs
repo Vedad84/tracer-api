@@ -23,6 +23,7 @@ mod config;
 mod evm_runtime;
 mod stop_handle;
 mod types;
+mod account_ordering;
 
 fn init_logs() {
     let writer = std::io::stdout;
@@ -80,6 +81,11 @@ async fn run() {
 
     let evm_runtime_handle = (*evm_runtime).clone().start();
     let server_handle = server.start(module).unwrap();
+    let acc_ord_job_handle = if options.enable_acc_ord_job {
+        Some(account_ordering::start_account_ordering(tracer_db.clone()))
+    } else {
+        None
+    };
 
     let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap();
     let mut sigint = signal::unix::signal(signal::unix::SignalKind::interrupt()).unwrap();
@@ -88,11 +94,15 @@ async fn run() {
         _ = sigint.recv() => {}
     }
 
-    let handles = vec![
+    let mut handles = vec![
         server_handle.stop().unwrap(),
         evm_runtime_handle.stop().unwrap(),
         monitor_handle.stop().unwrap(),
     ];
+
+    if let Some(acc_ord_job_handle) = acc_ord_job_handle {
+        handles.push(acc_ord_job_handle.stop().unwrap());
+    }
 
     futures::future::join_all(handles).await;
 }

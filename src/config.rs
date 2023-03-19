@@ -112,6 +112,7 @@ pub struct Options {
     pub metrics_ip: Ipv4Addr,
     pub metrics_port: u16,
     pub evm_runtime_config: EVMRuntimeConfig,
+    pub enable_acc_ord_job: bool,
 }
 
 pub fn read_config() -> Options {
@@ -136,7 +137,9 @@ pub fn read_config() -> Options {
     let chain_id = chain_id.parse::<u32>()
         .unwrap_or_else(|_| panic!("Failed to parse NEON_CHAIN_ID"));
     let evm_runtime_config = read_evm_runtime_config(&evm_loader, &token_mint, chain_id);
-
+    let enable_acc_ord_job = std::env::var("ENABLE_ACCOUNT_ORDERING_JOB")
+        .unwrap_or("False".to_string()).to_lowercase();
+    let enable_acc_ord_job = enable_acc_ord_job == "yes" || enable_acc_ord_job == "true";
 
     Options {
         addr,
@@ -147,6 +150,7 @@ pub fn read_config() -> Options {
             .unwrap_or_else(|_| panic!("Failed to parse METRICS_IP {}", metrics_ip)),
         metrics_port: metrics_port.parse::<u16>()
             .unwrap_or_else(|_| panic!("Failed to parse metrics port {}", metrics_port)),
-        evm_runtime_config
+        evm_runtime_config,
+        enable_acc_ord_job,
     }
 }
