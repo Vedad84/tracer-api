@@ -209,7 +209,7 @@ services:
       MONITORING_INTERVAL_SEC: 1
       EVM_RUNTIME_KNOWN_REVISIONS: '[{"slot": 0, "revision": "72f95822fe1388adf0d8cbd96c0261188c0510dd"}]'
       EVM_RUNTIME_NETWORK_NAME: tracer-api_net
-      ENABLE_ACCOUNT_ORDERING_JOB: True
+      ENABLE_ACCOUNT_ORDERING_JOB: "True"
     image: neonlabsorg/neon-tracer:${BUILDKITE_COMMIT:-latest}
     depends_on:
       tracer_db:
