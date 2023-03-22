@@ -23,6 +23,7 @@ mod config;
 mod evm_runtime;
 mod stop_handle;
 mod types;
+mod account_ordering;
 
 fn init_logs() {
     let writer = std::io::stdout;
@@ -79,25 +80,38 @@ async fn run() {
     );
 
     let evm_runtime_handle = (*evm_runtime).clone().start();
-    let server_handle = server.start(module).unwrap();
+    let server_handle = server.start(module)
+        .expect("Failed to start JSON RPC Server");
+    let acc_ord_job_handle = if options.enable_acc_ord_job {
+        Some(account_ordering::start_account_ordering(tracer_db.clone()))
+    } else {
+        None
+    };
 
-    let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate()).unwrap();
-    let mut sigint = signal::unix::signal(signal::unix::SignalKind::interrupt()).unwrap();
+    let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
+        .expect("Failed to initialize SIGTERM handler");
+    let mut sigint = signal::unix::signal(signal::unix::SignalKind::interrupt())
+        .expect("Failed to initialize SIGINT handler");
     tokio::select! {
         _ = sigterm.recv() => {}
         _ = sigint.recv() => {}
     }
 
-    let handles = vec![
-        server_handle.stop().unwrap(),
-        evm_runtime_handle.stop().unwrap(),
-        monitor_handle.stop().unwrap(),
+    let mut handles = vec![
+        server_handle.stop().expect("Failed to stop JSON RPC Server"),
+        evm_runtime_handle.stop().expect("Failed to stop EVM Runtime"),
+        monitor_handle.stop().expect("Failed to stop Monitoring"),
     ];
+
+    if let Some(acc_ord_job_handle) = acc_ord_job_handle {
+        handles.push(acc_ord_job_handle.stop().expect("Failed to stop Account Ordering Job"));
+    }
 
     futures::future::join_all(handles).await;
 }
 
 fn main() {
-    let rt = tokio::runtime::Runtime::new().unwrap();
+    let rt = tokio::runtime::Runtime::new()
+        .expect("Failed to initialize tokio runtime");
     rt.block_on(run());
 }
