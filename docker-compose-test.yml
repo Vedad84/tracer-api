@@ -9,12 +9,6 @@ services:
       POSTGRES_DB: solana
       POSTGRES_USER: solana-user
       POSTGRES_PASSWORD: solana-pass
-      HISTORY_PART_SLOT_COUNT: 150
-      HISTORY_START_SLOT: 0
-      HISTORY_RETENTION_SLOTS: 1500
-      TEMP_ACCOUNT_PART_SLOT_COUNT: 50
-      TEMP_ACCOUNT_RETENTION_SLOTS: 1500
-      MAINTENANCE_SCHEDULE: '*/1 * * * *'
     hostname: tracer_db
     expose:
       - "5432"
@@ -26,6 +20,26 @@ services:
       timeout: 10s
       retries: 10
       start_period: 5s
+
+  tracer_db_deployer:
+    container_name: tracer_db_deployer
+    image: neonlabsorg/tracerdb_deployer:latest
+    environment:
+      POSTGRES_HOST: tracer_db
+      POSTGRES_DB: solana
+      POSTGRES_USER: solana-user
+      PGPASSWORD: solana-pass
+      HISTORY_PART_SLOT_COUNT: 150
+      HISTORY_START_SLOT: 0
+      HISTORY_RETENTION_SLOTS: 1500
+      TEMP_ACCOUNT_PART_SLOT_COUNT: 50
+      TEMP_ACCOUNT_RETENTION_SLOTS: 1500
+      MAINTENANCE_SCHEDULE: '*/1 * * * *'
+    networks:
+      - net
+    depends_on:
+      tracer_db:
+        condition: service_healthy
 
   postgres:
     container_name: postgres
@@ -84,6 +98,8 @@ services:
     depends_on:
       tracer_db:
         condition: service_healthy
+      tracer_db_deployer:
+        condition: service_completed_successfully
     healthcheck:
       # Must be available from outside (calling without -u causes premature result)
       test: [ CMD-SHELL, "./wait-for-neon.sh" ]
