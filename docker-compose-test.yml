@@ -3,7 +3,7 @@ version: "3"
 services:
   tracer_db:
     container_name: tracer_db
-    image: neonlabsorg/tracerdb:NDEV-1488-tracer-api-separate-schema-deployment-from-db-setup
+    image: neonlabsorg/tracerdb:latest
     command: postgres -c 'max_connections=1000'
     environment:
       POSTGRES_DB: solana
@@ -23,7 +23,7 @@ services:
 
   tracer_db_deployer:
     container_name: tracer_db_deployer
-    image: neonlabsorg/tracerdb_deployer:NDEV-1488-tracer-api-separate-schema-deployment-from-db-setup
+    image: neonlabsorg/tracerdb_deployer:latest
     environment:
       POSTGRES_HOST: tracer_db
       POSTGRES_DB: solana
