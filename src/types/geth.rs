@@ -115,7 +115,7 @@ impl ExecutionResult {
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
             if !options.disable_stack {
-                l.stack = Some(d.stack.iter().map(|entry|{ U256::from_le_bytes(*entry) }).collect());
+                l.stack = Some(d.stack.iter().map(|entry|{ U256::from_be_bytes(*entry) }).collect());
             }
 
             if options.enable_memory && !d.memory.is_empty() {
@@ -128,7 +128,7 @@ impl ExecutionResult {
             }
 
             if !options.disable_storage  {
-                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_le_bytes(v)) }).collect());
+                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_be_bytes(v)) }).collect());
             }
         });
 
