@@ -1,4 +1,5 @@
 use {
+    crate::opcodes::opcode_name,
     super::Bytes,
     std::{collections::BTreeMap, iter},
     neon_cli_lib::types::trace::{TracedCall, VMTrace, VMOperation},
@@ -208,7 +209,7 @@ impl StructLog {
 impl From<(usize, VMOperation)> for StructLog {
     fn from((depth, vm_operation): (usize, VMOperation)) -> Self {
         let pc = vm_operation.pc as u64;
-        let op_name = "";
+        let op_name = opcode_name(vm_operation.instruction);
         let gas = vm_operation
             .executed
             .as_ref()

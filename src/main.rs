@@ -16,14 +16,15 @@ use {
     neon_cli_lib::types::{TracerDb, IndexerDb},
 };
 
-mod data_source;
-mod service;
-mod metrics;
+mod account_ordering;
 mod config;
+mod data_source;
 mod evm_runtime;
+mod metrics;
+mod opcodes;
+mod service;
 mod stop_handle;
 mod types;
-mod account_ordering;
 
 fn init_logs() {
     let writer = std::io::stdout;
