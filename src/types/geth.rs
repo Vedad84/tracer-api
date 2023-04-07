@@ -102,9 +102,7 @@ impl From<TracedCall> for ExecutionResult {
 
 impl ExecutionResult {
     pub fn new(traced_call: TracedCall, options: &TraceTransactionOptions) -> Self {
-        let failed = false; // TODO: NDEV-1206, NDEV-1207
         let gas = traced_call.used_gas;
-        let return_value = String::new(); // TODO NDEV-1206, NDEV-1207
 
         let mut logs: Vec<StructLog> = match traced_call.vm_trace {
             Some(vm_trace) => StructLog::from_trace_with_depth(vm_trace, 1).collect(),
@@ -134,9 +132,9 @@ impl ExecutionResult {
         });
 
         Self {
-            failed,
+            failed: traced_call.exit_status.to_ascii_lowercase() != "succeed",
             gas,
-            return_value,
+            return_value: traced_call.result,
             struct_logs: logs,
         }
     }
@@ -213,8 +211,8 @@ impl From<(usize, VMOperation)> for StructLog {
         let gas = vm_operation
             .executed
             .as_ref()
-            .map(|e| e.gas_used.as_u128() as u64);
-        let gas_cost = vm_operation.gas_cost.as_u128() as u64;
+            .map(|e| e.gas_used.as_u64());
+        let gas_cost = vm_operation.gas_cost.as_u64();
         let depth = depth as u32;
         let memory = None;
         let stack = None;
