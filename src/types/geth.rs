@@ -49,6 +49,8 @@ pub struct TraceTransactionOptions {
     #[serde(default)]
     pub disable_stack: bool,
     #[serde(default)]
+    pub enable_return_data: bool,
+    #[serde(default)]
     pub tracer: Option<String>,
     #[serde(default)]
     pub timeout: Option<String>,
@@ -129,6 +131,10 @@ impl ExecutionResult {
             if !options.disable_storage  {
                 l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_be_bytes(v)) }).collect());
             }
+
+            if options.enable_return_data {
+                l.return_data = d.return_data;
+            }
         });
 
         Self {
@@ -165,6 +171,8 @@ pub struct StructLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     // pub stack: Option<Vec<[u8; 32]>>,
     pub stack: Option<Vec<U256>>,
+    /// Result of the step
+    pub return_data: Option<Vec<u8>>,
     /// Snapshot of the current storage
     #[serde(skip_serializing_if = "Option::is_none")]
     // pub storage: Option<BTreeMap<U256, [u8; 32]>>,
@@ -216,6 +224,7 @@ impl From<(usize, VMOperation)> for StructLog {
         let depth = depth as u32;
         let memory = None;
         let stack = None;
+        let return_data = None;
         let storage = None;
         let error = None;
 
@@ -227,6 +236,7 @@ impl From<(usize, VMOperation)> for StructLog {
             depth,
             memory,
             stack,
+            return_data,
             storage,
             error,
         }
