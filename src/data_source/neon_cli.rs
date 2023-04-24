@@ -2,7 +2,10 @@ use {
     std::{time::Duration, sync::Arc},
     log::*,
     evm_loader::types::Address,
-    neon_cli_lib::types::trace::TracedCall,
+    neon_cli_lib::types::{
+        trace::{TracedCall, TraceCallConfig, TraceConfig},
+        {TransactionHashParams, TransactionParams},
+    },
     crate::{evm_runtime::EVMRuntime, service::Result},
     ethnum::U256,
     super::ERR,
@@ -32,22 +35,22 @@ impl NeonCli{
         }
     }
 
-    async fn execute <T, F: FnOnce(serde_json::Value) -> Result<T> > (
+    async fn execute<T, F: FnOnce(serde_json::Value) -> Result<T> > (
         &self,
         cmd: Vec<&str>,
-        data: Option<Vec<u8>>,
+        payload: Option<impl serde::Serialize>,
         slot: u64,
         tout: &Duration,
-        f: F,
-        def: Option<T>
+        parse_result: F,
+        default: Option<T>
     ) -> Result<T> {
-        let result =  self.evm_runtime.run_command_with_slot_revision(cmd, data, slot, tout)
+        let result =  self.evm_runtime.run_command_with_slot_revision(cmd, payload, slot, tout)
             .await.map_err(|e| ERR(&e.to_string()))?;
 
         let stderr = std::str::from_utf8(&result.stderr).map_err(|_| ERR("read neon-cli stderr"))?;
 
         if !result.stdout.is_empty() {
-            let stdout = std::str::from_utf8(&result.stdout).map_err(|_|  ERR("read neon-cli stdout"))?;
+            let stdout = std::str::from_utf8(&result.stdout).map_err(|_| ERR("read neon-cli stdout"))?;
             debug!("neon_cli STDOUT: {}", stdout)
         };
         debug!("neon_cli STDERR: {}", stderr);
@@ -56,14 +59,13 @@ impl NeonCli{
             if let serde_json::Value::Object(map) = json{
 
                 if let serde_json::Value::String(result) = map.get("result")
-                    .ok_or_else(||  ERR("get neon-cli json.result"))? {
+                    .ok_or_else(|| ERR("get neon-cli json.result"))? {
 
                     if result == "success" {
-                        let value = map.get("value").ok_or_else(||  ERR("get neon-cli json.value"))?;
-                        f(value.clone())
-                    } else
-                    {
-                        def.ok_or_else(|| {
+                        let value = map.get("value").ok_or_else(|| ERR("get neon-cli json.value"))?;
+                        parse_result(value.clone())
+                    } else {
+                        default.ok_or_else(|| {
                             debug!("neon_cli STDERR: {}", stderr);
                             ERR("neon-cli json.result != success")
                         })
@@ -109,7 +111,7 @@ impl NeonCli{
         ];
         let f = |value|-> Result<String> {
             if let serde_json::Value::Object(map) = value {
-                if let serde_json::Value::String(result) = map.get("result").ok_or_else(||  ERR("get neon-cli json.value.result"))? {
+                if let serde_json::Value::String(result) = map.get("result").ok_or_else(|| ERR("get neon-cli json.value.result"))? {
                     Ok(format!("0x{}", result))
                 } else {
                     Err(ERR("cast neon-cli json.value.result->String"))
@@ -119,7 +121,8 @@ impl NeonCli{
             }
         };
 
-        self.execute(cmd, data, slot, tout, f, None).await
+        let transaction_params = TransactionParams { data: data.map(Into::into), trace_config: None };
+        self.execute(cmd, Some(transaction_params), slot, tout, f, None).await
     }
 
     #[allow(unused)]
@@ -131,6 +134,7 @@ impl NeonCli{
         data: Option<Vec<u8>>,
         gas_limit: Option<U256>,
         slot: u64,
+        trace_config: Option<TraceCallConfig>,
         tout: &Duration,
     ) -> Result<TracedCall> {
         let slot_ = slot.to_string();
@@ -160,7 +164,8 @@ impl NeonCli{
             serde_json::from_value(value).map_err(|_| ERR("deserialize neon-cli json.value to TraceCall"))
         };
 
-        self.execute(cmd, data, slot, tout, f, None).await
+        let transaction_params = TransactionParams { data: data.map(Into::into), trace_config };
+        self.execute(cmd, Some(transaction_params), slot, tout, f, None).await
     }
 
     #[allow(unused)]
@@ -168,9 +173,9 @@ impl NeonCli{
         &self,
         hash: U256,
         slot: u64,
+        trace_config: Option<TraceConfig>,
         tout: &Duration,
     ) -> Result<TracedCall> {
-
         let hash = hash.to_be_bytes();
         let hash = format!("0x{}", hex::encode(hash));
 
@@ -189,7 +194,8 @@ impl NeonCli{
             serde_json::from_value(value).map_err(|_| ERR("deserialize neon-cli json.value to TracedCall"))
         };
 
-        self.execute(cmd, None, slot, tout, f, None).await
+        let transaction_params = TransactionHashParams { trace_config };
+        self.execute(cmd, Some(transaction_params), slot, tout, f, None).await
     }
 
     pub async fn get_storage_at(&self, to: Address, index: U256, slot: u64, tout: &Duration) -> Result<U256> {
@@ -211,7 +217,7 @@ impl NeonCli{
             U256::from_str_hex(&format!("0x{}", &value) ).map_err(|_| ERR("cast neon-cli json.value->U256"))
         };
 
-        self.execute(cmd, None, slot, tout, f, Some(U256::default())).await
+        self.execute(cmd, None::<()>, slot, tout, f, Some(U256::default())).await
     }
 
     pub async fn get_balance(&self, address: Address, slot: u64, tout: &Duration) -> Result<U256> {
@@ -279,7 +285,7 @@ impl NeonCli{
             &address,
         ];
 
-        self.execute(cmd, None, slot, tout, f, Some(Default::default())).await
+        self.execute(cmd, None::<()>, slot, tout, f, Some(Default::default())).await
     }
 }
 

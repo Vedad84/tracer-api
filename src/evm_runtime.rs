@@ -59,16 +59,19 @@ pub enum EVMRuntimeError {
     KnownRevisionsCorrupted,
 
     #[error("Failed to pull image {image_name}")]
-    PullImageError{ image_name: String },
+    PullImageError { image_name: String },
 
     #[error("Failed to upload DB config into container {name}: {err}")]
-    UploadDBConfigError{ name: String, err: String },
+    UploadDBConfigError { name: String, err: String },
 
     #[error("Failed to parse ELF params for EVM in slot {slot}: {err}")]
-    ParseElfError{ slot: u64, err: String },
+    ParseElfError { slot: u64, err: String },
 
     #[error("Timeout reached")]
     TimeoutError,
+
+    #[error("Serialization error: {err:?}")]
+    SerializationError { err: serde_json::Error },
 }
 
 // Aimed to store names of known containers - maps EVM revision to corresponding container name
@@ -603,7 +606,7 @@ impl EVMRuntime {
         &self,
         container_name: &String,
         command: Vec<&str>,
-        stdin_data: Option<Vec<u8>>,
+        payload: Option<impl serde::Serialize>,
     ) -> Result<ExecResult, EVMRuntimeError> {
 
         let config = CreateExecOptions {
@@ -629,10 +632,11 @@ impl EVMRuntime {
         if let Ok(result) = exec_res {
             match result {
                 StartExecResults::Attached { mut output, mut input } => {
-                    if let Some(stdin_data) = stdin_data {
-                        let stdin_data = Vec::from(hex::encode(stdin_data).as_bytes());
+                    if let Some(payload) = payload {
+                        let stdin_data = serde_json::to_string(&payload)
+                            .map_err(|err| EVMRuntimeError::SerializationError { err })?;
                         info!("Write stdin: {:?}", &stdin_data);
-                        if let Err(err) = input.write_all(&stdin_data).await {
+                        if let Err(err) = input.write_all(stdin_data.as_bytes()).await {
                             return Err(EVMRuntimeError::ExecuteCommandError {
                                 name: container_name.clone(),
                                 err: format!("writing stdin: {:?}", err),
@@ -701,7 +705,7 @@ impl EVMRuntime {
     pub async fn run_command_with_revision(
         &self,
         command: Vec<&str>,
-        stdin_data: Option<Vec<u8>>,
+        payload: Option<impl serde::Serialize>,
         revision: &str,
         tout: &std::time::Duration,
     ) -> Result<ExecResult, EVMRuntimeError> {
@@ -713,14 +717,14 @@ impl EVMRuntime {
             if let Some(container_name) = known_containers.get(revision) {
                 debug!("using existing container {}", container_name);
                 self.wakeup_container(container_name, tout).await?;
-                return self.run_command_private(container_name, command, stdin_data).await;
+                return self.run_command_private(container_name, command, payload).await;
             }
         }
 
         debug!("create new container");
         let container = self.new_container(revision).await?;
         self.wait_container_running(&container, tout).await?;
-        return self.run_command_private(&container, command, stdin_data).await;
+        return self.run_command_private(&container, command, payload).await;
     }
 
     fn parse_elf_params(program_data: &[u8]) -> Result<HashMap<String,String>, EVMRuntimeError> {
@@ -910,14 +914,13 @@ impl EVMRuntime {
     pub async fn run_command_with_slot_revision(
         &self,
         command: Vec<&str>,
-        stdin_data: Option<Vec<u8>>,
+        payload: Option<impl serde::Serialize>,
         slot: u64,
         tout: &std::time::Duration,
     ) -> Result<ExecResult, EVMRuntimeError> {
         let revision = self.get_slot_revision(slot).await?;
-        self.run_command_with_revision(command, stdin_data, &revision, tout).await
+        self.run_command_with_revision(command, payload, &revision, tout).await
     }
-
 }
 
 #[cfg(test)]

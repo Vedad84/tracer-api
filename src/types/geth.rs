@@ -1,8 +1,11 @@
+use neon_cli_lib::types::trace::TraceConfig;
 use {
     crate::opcodes::opcode_name,
-    super::Bytes,
     std::{collections::BTreeMap, iter},
-    neon_cli_lib::types::trace::{TracedCall, VMTrace, VMOperation},
+    neon_cli_lib::types::{
+        trace::{TracedCall, VMTrace, VMOperation},
+        Bytes,
+    },
     serde::{self, Deserialize, Serialize},
     evm_loader::types::Address,
     ethnum::U256,
@@ -38,24 +41,6 @@ pub struct TransactionArgs {
     /// Chain id
     pub chain_id: Option<U256>,
 }
-
-#[derive(Debug, Serialize, Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-pub struct TraceTransactionOptions {
-    #[serde(default)]
-    pub enable_memory: bool,
-    #[serde(default)]
-    pub disable_storage: bool,
-    #[serde(default)]
-    pub disable_stack: bool,
-    #[serde(default)]
-    pub enable_return_data: bool,
-    #[serde(default)]
-    pub tracer: Option<String>,
-    #[serde(default)]
-    pub timeout: Option<String>,
-}
-
 
 #[derive(Serialize, Debug)]
 #[serde(untagged, rename_all = "camelCase")]
@@ -103,7 +88,7 @@ impl From<TracedCall> for ExecutionResult {
 }
 
 impl ExecutionResult {
-    pub fn new(traced_call: TracedCall, options: &TraceTransactionOptions) -> Self {
+    pub fn new(traced_call: TracedCall, options: &TraceConfig) -> Self {
         let gas = traced_call.used_gas;
 
         let mut logs: Vec<StructLog> = match traced_call.vm_trace {
@@ -140,7 +125,7 @@ impl ExecutionResult {
         Self {
             failed: traced_call.exit_status.to_ascii_lowercase() != "succeed",
             gas,
-            return_value: traced_call.result,
+            return_value: hex::encode(traced_call.result),
             struct_logs: logs,
         }
     }
