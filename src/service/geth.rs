@@ -20,7 +20,11 @@ pub trait GethTrace {
     #[method(name = "debug_traceCall")]
     async fn trace_call(&self, a: TransactionArgs, b: BlockNumber, o: Option<TraceCallConfig>) -> Result<Trace>;
     #[method(name = "debug_traceTransaction")]
-    async fn trace_transaction(&self, t: U256, o: Option<TraceConfig>) -> Result<Option<Trace>>;
+    async fn trace_transaction(&self, t: U256, o: Option<TraceConfig>) -> Result<Trace>;
+    #[method(name = "debug_traceBlockByNumber")]
+    async fn trace_block_by_number(&self, b: BlockNumber, o: Option<TraceConfig>) -> Result<Vec<Trace>>;
+    #[method(name = "debug_traceBlockByHash")]
+    async fn trace_block_by_hash(&self, bh: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>>;
 }
 
 
@@ -55,7 +59,7 @@ impl GethTraceServer for DataSource {
         result
     }
 
-    async fn trace_transaction(&self, hash: U256, o: Option<TraceConfig>) -> Result<Option<Trace>> {
+    async fn trace_transaction(&self, hash: U256, o: Option<TraceConfig>) -> Result<Trace> {
         let started = metrics::report_incoming_request("debug_traceTransaction");
 
         info!("debug_traceTransaction (hash={:?})", hash.to_string() );
@@ -70,10 +74,51 @@ impl GethTraceServer for DataSource {
             let o = o.unwrap_or_default();
             let response = Trace::Logs(ExecutionResult::new(trace_call,&o));
             info!("debug_traceTransaction => {:?}", response);
-            Some(response)
+            response
         });
         metrics::report_request_finished(started, "debug_traceTransaction", result.is_ok());
 
         result
     }
+
+    async fn trace_block_by_number(&self, tag: BlockNumber, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
+        let started = metrics::report_incoming_request("debug_traceBlockByNumber");
+        let tout = std::time::Duration::new(10, 0);
+        let slot = self.get_block_number(tag)?;
+        let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
+
+        let result = result.map(|trace_calls| {
+            let o = o.unwrap_or_default();
+            let response = trace_calls.into_iter()
+                .map(|trace_call| Trace::Logs(ExecutionResult::new(trace_call,&o)))
+                .collect();
+            info!("debug_traceBlockByNumber => {:?}", response);
+            response
+        });
+        metrics::report_request_finished(started, "debug_traceBlockByNumber", result.is_ok());
+
+        result
+    }
+
+    async fn trace_block_by_hash(&self, bh: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
+        let started = metrics::report_incoming_request("debug_traceBlockByHash");
+        let tout = std::time::Duration::new(10, 0);
+        let hash = bh.to_be_bytes();
+        let slot = self.indexer_db.get_slot_by_block_hash(&hash)
+            .map_err(|e | ERR(&format!("get_slot_by_block_hash error: {}", e)))?;
+        let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
+
+        let result = result.map(|trace_calls| {
+            let o = o.unwrap_or_default();
+            let response = trace_calls.into_iter()
+                .map(|trace_call| Trace::Logs(ExecutionResult::new(trace_call,&o)))
+                .collect();
+            info!("debug_traceBlockByHash => {:?}", response);
+            response
+        });
+        metrics::report_request_finished(started, "debug_traceBlockByHash", result.is_ok());
+
+        result
+    }
 }
+

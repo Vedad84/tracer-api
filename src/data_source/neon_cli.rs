@@ -4,7 +4,7 @@ use {
     evm_loader::types::Address,
     neon_cli_lib::types::{
         trace::{TracedCall, TraceCallConfig, TraceConfig},
-        {TransactionHashParams, TransactionParams},
+        {TraceBlockBySlotParams, TransactionHashParams, TransactionParams},
     },
     crate::{evm_runtime::EVMRuntime, service::Result},
     ethnum::U256,
@@ -183,7 +183,7 @@ impl NeonCli{
             "neon-cli",
             "--db_config", &self.db_config,
             "--evm_loader", &self.evm_loader,
-            "trace_hash",
+            "trace-hash",
             "--token_mint", &self.token_mint,
             "--chain_id", &self.chain_id,
             "--max_steps_to_execute", &self.steps_to_execute,
@@ -196,6 +196,33 @@ impl NeonCli{
 
         let transaction_params = TransactionHashParams { trace_config };
         self.execute(cmd, Some(transaction_params), slot, tout, f, None).await
+    }
+
+    #[allow(unused)]
+    pub async fn trace_block_by_slot (
+        &self,
+        slot: u64,
+        trace_config: Option<TraceConfig>,
+        tout: &Duration,
+    ) -> Result<Vec<TracedCall>> {
+        let slot_ = slot.to_string();
+        let mut cmd = vec![
+            "neon-cli",
+            "--db_config", &self.db_config,
+            "--slot", &slot_,
+            "--evm_loader", &self.evm_loader,
+            "trace-block-by-slot",
+            "--token_mint", &self.token_mint,
+            "--chain_id", &self.chain_id,
+            "--max_steps_to_execute", &self.steps_to_execute,
+        ];
+
+        let f = |value|-> Result<Vec<TracedCall>> {
+            serde_json::from_value(value).map_err(|_| ERR("deserialize neon-cli json.value to TracedCall"))
+        };
+
+        let trace_params = TraceBlockBySlotParams { trace_config };
+        self.execute(cmd, Some(trace_params), slot, tout, f, None).await
     }
 
     pub async fn get_storage_at(&self, to: Address, index: U256, slot: u64, tout: &Duration) -> Result<U256> {

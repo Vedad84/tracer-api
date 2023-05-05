@@ -1,8 +1,6 @@
 const tracingMethods = new Set([
-    'debug_traceBlock',
     'debug_traceBlockByHash',
     'debug_traceBlockByNumber',
-    'debug_traceBlockFromFile',
     'debug_traceCall',
     'debug_traceTransaction',
     'trace_block',
