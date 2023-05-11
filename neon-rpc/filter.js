@@ -1,18 +1,18 @@
-const tracingMethods = new Set([
-    'debug_traceBlockByHash',
-    'debug_traceBlockByNumber',
-    'debug_traceCall',
-    'debug_traceTransaction',
-    'trace_block',
-    'trace_call',
-    'trace_callMany',
-    'trace_filter',
-    'trace_get',
-    'trace_rawTransaction',
-    'trace_replayBlockTransactions',
-    'trace_replayTransaction',
-    'trace_transaction',
-]);
+const tracingMethods = {
+    'debug_traceBlockByHash': null,
+    'debug_traceBlockByNumber': null,
+    'debug_traceCall': null,
+    'debug_traceTransaction': null,
+    'trace_block': null,
+    'trace_call': null,
+    'trace_callMany': null,
+    'trace_filter': null,
+    'trace_get': null,
+    'trace_rawTransaction': null,
+    'trace_replayBlockTransactions': null,
+    'trace_replayTransaction': null,
+    'trace_transaction': null,
+}
 
 const eip1898Methods = {
     'eth_getStorageAt': 2,
@@ -20,18 +20,22 @@ const eip1898Methods = {
     'eth_getCode': 1,
     'eth_getTransactionCount': 1,
     'eth_call': 1,
-};
+}
 
-const predefinedTags = new Set(['latest', 'pending', 'earliest']);
+const predefinedTags = {
+    'latest': null,
+    'pending': null,
+    'earliest': null,
+}
 
 function isEIP1898Method(req) {
     let paramIndex = eip1898Methods[req.method];
-    return (paramIndex !== undefined) && !predefinedTags.has(req.params[paramIndex]);
+    return (paramIndex !== undefined) && predefinedTags[req.params[paramIndex]] === undefined;
 }
 
 async function process(req) {
     let json = JSON.parse(req.requestText);
-    if (tracingMethods.has(json.method) || isEIP1898Method(json)) {
+    if (tracingMethods[json.method] !== undefined || isEIP1898Method(json)) {
         req.internalRedirect('/tracer');
     } else {
         req.internalRedirect('/proxy');
