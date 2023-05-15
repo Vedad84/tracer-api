@@ -635,7 +635,7 @@ impl EVMRuntime {
                     if let Some(payload) = payload {
                         let stdin_data = serde_json::to_string(&payload)
                             .map_err(|err| EVMRuntimeError::SerializationError { err })?;
-                        info!("Write stdin: {:?}", &stdin_data);
+                        info!("Write stdin: {stdin_data}");
                         if let Err(err) = input.write_all(stdin_data.as_bytes()).await {
                             return Err(EVMRuntimeError::ExecuteCommandError {
                                 name: container_name.clone(),

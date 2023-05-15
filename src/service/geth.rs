@@ -35,13 +35,14 @@ impl GethTraceServer for DataSource {
 
         let data = a.input.map(|v| v.0);
         info!(
-            "debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?})",
+            "debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?}, config:{:?})",
             a.from,
             a.to,
             data.as_ref().map(|v| hex::encode(&v)),
             a.value,
             a.gas,
-            a.gas_price
+            a.gas_price,
+            o,
         );
 
         let tout = std::time::Duration::new(10, 0);
@@ -62,7 +63,7 @@ impl GethTraceServer for DataSource {
     async fn trace_transaction(&self, hash: U256, o: Option<TraceConfig>) -> Result<Trace> {
         let started = metrics::report_incoming_request("debug_traceTransaction");
 
-        info!("debug_traceTransaction (hash={:?})", hash.to_string() );
+        info!("debug_traceTransaction (hash={hash}. config={o:?})");
 
         let tout = std::time::Duration::new(10, 0);
         let h = hash.to_be_bytes();
@@ -83,6 +84,9 @@ impl GethTraceServer for DataSource {
 
     async fn trace_block_by_number(&self, tag: BlockNumber, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByNumber");
+
+        info!("debug_traceBlockByNumber (tag={tag:?}, config={o:?})");
+
         let tout = std::time::Duration::new(10, 0);
         let slot = self.get_block_number(tag)?;
         let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
@@ -100,10 +104,13 @@ impl GethTraceServer for DataSource {
         result
     }
 
-    async fn trace_block_by_hash(&self, bh: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
+    async fn trace_block_by_hash(&self, hash: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByHash");
+
+        info!("debug_traceBlockByHash (hash={hash}, config={o:?})");
+
         let tout = std::time::Duration::new(10, 0);
-        let hash = bh.to_be_bytes();
+        let hash = hash.to_be_bytes();
         let slot = self.indexer_db.get_slot_by_block_hash(&hash)
             .map_err(|e | ERR(&format!("get_slot_by_block_hash error: {}", e)))?;
         let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
