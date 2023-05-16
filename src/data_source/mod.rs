@@ -11,6 +11,7 @@ use {
     arrayref::array_ref,
     log::{debug, warn},
     neon_cli_lib::types::{IndexerDb, TracerDb},
+    tokio::task::block_in_place,
     std::sync::Arc,
     tracer_db::TracerDbExtention,
     web3::{transports::Http, types::BlockId, Web3},
@@ -45,7 +46,7 @@ impl DataSource {
         }
     }
 
-    pub async fn get_block_number(&self, tag: BlockNumber, id: u16) -> Result<u64> {
+    pub fn get_block_number(&self, tag: BlockNumber, id: u16) -> Result<u64> {
         match tag {
             BlockNumber::Num(num) => Ok(num),
             BlockNumber::Hash { hash, .. } => {
@@ -58,17 +59,20 @@ impl DataSource {
                 let bytes = array_ref![hash, 0, 32];
                 let hash_web3 = web3::types::H256::from(bytes);
 
-                let result = self.web3
+                let future = self.web3
                     .eth()
-                    .block(BlockId::Hash(hash_web3)).await.map_err(|e| Error::Custom(format!("eth_getBlockByHash error {}", e)))?;
-                let block_number = result
+                    .block(BlockId::Hash(hash_web3));
+
+                let result = block_in_place(|| {
+                    let handle = tokio::runtime::Handle::current();
+                    handle.block_on(future)
+                }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
+
+                Ok(result
                     .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
                     .number
                     .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .as_u64();
-                debug!("id {:?}: Block number {:?}", id, block_number);
-
-                Ok(block_number)
+                    .as_u64())
             },
             BlockNumber::Earliest => {
                 self.tracer_db.get_earliest_slot().map_err(

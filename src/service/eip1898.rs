@@ -51,7 +51,7 @@ impl EIP1898Server for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let result = self
             .neon_api
             .emulate(o.from, o.to, o.value, data, slot, &tout, id)
@@ -77,7 +77,7 @@ impl EIP1898Server for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let value = self
             .neon_api
             .get_storage_at(address, index, slot, &tout, id)
@@ -95,7 +95,7 @@ impl EIP1898Server for DataSource {
         info!("id {:?}: eth_getBalance({:?}, {:?})", id, address, tag);
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let balance = self.neon_api.get_balance(address, slot, &tout, id).await;
         info!("id {:?}: eth_getBalance => {:?}", id, balance);
         metrics::report_request_finished(started, "eth_getBalance", balance.is_ok());
@@ -110,7 +110,7 @@ impl EIP1898Server for DataSource {
         info!("id {:?}: eth_getCode({:?}, {:?})", id, address, tag);
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let code = self.neon_api.get_code(address, slot, &tout, id).await;
         info!("id {:?}, eth_getCode => {:?}", id, code);
         metrics::report_request_finished(started, "eth_getCode", code.is_ok());
@@ -128,7 +128,7 @@ impl EIP1898Server for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let count = self.neon_api.get_trx_count(address, slot, &tout, id).await;
         info!("id {:?}: eth_getTransactionCount => {:?}", id, count);
         metrics::report_request_finished(started, "eth_getTransactionCount", count.is_ok());

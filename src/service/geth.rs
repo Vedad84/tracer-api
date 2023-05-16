@@ -56,7 +56,7 @@ impl GethTraceServer for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id).await?;
+        let slot = self.get_block_number(tag, id)?;
         let result = self
             .neon_api
             .trace(a.from, a.to, a.value, data, a.gas, slot, &tout, id)
