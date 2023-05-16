@@ -110,7 +110,7 @@ async fn run() {
     futures::future::join_all(handles).await;
 }
 
-fn main() {
-    let rt = tokio::runtime::Runtime::new().expect("Failed to initialize tokio runtime");
-    rt.block_on(run());
+#[tokio::main]
+async fn main() {
+    run().await;
 }
