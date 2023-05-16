@@ -1,24 +1,23 @@
-mod neon_cli;
+mod neon_api;
 pub mod tracer_db;
 
 use {
-    std::sync::Arc,
-    web3::{ transports::Http, Web3, types::BlockId, },
     crate::{
-        evm_runtime::EVMRuntime,
-        data_source::neon_cli::NeonCli,
+        api_client::{client::Client as NeonAPIClient, config::Config as NeonAPIConfig},
+        data_source::neon_api::NeonAPIDataSource,
         service::{Error, Result},
         types::BlockNumber,
     },
-    neon_cli_lib::types::{TracerDb, IndexerDb},
-    tokio::task::block_in_place,
-    tracer_db::TracerDbExtention,
-    log::{debug, warn},
     arrayref::array_ref,
+    log::{debug, warn},
+    neon_cli_lib::types::{IndexerDb, TracerDb},
+    std::sync::Arc,
+    tracer_db::TracerDbExtention,
+    web3::{transports::Http, types::BlockId, Web3},
 };
 
-pub const ERR: fn(&str)->Error = |e: &str| -> Error {
-    warn!("error: {}", e);
+pub const ERR: fn(&str, id: u16) -> Error = |e: &str, id: u16| -> Error {
+    warn!("id {:?}: error: {}", id, e);
     Error::Custom("Internal server error".to_string())
 };
 
@@ -27,7 +26,7 @@ pub struct DataSource {
     tracer_db: TracerDb,
     pub indexer_db: IndexerDb,
     web3: Arc<Web3<Http>>,
-    pub neon_cli: NeonCli,
+    pub neon_api: NeonAPIDataSource,
 }
 
 impl DataSource {
@@ -35,12 +34,18 @@ impl DataSource {
         tracer_db: TracerDb,
         indexer_db: IndexerDb,
         web3: Arc<Web3<Http>>,
-        evm_runtime: Arc<EVMRuntime>,
+        neon_config: NeonAPIConfig,
+        neon_api_client: NeonAPIClient,
     ) -> Self {
-        Self {tracer_db, indexer_db,  web3, neon_cli: NeonCli::new(evm_runtime) }
+        Self {
+            tracer_db,
+            indexer_db,
+            web3,
+            neon_api: NeonAPIDataSource::new(neon_config, neon_api_client),
+        }
     }
 
-    pub fn get_block_number(&self, tag: BlockNumber) -> Result<u64> {
+    pub async fn get_block_number(&self, tag: BlockNumber, id: u16) -> Result<u64> {
         match tag {
             BlockNumber::Num(num) => Ok(num),
             BlockNumber::Hash { hash, .. } => {
@@ -48,25 +53,22 @@ impl DataSource {
                 let hash = hash.to_be_bytes();
 
                 let hash_str = format!("0x{}", hex::encode(hash));
-                debug!("Get block number {:?}", &hash_str);
+                debug!("id {:?}: Get block number {:?}", id, &hash_str);
 
                 let bytes = array_ref![hash, 0, 32];
                 let hash_web3 = web3::types::H256::from(bytes);
 
-                let future = self.web3
+                let result = self.web3
                     .eth()
-                    .block(BlockId::Hash(hash_web3));
-
-                let result = block_in_place(|| {
-                    let handle = tokio::runtime::Handle::current();
-                    handle.block_on(future)
-                }).map_err(|err| Error::Custom(format!("Failed to get block number: {:?}", err)))?;
-
-                Ok(result
+                    .block(BlockId::Hash(hash_web3)).await.map_err(|e| Error::Custom(format!("eth_getBlockByHash error {}", e)))?;
+                let block_number = result
                     .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
                     .number
                     .ok_or_else(|| Error::Custom(format!("Failed to obtain block number for hash: {}", hash_str)))?
-                    .as_u64())
+                    .as_u64();
+                debug!("id {:?}: Block number {:?}", id, block_number);
+
+                Ok(block_number)
             },
             BlockNumber::Earliest => {
                 self.tracer_db.get_earliest_slot().map_err(
@@ -83,5 +85,4 @@ impl DataSource {
             }
         }
     }
-
 }

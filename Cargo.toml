@@ -11,13 +11,9 @@ tokio = { version = "1", features = ["full"] }
 serde = { version = "1.0", features = ["derive", "rc"] }
 rustc-hex = "2.1"
 log = "0.4"
-parity-bytes = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-log = "0.1"
-byte-slice-cast = "1.2.1"
-postgres = { version = "0.19.2", features = ["with-chrono-0_4"] }
-tokio-postgres = {version="0.7.6", features=["with-uuid-0_8"]}
 evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, features = ["tracing"]}
 neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-cli"}
 solana-sdk = "=1.14"
@@ -30,12 +26,10 @@ lazy_static = "1.4"
 thiserror = "1.0"
 warp = "0.3.2"
 web3 = "0.18.0"
-phf = { version = "0.10.1", features = ["macros"] }
 prometheus = { version = "0.9", features = ["process"] }
-serde-pickle = "1.1.1"
-bollard = "0.12.0"
 futures = "0.3.25"
 futures-util = "0.3.25"
-goblin = "0.4.2"
 async-trait = "0.1.59"
 ethnum = { version = "1", default_features = false, features = [ "serde" ] }
+rand = "0.8.5"
+reqwest = { version = "0.11", features = ["json"] }
