@@ -33,7 +33,8 @@ Test environment in docker-compose-test.yml uses single postgres database for bo
 - **neon-tracer** - Neon Tracer-API service. Environment variables:
   - LISTENER_ADDR - IP:PORT where to listen client connections
   - SOLANA_URL - URL of Solana Validator RPC entrypoint
-  - EVM_LOADER - Address of Neon-EVM Loader smart-contract 
+  - EVM_LOADER - Address of Neon-EVM Loader smart-contract
+  - NEON_API_URL - URL of Neon API (NeonCLI) (default: http://127.0.0.1:8080)
   - TRACER_DB_HOST - Hostname of Dumper-DB (same as for **postgres** service)
   - TRACER_DB_PORT - Port of Dumper-DB (same as for **postgres** service)
   - TRACER_DB_NAME - Name Dumper-DB database (same as POSTGRES_DB of **postgres** service)
