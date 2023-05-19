@@ -5,7 +5,7 @@ use crate::service::Result;
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
-use neon_cli_lib::types::trace::TracedCall;
+use neon_cli_lib::types::trace::{TraceCallConfig, TraceConfig, TracedCall};
 
 use super::ERR;
 
@@ -44,7 +44,7 @@ impl NeonAPIDataSource {
         let slot = Some(slot);
         let token_mint = Some(self.config.clone().token_mint);
         let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
+        let max_steps_to_execute = self.steps_to_execute;
         let gas_limit = None;
         let cached_accounts = None;
         let solana_accounts = None;
@@ -99,34 +99,26 @@ impl NeonAPIDataSource {
         data: Option<Vec<u8>>,
         gas_limit: Option<U256>,
         slot: u64,
+        trace_call_config: Option<TraceCallConfig>,
         tout: &Duration,
         id: u16,
     ) -> Result<TracedCall> {
-        let sender = from.unwrap_or_default();
-        let contract = to;
-        let slot = Some(slot);
-        let token_mint = Some(self.config.clone().token_mint);
-        let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
-        let gas_limit = gas_limit;
-        let cached_accounts = None;
-        let solana_accounts = None;
-
         let response = self
             .api_client
             .clone()
             .trace(
-                sender,
-                contract,
+                from.unwrap_or_default(),
+                to,
                 data,
                 value,
                 gas_limit,
-                token_mint,
-                chain_id,
-                max_steps_to_execute,
-                cached_accounts,
-                solana_accounts,
-                slot,
+                Some(self.config.clone().token_mint),
+                Some(self.config.clone().chain_id),
+                self.steps_to_execute,
+                None,
+                None,
+                Some(slot),
+                trace_call_config,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
@@ -140,27 +132,15 @@ impl NeonAPIDataSource {
             .map_err(|_| ERR("deserialize neon-cli json.value to TracedCall", id))
     }
 
-    #[allow(clippy::too_many_arguments)]
     #[allow(unused)]
     pub async fn trace_hash(
         &self,
         hash: U256,
         slot: u64,
+        trace_config: Option<TraceConfig>,
         tout: &Duration,
         id: u16,
     ) -> Result<TracedCall> {
-        let sender = Address::default();
-        let contract = None;
-        let data = None;
-        let value = None;
-        let slot = Some(slot);
-        let token_mint = Some(self.config.clone().token_mint);
-        let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
-        let gas_limit = None;
-        let cached_accounts = None;
-        let solana_accounts = None;
-
         let hash = hash.to_be_bytes();
         let hash = format!("0x{}", hex::encode(hash));
 
@@ -168,18 +148,45 @@ impl NeonAPIDataSource {
             .api_client
             .clone()
             .trace_hash(
-                sender,
-                contract,
-                data,
-                value,
-                gas_limit,
-                token_mint,
-                chain_id,
-                max_steps_to_execute,
-                cached_accounts,
-                solana_accounts,
-                slot,
+                Some(self.config.token_mint),
+                Some(self.config.chain_id),
+                self.steps_to_execute,
+                None,
+                None,
                 hash,
+                trace_config,
+            )
+            .await
+            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
+
+        if response.result != "success" {
+            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            return Err(ERR("result != success", id));
+        }
+
+        serde_json::from_str(&response.value)
+            .map_err(|_| ERR("deserialize neon-cli json.value to TracedCall", id))
+    }
+
+    #[allow(unused)]
+    pub async fn trace_next_block(
+        &self,
+        slot: u64,
+        trace_config: Option<TraceConfig>,
+        tout: &Duration,
+        id: u16,
+    ) -> Result<Vec<TracedCall>> {
+        let response = self
+            .api_client
+            .clone()
+            .trace_next_block(
+                Some(self.config.token_mint),
+                Some(self.config.chain_id),
+                self.steps_to_execute,
+                None,
+                None,
+                slot,
+                trace_config,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
@@ -205,7 +212,7 @@ impl NeonAPIDataSource {
         let response = self
             .api_client
             .clone()
-            .get_storage_at(to, Some(index), Some(slot))
+            .get_storage_at(to, index, Some(slot))
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 

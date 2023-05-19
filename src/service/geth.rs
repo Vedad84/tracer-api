@@ -1,21 +1,17 @@
 use {
     async_trait::async_trait,
     jsonrpsee::proc_macros::rpc,
-    log::*,
     neon_cli_lib::types::trace::{TraceCallConfig, TraceConfig},
     crate::{
         data_source::{DataSource, ERR},
         metrics,
         service::Result,
         types::{
-            geth::{ExecutionResult, Trace, TraceTransactionOptions, TransactionArgs},
+            geth::{ExecutionResult, Trace, TransactionArgs},
             BlockNumber,
-            BlockNumber, geth::{TransactionArgs, Trace, ExecutionResult},
         },
     },
-    async_trait::async_trait,
     ethnum::U256,
-    jsonrpsee::proc_macros::rpc,
     log::info,
 };
 
@@ -62,7 +58,7 @@ impl GethTraceServer for DataSource {
         let data = a.input.map(|v| v.0);
         let id = rand::random::<u16>();
         info!(
-            "id {:?}: debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?})",
+            "id {:?}: debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?}, config={:?})",
             id,
             a.from,
             a.to,
@@ -77,7 +73,7 @@ impl GethTraceServer for DataSource {
         let slot = self.get_block_number(tag, id)?;
         let result = self
             .neon_api
-            .trace(a.from, a.to, a.value, data, a.gas, slot, &tout, id)
+            .trace(a.from, a.to, a.value, data, a.gas, slot, o.clone(), &tout, id)
             .await;
 
         let result = result.map(|trace_call| {
@@ -108,7 +104,7 @@ impl GethTraceServer for DataSource {
             .get_slot(&h)
             .map_err(|e| ERR(&format!("get_slot error: {e}"), id))?;
 
-        let result = self.neon_api.trace_hash(hash, slot, &tout, o.clone(), id).await;
+        let result = self.neon_api.trace_hash(hash, slot, o.clone(), &tout, id).await;
 
         let result = result.map(|trace_call| {
             let o = o.unwrap_or_default();
@@ -124,11 +120,16 @@ impl GethTraceServer for DataSource {
     async fn trace_block_by_number(&self, tag: BlockNumber, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByNumber");
 
-        info!("debug_traceBlockByNumber (tag={tag:?}, config={o:?})");
+        let id = rand::random::<u16>();
+        info!("id {id}: debug_traceBlockByNumber (tag={tag:?}, config={o:?})");
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag)?;
-        let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
+        let slot = self.get_block_number(tag, id)?;
+        if slot == 0 {
+            return Err(ERR("Genesis block is not traceable", id));
+        }
+
+        let result = self.neon_api.trace_next_block(slot - 1, o.clone(), &tout, id).await;
 
         let result = result.map(|trace_calls| {
             let o = o.unwrap_or_default();
@@ -146,13 +147,17 @@ impl GethTraceServer for DataSource {
     async fn trace_block_by_hash(&self, hash: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByHash");
 
-        info!("debug_traceBlockByHash (hash={hash}, config={o:?})");
+        let id = rand::random::<u16>();
+        info!("id {id}: debug_traceBlockByHash (hash={hash}, config={o:?})");
 
         let tout = std::time::Duration::new(10, 0);
         let hash = hash.to_be_bytes();
         let slot = self.indexer_db.get_slot_by_block_hash(&hash)
-            .map_err(|e | ERR(&format!("get_slot_by_block_hash error: {}", e)))?;
-        let result = self.neon_cli.trace_block_by_slot(slot, o.clone(), &tout).await;
+            .map_err(|e | ERR(&format!("get_slot_by_block_hash error: {}", e), id))?;
+        if slot == 0 {
+            return Err(ERR("Genesis block is not traceable", id));
+        }
+        let result = self.neon_api.trace_next_block(slot - 1, o.clone(), &tout, id).await;
 
         let result = result.map(|trace_calls| {
             let o = o.unwrap_or_default();
