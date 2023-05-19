@@ -4,7 +4,7 @@ on:
   push:
 
 env:
-  NEON_REVISION: 72f95822fe1388adf0d8cbd96c0261188c0510dd
+  NEON_REVISION: e9958884baedfd0e029e823e92e7c6ff2ccb52c2
   BUILDKITE_COMMIT: ${{github.sha}}
 
 jobs:
