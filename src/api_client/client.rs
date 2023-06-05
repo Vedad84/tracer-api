@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::api_client::Result;
+use crate::api_client::{config::Config, models::NeonApiResponse, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
@@ -11,21 +11,26 @@ use reqwest::{
 use serde::Serialize;
 use solana_sdk::pubkey::Pubkey;
 
-use super::{
-    errors::NeonAPIClientError,
-    models::{GetEtherAccountDataRequest, GetStorageAtRequest, NeonApiResponse, TxParamsRequest},
+use super::errors::NeonAPIClientError;
+use neon_cli_lib::types::{
+    request_models::{
+        EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
+        GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
+    },
 };
 
 #[derive(Clone)]
 pub struct Client {
+    config: Arc<Config>,
     pub neon_api_url: String,
     pub http_client: Arc<ReqwestClient>,
 }
 
 impl Client {
     /// Creates a new [`NeonAPIClient`].
-    pub fn new(neon_api_url: impl Into<String>) -> Client {
+    pub fn new(config: Arc<Config>, neon_api_url: impl Into<String>) -> Client {
         Client {
+            config,
             neon_api_url: neon_api_url.into(),
             http_client: Arc::new(ReqwestClient::new()),
         }
@@ -149,19 +154,19 @@ impl Client {
         address: Address,
         slot: Option<u64>,
     ) -> Result<NeonApiResponse> {
-        let params = GetEtherAccountDataRequest {
+        let params = GetEtherRequest {
             ether: address,
             slot,
         };
 
-        self.get_request::<GetEtherAccountDataRequest>("/api/get-ether-account-data", params)
+        self.get_request("/api/get-ether-account-data", params)
             .await
     }
 
     pub async fn get_storage_at(
         &self,
         address: Address,
-        index: Option<U256>,
+        index: U256,
         slot: Option<u64>,
     ) -> Result<NeonApiResponse> {
         let params = GetStorageAtRequest {
@@ -170,7 +175,7 @@ impl Client {
             slot,
         };
 
-        self.get_request::<GetStorageAtRequest>("/api/get-storage-at", params)
+        self.get_request("/api/get-storage-at", params)
             .await
     }
 
@@ -182,77 +187,60 @@ impl Client {
         data: Option<Vec<u8>>,
         value: Option<U256>,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
-        max_steps_to_execute: Option<u64>,
+        max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
     ) -> Result<NeonApiResponse> {
-        let value = value.map(|v| v.to_string());
-        let gas_limit = gas_limit.map(|v| v.to_string());
-        let token_mint = token_mint.map(|v| v.to_string());
-        let solana_accounts =
-            solana_accounts.map(|vec| vec.into_iter().map(|v| v.to_string()).collect());
-
-        let params = TxParamsRequest {
+        let tx_params = TxParamsRequestModel {
             sender,
             contract,
             data,
             value,
             gas_limit,
-            token_mint,
-            chain_id,
+        };
+
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
+        );
+
+        let params = EmulateRequestModel {
+            tx_params,
+            emulation_params,
             slot,
-            hash: None,
         };
 
-        self.post_request::<TxParamsRequest>("/api/emulate", params)
+        self.post_request("/api/emulate", params)
             .await
     }
 
     #[allow(unused)]
-    #[allow(clippy::too_many_arguments)]
     pub async fn emulate_hash(
         &self,
-        sender: Address,
-        contract: Option<Address>,
-        data: Option<Vec<u8>>,
-        value: Option<U256>,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
-        max_steps_to_execute: Option<u64>,
+        max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
-        slot: Option<u64>,
         hash: String,
     ) -> Result<NeonApiResponse> {
-        let value = value.map(|v| v.to_string());
-        let gas_limit = gas_limit.map(|v| v.to_string());
-        let token_mint = token_mint.map(|v| v.to_string());
-        let solana_accounts =
-            solana_accounts.map(|vec| vec.into_iter().map(|v| v.to_string()).collect());
-
-        let params = TxParamsRequest {
-            sender,
-            contract,
-            data,
-            value,
-            gas_limit,
-            token_mint,
-            chain_id,
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
-            slot,
-            hash: Some(hash),
+        );
+
+        let params = EmulateHashRequestModel {
+            emulation_params,
+            hash,
         };
 
-        self.post_request::<TxParamsRequest>("/api/emulate_hash", params)
+        self.post_request("/api/emulate_hash", params)
             .await
     }
 
@@ -264,76 +252,67 @@ impl Client {
         data: Option<Vec<u8>>,
         value: Option<U256>,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
-        max_steps_to_execute: Option<u64>,
+        max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
     ) -> Result<NeonApiResponse> {
-        let value = value.map(|v| v.to_string());
-        let gas_limit = gas_limit.map(|v| v.to_string());
-        let token_mint = token_mint.map(|v| v.to_string());
-        let solana_accounts =
-            solana_accounts.map(|vec| vec.into_iter().map(|v| v.to_string()).collect());
-
-        let params = TxParamsRequest {
+        let tx_params = TxParamsRequestModel {
             sender,
             contract,
             data,
             value,
             gas_limit,
-            token_mint,
-            chain_id,
+        };
+
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
+        );
+
+        let emulate_request = EmulateRequestModel {
+            tx_params,
+            emulation_params,
             slot,
-            hash: None,
         };
 
-        self.post_request::<TxParamsRequest>("/api/trace", params)
+        let params = TraceRequestModel {
+            emulate_request,
+        };
+
+        self.post_request("/api/trace", params)
             .await
     }
 
     #[allow(clippy::too_many_arguments)]
     pub async fn trace_hash(
         &self,
-        sender: Address,
-        contract: Option<Address>,
-        data: Option<Vec<u8>>,
-        value: Option<U256>,
-        gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
-        max_steps_to_execute: Option<u64>,
+        max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
-        slot: Option<u64>,
         hash: String,
     ) -> Result<NeonApiResponse> {
-        let value = value.map(|v| v.to_string());
-        let gas_limit = gas_limit.map(|v| v.to_string());
-        let token_mint = token_mint.map(|v| v.to_string());
-        let solana_accounts =
-            solana_accounts.map(|vec| vec.into_iter().map(|v| v.to_string()).collect());
-
-        let params = TxParamsRequest {
-            sender,
-            contract,
-            data,
-            value,
-            gas_limit,
-            token_mint,
-            chain_id,
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
-            slot,
-            hash: Some(hash),
+        );
+
+        let emulate_hash_request = EmulateHashRequestModel {
+            emulation_params,
+            hash,
         };
 
-        self.post_request::<TxParamsRequest>("/api/trace_hash", params)
+        let params = TraceHashRequestModel {
+            emulate_hash_request,
+        };
+
+        self.post_request("/api/trace_hash", params)
             .await
     }
 }

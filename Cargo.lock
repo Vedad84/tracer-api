@@ -1592,7 +1592,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 [[package]]
 name = "evm-loader"
 version = "0.15.0-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#97bd32087f257eb4188eac4dea70b8581fa09d7e"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1717-cli-api-parameters#35394b06ca14ae9844fd12bad272936985da29fd"
 dependencies = [
  "arrayref",
  "bincode",
@@ -1620,7 +1620,7 @@ dependencies = [
 [[package]]
 name = "evm-loader-macro"
 version = "1.0.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#97bd32087f257eb4188eac4dea70b8581fa09d7e"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1717-cli-api-parameters#35394b06ca14ae9844fd12bad272936985da29fd"
 dependencies = [
  "bs58",
  "itertools",
@@ -2909,7 +2909,7 @@ dependencies = [
 [[package]]
 name = "neon-cli"
 version = "0.15.0-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=develop#97bd32087f257eb4188eac4dea70b8581fa09d7e"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1717-cli-api-parameters#35394b06ca14ae9844fd12bad272936985da29fd"
 dependencies = [
  "arrayref",
  "bincode",

@@ -19,9 +19,9 @@ pub struct NeonAPIDataSource {
 }
 
 impl NeonAPIDataSource {
-    pub fn new(config: Config, client: Client) -> Self {
+    pub fn new(config: Arc<Config>, client: Client) -> Self {
         NeonAPIDataSource {
-            config: Arc::new(config),
+            config,
             api_client: Arc::new(client),
             steps_to_execute: NUM_STEPS_TO_EXECUTE,
         }
@@ -44,7 +44,7 @@ impl NeonAPIDataSource {
         let slot = Some(slot);
         let token_mint = Some(self.config.clone().token_mint);
         let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
+        let max_steps_to_execute = self.steps_to_execute;
         let gas_limit = None;
         let cached_accounts = None;
         let solana_accounts = None;
@@ -58,8 +58,6 @@ impl NeonAPIDataSource {
                 data,
                 value,
                 gas_limit,
-                token_mint,
-                chain_id,
                 max_steps_to_execute,
                 cached_accounts,
                 solana_accounts,
@@ -102,31 +100,19 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u16,
     ) -> Result<TracedCall> {
-        let sender = from.unwrap_or_default();
-        let contract = to;
-        let slot = Some(slot);
-        let token_mint = Some(self.config.clone().token_mint);
-        let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
-        let gas_limit = gas_limit;
-        let cached_accounts = None;
-        let solana_accounts = None;
-
         let response = self
             .api_client
             .clone()
             .trace(
-                sender,
-                contract,
+                from.unwrap_or_default(),
+                to,
                 data,
                 value,
                 gas_limit,
-                token_mint,
-                chain_id,
-                max_steps_to_execute,
-                cached_accounts,
-                solana_accounts,
-                slot,
+                self.steps_to_execute,
+                None,
+                None,
+                Some(slot),
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
@@ -149,18 +135,6 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u16,
     ) -> Result<TracedCall> {
-        let sender = Address::default();
-        let contract = None;
-        let data = None;
-        let value = None;
-        let slot = Some(slot);
-        let token_mint = Some(self.config.clone().token_mint);
-        let chain_id = Some(self.config.clone().chain_id);
-        let max_steps_to_execute = Some(self.steps_to_execute);
-        let gas_limit = None;
-        let cached_accounts = None;
-        let solana_accounts = None;
-
         let hash = hash.to_be_bytes();
         let hash = format!("0x{}", hex::encode(hash));
 
@@ -168,17 +142,9 @@ impl NeonAPIDataSource {
             .api_client
             .clone()
             .trace_hash(
-                sender,
-                contract,
-                data,
-                value,
-                gas_limit,
-                token_mint,
-                chain_id,
-                max_steps_to_execute,
-                cached_accounts,
-                solana_accounts,
-                slot,
+                self.steps_to_execute,
+                None,
+                None,
                 hash,
             )
             .await
@@ -205,7 +171,7 @@ impl NeonAPIDataSource {
         let response = self
             .api_client
             .clone()
-            .get_storage_at(to, Some(index), Some(slot))
+            .get_storage_at(to, index, Some(slot))
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
