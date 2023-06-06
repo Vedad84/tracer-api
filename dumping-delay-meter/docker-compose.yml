@@ -1,0 +1,64 @@
+version: "3.7"
+
+services:
+  postgres:
+    container_name: postgres
+    image: postgres:14.0
+    command: postgres -c 'max_connections=1000'
+    environment:
+      POSTGRES_DB: neon-db
+      POSTGRES_USER: neon-proxy
+      POSTGRES_PASSWORD: neon-proxy-pass
+    hostname: postgres
+    healthcheck:
+      test: [ CMD-SHELL, "pg_isready -h postgres -p 5432" ]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    expose:
+      - "5432"
+    ports:
+      - 5432:5432
+    networks:
+      - net
+
+  pgadmin:
+    container_name: pgadmin
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: il@neonlabs.org
+      PGADMIN_DEFAULT_PASSWORD: qazwsx
+    ports:
+      - 127.0.0.1:8080:80
+    volumes:
+      - ./server.json:/pgadmin4/servers.json
+    networks:
+      - net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  tester:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: neonlabsorg/delay-test-tester:latest
+    environment:
+      RUST_LOG: dumping_delay_meter::main=debug,dumping_delay_meter::generator=debug,dumping_delay_meter::event_monitor=debug
+      DEPLOYER_PRIVATE_KEY: 41ac2becab52d55cb204c65366c3475189064d1d612cc2552103b96de0909ec4
+      WEB3_URL: https://ch-graph.neontest.xyz
+      CALLER: 41ac2becab52d55cb204c65366c3475189064d1d612cc2552103b96de0909ec4
+      NETWORK_ID: 245022926
+      GENERATION_INTERVAL: 500
+      MONITORING_INTERVAL: 500
+      READ_DELAY_SPREAD_SLOTS: 70
+      PG_CONNECTION_STRING: host=postgres port=5432 dbname=neon-db user=neon-proxy password=neon-proxy-pass
+    networks:
+      - net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+networks:
+  net:
