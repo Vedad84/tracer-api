@@ -14,8 +14,8 @@ log = "0.4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-log = "0.1"
-evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "NDEV-1717-cli-api-parameters", default_features = false, features = ["tracing"]}
-neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "NDEV-1717-cli-api-parameters", default_features = false, package = "neon-cli"}
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, features = ["tracing"]}
+neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-cli"}
 solana-sdk = "=1.14"
 solana-cli-config = "=1.14"
 hex = "0.4.2"
