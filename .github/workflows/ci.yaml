@@ -2,16 +2,24 @@ name: ci_pipeline
 
 on:
   push:
+  workflow_dispatch:
+
 
 env:
   NEON_REVISION: f9f972fd6afcc263df0da49de77ac4c6830df755
   BUILDKITE_COMMIT: ${{github.sha}}
-
+  DB_CLICKHOUSE_URLS: ${{ vars.DB_CLICKHOUSE_URLS }}
+  DB_INDEXER_HOST: common.c9fdygf2jhef.eu-central-1.rds.amazonaws.com
+  DB_INDEXER_PORT: 5432
+  DB_INDEXER_DATABASE: indexer
+  DB_INDEXER_USER: postgres
+  INDEXER_DB_PASSWORD: ${{secrets.INDEXER_DB_PASSWORD}}
+  SOLANA_URL: ${{ secrets.SOLANA_URL }}
 jobs:
 
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: tracert-ci
 
     steps:
       - uses: actions/checkout@v3
@@ -55,7 +63,7 @@ jobs:
         run: docker-compose -f docker-compose-test.yml pull
 
       - name: Up neon-tracer-test
-        run: docker-compose -f docker-compose-test.yml up neon-tracer-test
+        run: docker-compose -f docker-compose-test.yml up neon-tracer-test --quiet-pull
 
       - name: Dump docker logs
         uses: jwalton/gh-docker-logs@v2
@@ -70,7 +78,7 @@ jobs:
           path: ./logs.tgz
 
       - name: Down docker-compose
-        run: docker-compose -f docker-compose-test.yml down
+        run: docker-compose -f docker-compose-test.yml down --rmi all -v
 
       - name: Check if it version branch
         id: is_version_branch

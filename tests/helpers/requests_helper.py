@@ -31,16 +31,6 @@ def get_tx_info(tx_hex) -> str:
     })
 
 
-def request_airdrop(address, amount: int = 1000):
-    FAUCET_URL = os.environ.get('FAUCET_URL', 'http://faucet:3333')
-    url = FAUCET_URL + '/request_neon'
-    data = f'{{"wallet": "{address}", "amount": {amount}}}'
-    r = requests.post(url, data=data)
-    if not r.ok:
-        print()
-        print('Bad response:', r)
-    assert(r.ok)
-
 STORAGE_SOLIDITY_SOURCE = '''
 pragma solidity >=0.4.0;
 /**

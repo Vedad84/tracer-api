@@ -210,7 +210,7 @@ impl NeonAPIDataSource {
 
         if response.result != "success" {
             debug!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
+            return Ok(Default::default());
         }
 
         let value = serde_json::from_str(&response.value)?;
