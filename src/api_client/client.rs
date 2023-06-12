@@ -4,6 +4,16 @@ use crate::api_client::{config::Config, models::NeonApiResponse, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
+
+use neon_cli_lib::types::{
+    request_models::{
+        EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
+        GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
+        TraceNextBlockRequestModel,
+    },
+    trace::{TraceCallConfig, TraceConfig},
+};
+
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
     Client as ReqwestClient, Response,
@@ -11,14 +21,7 @@ use reqwest::{
 use serde::Serialize;
 use solana_sdk::pubkey::Pubkey;
 
-use super::{
-    errors::NeonAPIClientError,
-    request_models::{
-        EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
-        GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
-    },
-    trace::{TraceCallConfig, TraceConfig},
-};
+use super::errors::NeonAPIClientError;
 
 #[derive(Clone)]
 pub struct Client {
