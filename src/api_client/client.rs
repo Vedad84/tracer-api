@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::api_client::{models::NeonApiResponse, Result};
+use crate::api_client::{config::Config, models::NeonApiResponse, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
@@ -11,22 +11,27 @@ use reqwest::{
 use serde::Serialize;
 use solana_sdk::pubkey::Pubkey;
 
-use super::errors::NeonAPIClientError;
-use neon_cli_lib::types::{
-    request_models::{EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest, GetStorageAtRequest, TraceHashRequestModel, TraceNextBlockRequestModel, TraceRequestModel, TxParamsRequestModel},
+use super::{
+    errors::NeonAPIClientError,
+    request_models::{
+        EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
+        GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
+    },
     trace::{TraceCallConfig, TraceConfig},
 };
 
 #[derive(Clone)]
 pub struct Client {
+    config: Arc<Config>,
     pub neon_api_url: String,
     pub http_client: Arc<ReqwestClient>,
 }
 
 impl Client {
     /// Creates a new [`NeonAPIClient`].
-    pub fn new(neon_api_url: impl Into<String>) -> Client {
+    pub fn new(config: Arc<Config>, neon_api_url: impl Into<String>) -> Client {
         Client {
+            config,
             neon_api_url: neon_api_url.into(),
             http_client: Arc::new(ReqwestClient::new()),
         }
@@ -183,8 +188,6 @@ impl Client {
         data: Option<Vec<u8>>,
         value: Option<U256>,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
         max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
@@ -199,8 +202,8 @@ impl Client {
         };
 
         let emulation_params = EmulationParamsRequestModel::new(
-            token_mint,
-            chain_id,
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
@@ -217,20 +220,17 @@ impl Client {
     }
 
     #[allow(unused)]
-    #[allow(clippy::too_many_arguments)]
     pub async fn emulate_hash(
         &self,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
         max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
-            token_mint,
-            chain_id,
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
@@ -253,8 +253,6 @@ impl Client {
         data: Option<Vec<u8>>,
         value: Option<U256>,
         gas_limit: Option<U256>,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
         max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
@@ -270,8 +268,8 @@ impl Client {
         };
 
         let emulation_params = EmulationParamsRequestModel::new(
-            token_mint,
-            chain_id,
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
@@ -292,11 +290,8 @@ impl Client {
             .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn trace_hash(
         &self,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
         max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
@@ -304,8 +299,8 @@ impl Client {
         trace_config: Option<TraceConfig>,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
-            token_mint,
-            chain_id,
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,
@@ -328,8 +323,6 @@ impl Client {
     #[allow(clippy::too_many_arguments)]
     pub async fn trace_next_block(
         &self,
-        token_mint: Option<Pubkey>,
-        chain_id: Option<u64>,
         max_steps_to_execute: u64,
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
@@ -337,8 +330,8 @@ impl Client {
         trace_config: Option<TraceConfig>,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
-            token_mint,
-            chain_id,
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
             max_steps_to_execute,
             cached_accounts,
             solana_accounts,

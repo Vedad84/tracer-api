@@ -61,9 +61,9 @@ async fn run() {
 
     let web3_client = Arc::new(web3::Web3::new(transport));
 
-    let neon_client_config = api_client::config::read_api_client_config_from_enviroment();
+    let neon_client_config = Arc::new(api_client::config::read_api_client_config_from_enviroment());
     let neon_api_url = neon_client_config.neon_api_url.clone();
-    let neon_client = api_client::client::Client::new(neon_api_url.as_str());
+    let neon_client = api_client::client::Client::new(Arc::clone(&neon_client_config), neon_api_url.as_str());
 
     let source = DataSource::new(
         tracer_db.clone(),

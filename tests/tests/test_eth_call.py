@@ -1,18 +1,17 @@
 from time import sleep
 from unittest import TestCase
 from web3 import Web3
-from helpers.requests_helper import request_airdrop, deploy_contract, STORAGE_SOLIDITY_SOURCE
+from helpers.requests_helper import deploy_contract, STORAGE_SOLIDITY_SOURCE
+import os
 
 NEON_URL = "http://neon-rpc:9090"
 proxy = Web3(Web3.HTTPProvider(NEON_URL))
-eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
+eth_account = proxy.eth.account.privateKeyToAccount(os.getenv("PRIVATE_KEY_1"))
 proxy.eth.default_account = eth_account.address
-
 
 class TestEthCall(TestCase):
     @classmethod
     def setUpClass(cls):
-        request_airdrop(eth_account.address)
         cls.storage_contract, cls.deploy_block_num = deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
         # wait for a while in order to deployment to be done
         sleep(10)

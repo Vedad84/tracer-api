@@ -14,6 +14,5 @@ RUN apt-get install -y libssl-dev
 
 WORKDIR /usr/sbin
 COPY --from=builder /opt/target/release/neon-tracer .
-COPY entrypoint.sh /usr/sbin
 
-CMD ["./entrypoint.sh"]
+ENTRYPOINT [ "./neon-tracer" ]

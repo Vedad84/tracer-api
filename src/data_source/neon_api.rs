@@ -19,9 +19,9 @@ pub struct NeonAPIDataSource {
 }
 
 impl NeonAPIDataSource {
-    pub fn new(config: Config, client: Client) -> Self {
+    pub fn new(config: Arc<Config>, client: Client) -> Self {
         NeonAPIDataSource {
-            config: Arc::new(config),
+            config,
             api_client: Arc::new(client),
             steps_to_execute: NUM_STEPS_TO_EXECUTE,
         }
@@ -58,8 +58,6 @@ impl NeonAPIDataSource {
                 data,
                 value,
                 gas_limit,
-                token_mint,
-                chain_id,
                 max_steps_to_execute,
                 cached_accounts,
                 solana_accounts,
@@ -112,8 +110,6 @@ impl NeonAPIDataSource {
                 data,
                 value,
                 gas_limit,
-                Some(self.config.clone().token_mint),
-                Some(self.config.clone().chain_id),
                 self.steps_to_execute,
                 None,
                 None,
@@ -148,8 +144,6 @@ impl NeonAPIDataSource {
             .api_client
             .clone()
             .trace_hash(
-                Some(self.config.token_mint),
-                Some(self.config.chain_id),
                 self.steps_to_execute,
                 None,
                 None,
@@ -180,8 +174,6 @@ impl NeonAPIDataSource {
             .api_client
             .clone()
             .trace_next_block(
-                Some(self.config.token_mint),
-                Some(self.config.chain_id),
                 self.steps_to_execute,
                 None,
                 None,
@@ -251,7 +243,7 @@ impl NeonAPIDataSource {
 
         if response.result != "success" {
             debug!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
+            return Ok(Default::default());
         }
 
         let value = serde_json::from_str(&response.value)?;

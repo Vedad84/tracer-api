@@ -35,7 +35,7 @@ impl DataSource {
         tracer_db: TracerDb,
         indexer_db: IndexerDb,
         web3: Arc<Web3<Http>>,
-        neon_config: NeonAPIConfig,
+        neon_config: Arc<NeonAPIConfig>,
         neon_api_client: NeonAPIClient,
     ) -> Self {
         Self {

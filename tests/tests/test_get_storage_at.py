@@ -1,17 +1,20 @@
 from unittest import TestCase
 from web3 import Web3
-from helpers.requests_helper import request_airdrop, deploy_contract, STORAGE_SOLIDITY_SOURCE
+from helpers.requests_helper import deploy_contract, STORAGE_SOLIDITY_SOURCE
 from time import sleep
+import os
+from eth_account import Account
+import secrets
 
 NEON_URL = "http://neon-rpc:9090"
 proxy = Web3(Web3.HTTPProvider(NEON_URL))
-eth_account = proxy.eth.account.create('https://github.com/neonlabsorg/proxy-model.py/issues/147')
+
+eth_account = proxy.eth.account.privateKeyToAccount(os.getenv("PRIVATE_KEY_1"))
 proxy.eth.default_account = eth_account.address
 
 class TestGetStorageAt(TestCase):
     @classmethod
     def setUpClass(cls):
-        request_airdrop(eth_account.address)
         cls.storage_contract, cls.deploy_block_num = deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
 
     def store_value(self, value):
@@ -89,6 +92,21 @@ class TestGetStorageAt(TestCase):
         block = proxy.eth.block_number
         sleep(10)
 
-        personal_account = proxy.eth.account.create("Personal account")
-        request_airdrop(personal_account.address)
-        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(personal_account.address, 0, block), byteorder='big'), 0)
+
+        new_key = secrets.token_hex(32)
+        new_address= Account.from_key(new_key).address
+
+        trx_deploy = proxy.eth.account.sign_transaction(dict(
+            nonce=proxy.eth.get_transaction_count(proxy.eth.default_account),
+            chainId=proxy.eth.chain_id,
+            gas=987654321,
+            gasPrice=163000000000,
+            to=new_address,
+            value=1,
+        ),
+            eth_account.key
+        )
+        hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
+        proxy.eth.wait_for_transaction_receipt(hash)
+
+        self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(new_address, 0, block), byteorder='big'), 0)
