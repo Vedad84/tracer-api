@@ -1,3 +1,4 @@
+use std::fmt::Debug;
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -11,8 +12,8 @@ pub enum NeonAPIClientError {
     #[error("JsonrpcError: {0}")]
     JsonrpcError(#[from] jsonrpsee::types::error::Error),
 
-    #[error("ParseResponseError: {0}")]
-    ParseResponseError(String),
+    #[error("ParseResponseError: {0}, response: {1}")]
+    ParseResponseError(String, String),
 
     #[error("OtherResponseStatusError - status: {0}")]
     OtherResponseStatusError(reqwest::StatusCode),

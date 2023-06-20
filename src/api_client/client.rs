@@ -58,27 +58,8 @@ impl Client {
             .query(&query)
             .send()
             .await?;
-        let duration = start.elapsed();
 
-        let processed_response = self.process_response(response).await;
-
-        if processed_response.is_ok() {
-            debug!(
-                "Response for request {} (duration {} ms): {:?}",
-                &full_url,
-                &duration.as_millis().to_string(),
-                &processed_response,
-            );
-        } else {
-            debug!(
-                "Error response for request {} (duration {} ms): {:?}",
-                &full_url,
-                &duration.as_millis().to_string(),
-                &processed_response
-            );
-        }
-
-        processed_response
+        self.process_response(&full_url, response, &start).await
     }
 
     async fn post_request<T: Serialize + Sized + std::fmt::Debug>(
@@ -99,58 +80,36 @@ impl Client {
             .json(&req_body)
             .send()
             .await?;
-        let duration = start.elapsed();
 
-        let processed_response = self.process_response(response).await;
-
-        if processed_response.is_ok() {
-            debug!(
-                "Response for request {} (duration {} ms): {:?}",
-                &full_url,
-                &duration.as_millis().to_string(),
-                &processed_response,
-            );
-        } else {
-            debug!(
-                "Error response for request {} (duration {} ms): {:?}",
-                &full_url,
-                &duration.as_millis().to_string(),
-                &processed_response
-            );
-        }
-
-        processed_response
+        self.process_response(&full_url, response, &start).await
     }
 
-    async fn process_response(&self, response: Response) -> Result<NeonApiResponse> {
-        let body = match response.status() {
-            reqwest::StatusCode::OK => {
-                // on success, parse our JSON to an NeonApiResponse
-                match response.json::<NeonApiResponse>().await {
-                    Ok(body) => body,
-                    Err(e) => {
-                        return Err(NeonAPIClientError::ParseResponseError(e.to_string()));
-                    }
-                }
-            }
-            reqwest::StatusCode::BAD_REQUEST => {
-                // on parameters error, parse our JSON to an NeonApiResponse
-                match response.json::<NeonApiResponse>().await {
-                    Ok(body) => body,
-                    Err(e) => return Err(NeonAPIClientError::ParseResponseError(e.to_string())),
-                }
-            }
+    async fn process_response(&self, full_url: &str, response: Response, start: &Instant) -> Result<NeonApiResponse> {
+        let duration = start.elapsed();
+        let response_str = format!("{response:?}");
+        debug!("Raw response for request {full_url}: {response_str}");
+
+        let processed_response = match response.status() {
+            reqwest::StatusCode::OK |
+            reqwest::StatusCode::BAD_REQUEST |
             reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-                // on error, parse our JSON to an NeonApiResponse
+                // Try to parse our JSON to an NeonApiResponse
                 match response.json::<NeonApiResponse>().await {
-                    Ok(body) => body,
-                    Err(e) => return Err(NeonAPIClientError::ParseResponseError(e.to_string())),
+                    Ok(body) => Ok(body),
+                    Err(e) => Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                 }
             }
-            other => return Err(NeonAPIClientError::OtherResponseStatusError(other)),
+            other => Err(NeonAPIClientError::OtherResponseStatusError(other)),
         };
 
-        Ok(body)
+        debug!(
+            "Processed response for request {} (duration {} ms): {:?}",
+            &full_url,
+            &duration.as_millis().to_string(),
+            &processed_response,
+        );
+
+        processed_response
     }
 
     pub async fn get_ether_account_data(
