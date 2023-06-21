@@ -1267,7 +1267,7 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 [[package]]
 name = "evm-loader"
 version = "0.15.0-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#4e22d8cec2852a417bf5d9be095060456e12d4a3"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#296542df1edfd6cd7d41e1be053d925a581bf1f9"
 dependencies = [
  "arrayref",
  "bincode",
@@ -1295,7 +1295,7 @@ dependencies = [
 [[package]]
 name = "evm-loader-macro"
 version = "1.0.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#4e22d8cec2852a417bf5d9be095060456e12d4a3"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#296542df1edfd6cd7d41e1be053d925a581bf1f9"
 dependencies = [
  "bs58",
  "itertools",
@@ -2462,7 +2462,7 @@ dependencies = [
 [[package]]
 name = "neon-cli"
 version = "0.15.0-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#4e22d8cec2852a417bf5d9be095060456e12d4a3"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#296542df1edfd6cd7d41e1be053d925a581bf1f9"
 dependencies = [
  "arrayref",
  "axum",
