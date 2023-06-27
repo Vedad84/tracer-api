@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::api_client::{config::Config, models::NeonApiResponse, Result};
+use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
@@ -129,17 +129,9 @@ impl Client {
                     }
                 }
             }
-            reqwest::StatusCode::BAD_REQUEST => {
-                // on parameters error, parse our JSON to an NeonApiResponse
-                match response.json::<NeonApiResponse>().await {
-                    Ok(body) => body,
-                    Err(e) => return Err(NeonAPIClientError::ParseResponseError(e.to_string())),
-                }
-            }
-            reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-                // on error, parse our JSON to an NeonApiResponse
-                match response.json::<NeonApiResponse>().await {
-                    Ok(body) => body,
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
+                match response.json::<NeonApiError>().await {
+                    Ok(body) => return Err(NeonAPIClientError::NeonApiError(serde_json::json!(body).to_string())),
                     Err(e) => return Err(NeonAPIClientError::ParseResponseError(e.to_string())),
                 }
             }
