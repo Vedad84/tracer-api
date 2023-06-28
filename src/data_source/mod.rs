@@ -9,7 +9,7 @@ use {
         types::BlockNumber,
     },
     arrayref::array_ref,
-    log::{debug, warn},
+    log::{info, warn},
     neon_cli_lib::types::{IndexerDb, TracerDb},
     tokio::task::block_in_place,
     std::sync::Arc,
@@ -54,7 +54,7 @@ impl DataSource {
                 let hash = hash.to_be_bytes();
 
                 let hash_str = format!("0x{}", hex::encode(hash));
-                debug!("id {:?}: Get block number {:?}", id, &hash_str);
+                info!("id {:?}: Get block number {:?}", id, &hash_str);
 
                 let bytes = array_ref![hash, 0, 32];
                 let hash_web3 = web3::types::H256::from(bytes);

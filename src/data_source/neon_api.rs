@@ -4,7 +4,7 @@ use crate::api_client::{client::Client, config::Config};
 use crate::service::Result;
 use ethnum::U256;
 use evm_loader::types::Address;
-use log::debug;
+use log::info;
 use neon_cli_lib::types::trace::TracedCall;
 
 use super::ERR;
@@ -62,12 +62,13 @@ impl NeonAPIDataSource {
                 cached_accounts,
                 solana_accounts,
                 slot,
+                id,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
         if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            info!("id {:?}: neon_api ERR: {}", id, response.value);
             return Err(ERR("result != success", id));
         }
 
@@ -113,12 +114,13 @@ impl NeonAPIDataSource {
                 None,
                 None,
                 Some(slot),
+                id,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
         if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            info!("id {:?}: neon_api ERR: {}", id, response.value);
             return Err(ERR("result != success", id));
         }
 
@@ -146,12 +148,13 @@ impl NeonAPIDataSource {
                 None,
                 None,
                 hash,
+                id,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
         if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            info!("id {:?}: neon_api ERR: {}", id, response.value);
             return Err(ERR("result != success", id));
         }
 
@@ -171,12 +174,12 @@ impl NeonAPIDataSource {
         let response = self
             .api_client
             .clone()
-            .get_storage_at(to, index, Some(slot))
+            .get_storage_at(to, index, Some(slot), id)
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
         if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            info!("id {:?}: neon_api ERR: {}", id, response.value);
             return Ok(U256::default());
         }
 
@@ -204,12 +207,12 @@ impl NeonAPIDataSource {
         let response = self
             .api_client
             .clone()
-            .get_ether_account_data(address, Some(slot))
+            .get_ether_account_data(address, Some(slot), id)
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
         if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
+            info!("id {:?}: neon_api ERR: {}", id, response.value);
             return Ok(Default::default());
         }
 
