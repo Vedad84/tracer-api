@@ -6,7 +6,7 @@ on:
 
 
 env:
-  NEON_REVISION: 5a20462b90e1c1fc56e1d9cecefde917992dee86
+  NEON_REVISION: f93e510c8a358201b4e64fd4de03b8b1e3b2a3d1
   BUILDKITE_COMMIT: ${{github.sha}}
   DB_CLICKHOUSE_URLS: ${{ vars.DB_CLICKHOUSE_URLS }}
   DB_INDEXER_HOST: common.c9fdygf2jhef.eu-central-1.rds.amazonaws.com
