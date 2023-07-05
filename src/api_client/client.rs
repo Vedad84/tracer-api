@@ -86,15 +86,16 @@ impl Client {
 
     async fn process_response(&self, full_url: &str, response: Response, start: &Instant) -> Result<NeonApiResponse> {
         let duration = start.elapsed();
-        let response_str = format!("{response:?}");
+        let response_status = response.status();
+        let response_str = response.text().await?;
         debug!("Raw response for request {full_url}: {response_str}");
 
-        let processed_response = match response.status() {
+        let processed_response = match response_status {
             reqwest::StatusCode::OK |
             reqwest::StatusCode::BAD_REQUEST |
             reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
                 // Try to parse our JSON to an NeonApiResponse
-                match response.json::<NeonApiResponse>().await {
+                match serde_json::from_str::<NeonApiResponse>(&response_str) {
                     Ok(body) => Ok(body),
                     Err(e) => Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                 }
