@@ -182,6 +182,7 @@ impl NeonAPIDataSource {
                 None,
                 slot,
                 trace_config,
+                id,
             )
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;

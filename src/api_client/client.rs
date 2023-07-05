@@ -3,7 +3,7 @@ use std::{sync::Arc, time::Instant};
 use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
-use log::debug;
+use log::{debug, info};
 
 use neon_cli_lib::types::{
     request_models::{
@@ -47,7 +47,7 @@ impl Client {
         id: u16,
     ) -> Result<NeonApiResponse> {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        info!("id {:?}: get_request: {:?}, parameters: {:?}", id, full_url, query);
+        info!("id {id}: get_request: {full_url}, parameters: {query:?}");
 
         let start = Instant::now();
         let response = self
@@ -60,7 +60,7 @@ impl Client {
             .send()
             .await?;
 
-        self.process_response(&full_url, response, &start).await
+        self.process_response(&full_url, response, &start, id).await
     }
 
     async fn post_request<T: Serialize + Sized + std::fmt::Debug>(
@@ -70,7 +70,7 @@ impl Client {
         id: u16,
     ) -> Result<NeonApiResponse> {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        info!("id {:?}: post_request: {:?}, parameters: {:?}", id, full_url, req_body);
+        info!("id {id}: post_request: {full_url}, parameters: {req_body:?}");
 
         let start = Instant::now();
         let response = self
@@ -83,35 +83,40 @@ impl Client {
             .send()
             .await?;
 
-        self.process_response(&full_url, response, &start).await
+        self.process_response(&full_url, response, &start, id).await
     }
 
-    async fn process_response(&self, full_url: &str, response: Response, start: &Instant) -> Result<NeonApiResponse> {
+    async fn process_response(
+        &self,
+        full_url: &str,
+        response: Response,
+        start: &Instant,
+        id: u16,
+    ) -> Result<NeonApiResponse> {
         let duration = start.elapsed();
         let response_status = response.status();
         let response_str = response.text().await?;
         debug!("Raw response for request {full_url}: {response_str}");
 
         let processed_response = match response_status {
-            reqwest::StatusCode::OK |
-            reqwest::StatusCode::BAD_REQUEST |
-            reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-                // Try to parse our JSON to an NeonApiResponse
+            reqwest::StatusCode::OK => {
+                // On success, parse our JSON to a NeonApiResponse
                 match serde_json::from_str::<NeonApiResponse>(&response_str) {
                     Ok(body) => Ok(body),
                     Err(e) => Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                 }
             }
+            reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
+                match serde_json::from_str::<NeonApiError>(&response_str) {
+                    Ok(body) => return Err(NeonAPIClientError::NeonApiError(serde_json::json!(body).to_string())),
+                    Err(e) => return Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str)),
+                }
+            }
             other => Err(NeonAPIClientError::OtherResponseStatusError(other)),
         };
 
-        debug!(
-            "id {:?}: Processed response for request {} (duration {} ms): {:?}",
-            id,
-            &full_url,
-            &duration.as_millis().to_string(),
-            &processed_response,
-        );
+        let duration_ms = duration.as_millis();
+        debug!("id {id}: Processed response for request {full_url} (duration {duration_ms} ms): {processed_response:?}");
 
         processed_response
     }
@@ -288,7 +293,7 @@ impl Client {
             trace_config,
         };
 
-        self.post_request("/api/trace-hash", params)
+        self.post_request("/api/trace-hash", params, id)
             .await
     }
 
