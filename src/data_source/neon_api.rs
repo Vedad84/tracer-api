@@ -6,6 +6,7 @@ use ethnum::U256;
 use evm_loader::types::Address;
 use log::{debug, info};
 use neon_cli_lib::types::trace::{TraceCallConfig, TraceConfig, TracedCall};
+use serde_json::Value;
 
 use super::ERR;
 
@@ -72,19 +73,17 @@ impl NeonAPIDataSource {
             return Err(ERR("result != success", id));
         }
 
-        let value = serde_json::from_str(&response.value)?;
-
-        if let serde_json::Value::Object(map) = value {
+        if let serde_json::Value::Object(map) = response.value {
             if let serde_json::Value::String(result) = map
                 .get("result")
-                .ok_or_else(|| ERR("get neon-cli json.value.result", id))?
+                .ok_or_else(|| ERR("get neon-api json.value.result", id))?
             {
                 Ok(format!("0x{result}"))
             } else {
-                Err(ERR("cast neon-cli json.value.result->String", id))
+                Err(ERR("cast neon-api json.value.result->String", id))
             }
         } else {
-            Err(ERR("cast neon-cli json.value->{}", id))
+            Err(ERR("cast neon-api json.value->{}", id))
         }
     }
 
@@ -126,8 +125,8 @@ impl NeonAPIDataSource {
             return Err(ERR("result != success", id));
         }
 
-        serde_json::from_str(&response.value)
-            .map_err(|_| ERR("deserialize neon-cli json.value to TracedCall", id))
+        serde_json::from_value(response.value)
+            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
     }
 
     #[allow(unused)]
@@ -161,8 +160,8 @@ impl NeonAPIDataSource {
             return Err(ERR("result != success", id));
         }
 
-        serde_json::from_str(&response.value)
-            .map_err(|_| ERR("deserialize neon-cli json.value to TracedCall", id))
+        serde_json::from_value(response.value)
+            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
     }
 
     #[allow(unused)]
@@ -192,8 +191,8 @@ impl NeonAPIDataSource {
             return Err(ERR("result != success", id));
         }
 
-        serde_json::from_str(&response.value)
-            .map_err(|_| ERR("deserialize neon-cli json.value to TracedCall", id))
+        serde_json::from_value(response.value)
+            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
     }
 
     #[allow(unused)]
@@ -217,12 +216,11 @@ impl NeonAPIDataSource {
             return Ok(U256::default());
         }
 
-        let value = serde_json::from_str(&response.value)?;
-
-        let value: String = serde_json::from_value(value)
-            .map_err(|_| ERR("cast neon-cli json.value->String", id))?;
-        U256::from_str_hex(&format!("0x{}", &value))
-            .map_err(|_| ERR("cast neon-cli json.value->U256", id))
+        match response.value {
+            Value::String(value) => U256::from_str_hex(&format!("0x{}", &value))
+                .map_err(|_| ERR("cast neon-api json.value->U256", id)),
+            _ => Err(ERR("cast neon-api json.value->String", id))?,
+        }
     }
 
     #[allow(unused)]
@@ -250,9 +248,7 @@ impl NeonAPIDataSource {
             return Ok(Default::default());
         }
 
-        let value = serde_json::from_str(&response.value)?;
-
-        f(value)
+        f(response.value)
     }
 
     #[allow(unused)]
@@ -267,15 +263,15 @@ impl NeonAPIDataSource {
             if let serde_json::Value::Object(map) = value {
                 if let serde_json::Value::String(balance) = map
                     .get("balance")
-                    .ok_or_else(|| ERR("get neon-cli json.value.balance", id))?
+                    .ok_or_else(|| ERR("get neon-api json.value.balance", id))?
                 {
                     U256::from_str_prefixed(balance)
-                        .map_err(|_| ERR("cast neon-cli json.value.balance->U256", id))
+                        .map_err(|_| ERR("cast neon-api json.value.balance->U256", id))
                 } else {
-                    Err(ERR("cast neon-cli json.value.balance->String", id))
+                    Err(ERR("cast neon-api json.value.balance->String", id))
                 }
             } else {
-                Err(ERR("cast neon-cli json.value->{}", id))
+                Err(ERR("cast neon-api json.value->{}", id))
             }
         };
 
@@ -295,17 +291,17 @@ impl NeonAPIDataSource {
             if let serde_json::Value::Object(map) = value {
                 if let serde_json::Value::Number(trx_count) = map
                     .get("trx_count")
-                    .ok_or_else(|| ERR("get neon-cli json.value.trx_count", id))?
+                    .ok_or_else(|| ERR("get neon-api json.value.trx_count", id))?
                 {
                     let trx_count = trx_count
                         .as_u64()
-                        .ok_or_else(|| ERR("cast neon-cli json.value.trx_count->u64", id))?;
+                        .ok_or_else(|| ERR("cast neon-api json.value.trx_count->u64", id))?;
                     Ok(U256::new(trx_count.into()))
                 } else {
-                    Err(ERR("cast neon-cli json.value.trx_count->Number", id))
+                    Err(ERR("cast neon-api json.value.trx_count->Number", id))
                 }
             } else {
-                Err(ERR("cast neon-cli json.value->{}", id))
+                Err(ERR("cast neon-api json.value->{}", id))
             }
         };
 
@@ -325,14 +321,14 @@ impl NeonAPIDataSource {
             if let serde_json::Value::Object(map) = value {
                 if let serde_json::Value::String(code) = map
                     .get("code")
-                    .ok_or_else(|| ERR("get neon-cli json.value.code", id))?
+                    .ok_or_else(|| ERR("get neon-api json.value.code", id))?
                 {
                     Ok(code.clone())
                 } else {
-                    Err(ERR("cast neon-cli json.value.code->String", id))
+                    Err(ERR("cast neon-api json.value.code->String", id))
                 }
             } else {
-                Err(ERR("cast neon-cli json.value->{}", id))
+                Err(ERR("cast neon-api json.value->{}", id))
             }
         };
 
