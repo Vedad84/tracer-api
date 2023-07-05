@@ -17,6 +17,7 @@ pub enum NeonAPIClientError {
 
     #[error("OtherResponseStatusError - status: {0}")]
     OtherResponseStatusError(reqwest::StatusCode),
-    // #[error("Panic: {0}")]
-    // Panic(String),
+
+    #[error("NeonApiError: {0}")]
+    NeonApiError(String),
 }

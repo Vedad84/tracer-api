@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Instant};
 
-use crate::api_client::{config::Config, models::NeonApiResponse, Result};
+use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
 use evm_loader::types::Address;
 use log::debug;
@@ -44,9 +44,10 @@ impl Client {
         &self,
         uri: &str,
         query: T,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        debug!("get_request: {:?}, parameters: {:?}", full_url, query);
+        info!("id {:?}: get_request: {:?}, parameters: {:?}", id, full_url, query);
 
         let start = Instant::now();
         let response = self
@@ -66,9 +67,10 @@ impl Client {
         &self,
         uri: &str,
         req_body: T,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        debug!("post_request: {:?}, parameters: {:?}", full_url, req_body);
+        info!("id {:?}: post_request: {:?}, parameters: {:?}", id, full_url, req_body);
 
         let start = Instant::now();
         let response = self
@@ -104,7 +106,8 @@ impl Client {
         };
 
         debug!(
-            "Processed response for request {} (duration {} ms): {:?}",
+            "id {:?}: Processed response for request {} (duration {} ms): {:?}",
+            id,
             &full_url,
             &duration.as_millis().to_string(),
             &processed_response,
@@ -117,13 +120,14 @@ impl Client {
         &self,
         address: Address,
         slot: Option<u64>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let params = GetEtherRequest {
             ether: address,
             slot,
         };
 
-        self.get_request("/api/get-ether-account-data", params)
+        self.get_request("/api/get-ether-account-data", params, id)
             .await
     }
 
@@ -132,6 +136,7 @@ impl Client {
         address: Address,
         index: U256,
         slot: Option<u64>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let params = GetStorageAtRequest {
             contract_id: address,
@@ -139,7 +144,7 @@ impl Client {
             slot,
         };
 
-        self.get_request("/api/get-storage-at", params)
+        self.get_request("/api/get-storage-at", params, id)
             .await
     }
 
@@ -155,6 +160,7 @@ impl Client {
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let tx_params = TxParamsRequestModel {
             sender,
@@ -178,7 +184,7 @@ impl Client {
             slot,
         };
 
-        self.post_request("/api/emulate", params)
+        self.post_request("/api/emulate", params, id)
             .await
     }
 
@@ -190,6 +196,7 @@ impl Client {
         cached_accounts: Option<Vec<Address>>,
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
@@ -204,7 +211,7 @@ impl Client {
             hash,
         };
 
-        self.post_request("/api/emulate-hash", params)
+        self.post_request("/api/emulate-hash", params, id)
             .await
     }
 
@@ -221,6 +228,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
         trace_call_config: Option<TraceCallConfig>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let tx_params = TxParamsRequestModel {
             sender,
@@ -249,7 +257,7 @@ impl Client {
             trace_call_config,
         };
 
-        self.post_request("/api/trace", params)
+        self.post_request("/api/trace", params, id)
             .await
     }
 
@@ -260,6 +268,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
         trace_config: Option<TraceConfig>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
@@ -291,6 +300,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: u64,
         trace_config: Option<TraceConfig>,
+        id: u16,
     ) -> Result<NeonApiResponse> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
@@ -306,7 +316,7 @@ impl Client {
             trace_config,
         };
 
-        self.post_request("/api/trace-next-block", params)
+        self.post_request("/api/trace-next-block", params, id)
             .await
     }
 }
