@@ -16,17 +16,20 @@ class TestGetStorageAt(TestCase):
     @classmethod
     def setUpClass(cls):
         cls.storage_contract, cls.deploy_block_num = deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
+        sleep(30)
 
     def store_value(self, value):
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
         trx_store = self.storage_contract.functions.store(value).buildTransaction({'nonce': right_nonce})
-        print('trx_store:', trx_store)
+        # print('trx_store:', trx_store)
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
-        print('trx_store_signed:', trx_store_signed)
+        # print('trx_store_signed:', trx_store_signed)
         trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-        print('trx_store_hash:', trx_store_hash.hex())
+        # print('trx_store_hash:', trx_store_hash.hex())
         trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
-        print('trx_store_receipt:', trx_store_receipt)
+        # print('trx_store_receipt:', trx_store_receipt)
+        print("test_get_storage_at store_value() is done")
+        sleep(30) # wait for a while to changes be applied
 
     def test_get_storage_at(self):
         value_idx = 0
@@ -35,15 +38,13 @@ class TestGetStorageAt(TestCase):
         value1 = 452356
         self.store_value(value1)
 
-        sleep(10) # wait for a while to changes be applied
         block1 = proxy.eth.block_number
 
         value2 = 234
         self.store_value(value2)
 
-        sleep(10) # wait for a while to changes be applied
         block2 = proxy.eth.block_number
-
+        sleep(30)
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block0), byteorder='big'), 0)
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block1), byteorder='big'), value1)
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(self.storage_contract.address, value_idx, block2), byteorder='big'), value2)
@@ -54,14 +55,13 @@ class TestGetStorageAt(TestCase):
         value1 = 21255
         self.store_value(value1)
 
-        sleep(10) # wait for a while to changes be applied
         blockhash1 = proxy.eth.get_block('latest')['hash']
 
         value2 = 55489
         self.store_value(value2)
 
-        sleep(10) # wait for a while to changes be applied
         blockhash2 = proxy.eth.get_block('latest')['hash']
+        sleep(30)
 
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(
             self.storage_contract.address,
@@ -83,7 +83,7 @@ class TestGetStorageAt(TestCase):
 
     def test_account_not_found(self):
         block = proxy.eth.block_number
-        sleep(10)
+        sleep(30)
 
         non_existent_account = proxy.eth.account.create("Not exist")
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(non_existent_account.address, 0, block), byteorder='big'), 0)
@@ -108,5 +108,6 @@ class TestGetStorageAt(TestCase):
         )
         hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
         proxy.eth.wait_for_transaction_receipt(hash)
+        sleep(30)
 
         self.assertEqual(int.from_bytes(proxy.eth.get_storage_at(new_address, 0, block), byteorder='big'), 0)

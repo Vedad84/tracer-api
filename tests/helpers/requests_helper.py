@@ -70,16 +70,17 @@ def deploy_contract(proxy, deployer, contract_source):
         data=contract.bytecode),
         deployer.key
     )
-    print('trx_deploy:', trx_deploy)
+    # print('\nrx_deploy:', trx_deploy)
     trx_deploy_hash = proxy.eth.send_raw_transaction(trx_deploy.rawTransaction)
-    print('trx_deploy_hash:', trx_deploy_hash.hex())
+    # print('trx_deploy_hash:', trx_deploy_hash.hex())
     trx_deploy_receipt = proxy.eth.wait_for_transaction_receipt(trx_deploy_hash)
-    print('trx_deploy_receipt:', trx_deploy_receipt)
+    # print('trx_deploy_receipt:', trx_deploy_receipt)
 
     deploy_block_hash = trx_deploy_receipt['blockHash']
     deploy_block_num = trx_deploy_receipt['blockNumber']
-    print('deploy_block_hash:', deploy_block_hash)
-    print('deploy_block_num:', deploy_block_num)
+    # print('deploy_block_hash:', deploy_block_hash)
+    print('\ndeploy_block_num:', deploy_block_num)
+    print("contract is deployed:", trx_deploy_receipt.contractAddress)
 
     return (
         proxy.eth.contract(

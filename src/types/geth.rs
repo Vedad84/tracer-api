@@ -1,9 +1,11 @@
 use {
     super::Bytes,
     std::{collections::BTreeMap, iter},
-    neon_cli_lib::types::trace::{TracedCall, VMTrace, VMOperation},
+    neon_cli_lib::types::{
+        trace::{TracedCall, VMTrace, VMOperation},
+        Address,
+    },
     serde::{self, Deserialize, Serialize},
-    evm_loader::types::Address,
     ethnum::U256,
 };
 
@@ -54,12 +56,12 @@ pub struct TraceTransactionOptions {
 }
 
 
-#[derive(Serialize, Debug)]
-#[serde(untagged, rename_all = "camelCase")]
-pub enum Trace {
-    Logs(ExecutionResult),
+// #[derive(Serialize, Debug)]
+// #[serde(untagged, rename_all = "camelCase")]
+// pub enum Trace {
+//     Logs(ExecutionResult),
     // JsTrace(serde_json::Value),
-}
+// }
 
 /// ExecutionResult groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction
@@ -100,6 +102,7 @@ impl From<TracedCall> for ExecutionResult {
 }
 
 impl ExecutionResult {
+    #[allow(unused)]
     pub fn new(traced_call: TracedCall, options: &TraceTransactionOptions) -> Self {
         let failed = false; // TODO: NDEV-1206, NDEV-1207
         let gas = traced_call.used_gas;

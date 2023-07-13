@@ -30,6 +30,7 @@ class TestGetBalance(TestCase):
         trx_signed = proxy.eth.account.sign_transaction( trx, eth_account.key)
         hash = proxy.eth.send_raw_transaction(trx_signed.rawTransaction)
         proxy.eth.wait_for_transaction_receipt(hash)
+        sleep(30)
 
 
     def test_get_balance(self):
@@ -44,14 +45,13 @@ class TestGetBalance(TestCase):
         delta_balance1 = 10
 
         self.transfer(new_address, delta_balance1)
-        sleep(10)  # wait for a while to change be applied
         block1 = proxy.eth.block_number
 
         # Request additional 20 SOLs
         delta_balance2 = 20
         self.transfer(new_address, delta_balance2)
-        sleep(10)  # wait for a while to change be applied
         block2 = proxy.eth.block_number
+        sleep(30)
 
         self.assertEqual(
             proxy.eth.get_balance(new_address, block0),
@@ -77,15 +77,13 @@ class TestGetBalance(TestCase):
         # Request 10 SOLs
         delta_balance1 = 40
         self.transfer(new_address, delta_balance1)
-        sleep(10)  # wait for a while to change be applied
         blockhash1 = proxy.eth.get_block('latest')['hash']
 
         # Request additional 20 SOLs
         delta_balance2 = 30
         self.transfer(new_address, delta_balance2)
-        sleep(10)  # wait for a while to change be applied
         blockhash2 = proxy.eth.get_block('latest')['hash']
-
+        sleep(30)
         self.assertEqual(
             proxy.eth.get_balance(new_address,
                                   {
@@ -113,7 +111,7 @@ class TestGetBalance(TestCase):
 
     def test_balance_not_found(self):
         block = proxy.eth.block_number
-        sleep(10)
+        sleep(30)
 
         new_key = secrets.token_hex(32)
         new_address= Account.from_key(new_key).address

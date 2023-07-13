@@ -22,14 +22,14 @@ class TestGetTransactionCount(TestCase):
 
     def test_get_transaction_count(self):
         block_num1 = proxy.eth.block_number
-        sleep(10)
+        sleep(30)
         nonce = self.get_transaction_count(block_num1);
 
 
         deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
         block_num2 = proxy.eth.block_number
         block_hash2 = proxy.eth.get_block('latest')['hash']
-        sleep(10)
+        sleep(30)
         self.assertEqual(self.get_transaction_count(block_num2), nonce+1)
         self.assertEqual(self.get_transaction_count({
             "blockHash": block_hash2.hex(),
