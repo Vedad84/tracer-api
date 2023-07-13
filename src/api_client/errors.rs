@@ -9,7 +9,7 @@ pub enum NeonAPIClientError {
     Std(#[from] Box<dyn std::error::Error>),
 
     #[error("JsonrpcError: {0}")]
-    JsonrpcError(#[from] jsonrpsee::types::error::Error),
+    JsonrpcError(#[from] jsonrpsee::types::error::ErrorObjectOwned),
 
     #[error("ParseResponseError: {0}")]
     ParseResponseError(String),

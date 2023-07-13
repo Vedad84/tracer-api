@@ -1,12 +1,12 @@
 use {
     super::Bytes,
-    std::{collections::BTreeMap, iter},
+    ethnum::U256,
     neon_cli_lib::types::{
-        trace::{TracedCall, VMTrace, VMOperation},
+        trace::{TracedCall, VMOperation, VMTrace},
         Address,
     },
     serde::{self, Deserialize, Serialize},
-    ethnum::U256,
+    std::{collections::BTreeMap, iter},
 };
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
@@ -55,12 +55,11 @@ pub struct TraceTransactionOptions {
     pub timeout: Option<String>,
 }
 
-
 // #[derive(Serialize, Debug)]
 // #[serde(untagged, rename_all = "camelCase")]
 // pub enum Trace {
 //     Logs(ExecutionResult),
-    // JsTrace(serde_json::Value),
+//     JsTrace(serde_json::Value),
 // }
 
 /// ExecutionResult groups all structured logs emitted by the EVM
@@ -78,7 +77,6 @@ pub struct ExecutionResult {
     /// Logs emitted during execution
     pub struct_logs: Vec<StructLog>,
 }
-
 
 impl From<TracedCall> for ExecutionResult {
     // TODO: move to trace_call with merging
@@ -118,7 +116,12 @@ impl ExecutionResult {
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
             if !options.disable_stack {
-                l.stack = Some(d.stack.iter().map(|entry|{ U256::from_le_bytes(*entry) }).collect());
+                l.stack = Some(
+                    d.stack
+                        .iter()
+                        .map(|entry| U256::from_le_bytes(*entry))
+                        .collect(),
+                );
             }
 
             if options.enable_memory && !d.memory.is_empty() {
@@ -130,8 +133,13 @@ impl ExecutionResult {
                 );
             }
 
-            if !options.disable_storage  {
-                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_le_bytes(v)) }).collect());
+            if !options.disable_storage {
+                l.storage = Some(
+                    d.storage
+                        .into_iter()
+                        .map(|(k, v)| (k, U256::from_le_bytes(v)))
+                        .collect(),
+                );
             }
         });
 
@@ -144,11 +152,9 @@ impl ExecutionResult {
     }
 }
 
-
-
 /// StructLog stores a structured log emitted by the EVM while replaying a
 /// transaction in debug mode
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StructLog {
     /// Program counter.
@@ -179,10 +185,7 @@ pub struct StructLog {
 
 impl StructLog {
     // use boxing bc of the recursive opaque type
-    fn from_trace_with_depth(
-        vm_trace: VMTrace,
-        depth: usize,
-    ) -> Box<dyn Iterator<Item = Self>> {
+    fn from_trace_with_depth(vm_trace: VMTrace, depth: usize) -> Box<dyn Iterator<Item = Self>> {
         let operations = vm_trace.operations;
         let mut subs = vm_trace.subs.into_iter().peekable();
 
@@ -206,7 +209,6 @@ impl StructLog {
         )
     }
 }
-
 
 impl From<(usize, VMOperation)> for StructLog {
     fn from((depth, vm_operation): (usize, VMOperation)) -> Self {

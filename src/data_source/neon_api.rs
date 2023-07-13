@@ -1,9 +1,10 @@
 use std::{sync::Arc, time::Duration};
 
 use crate::api_client::{client::Client, config::Config};
-use crate::service::Result;
+use crate::service::{Error, Result};
 use ethnum::U256;
-use neon_cli_lib::types::{/*trace::TracedCall,*/ Address};
+use jsonrpsee::types::error::ErrorCode;
+use neon_cli_lib::types::Address;
 
 use super::ERR;
 
@@ -63,7 +64,9 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })?;
 
         Ok(format!("0x{}", response.result))
     }
@@ -144,10 +147,12 @@ impl NeonAPIDataSource {
             .clone()
             .get_storage_at(to, index, Some(slot), id)
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })?;
 
         U256::from_str_hex(&format!("0x{}", &response))
-            .map_err(|e| ERR(&format!("U256::from_str_hex() error: {:?}", e.to_string()), id))
+            .map_err(|e| ERR(&format!("U256::from_str_hex() error: {e:?}"), id))
     }
 
     #[allow(unused)]
@@ -180,7 +185,6 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<U256> {
-
         let response = self
             .api_client
             .clone()
@@ -202,7 +206,6 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<String> {
-
         let response = self
             .api_client
             .clone()
