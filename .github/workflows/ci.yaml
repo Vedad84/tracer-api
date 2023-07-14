@@ -63,12 +63,20 @@ jobs:
         run: docker-compose -f docker-compose-test.yml pull
 
       - name: Up neon-tracer-test
-        run: docker-compose -f docker-compose-test.yml up --exit-code-from neon-tracer-test neon-tracer-test --quiet-pull
+        run: docker-compose -f docker-compose-test.yml up  neon-tracer-test --quiet-pull
 
       - name: Dump docker logs
         uses: jwalton/gh-docker-logs@v2
         with:
           dest: './logs'
+
+      - name: Tar logs
+        run: tar cvzf ./logs.tgz ./logs
+      - name: Upload logs to GitHub
+        uses: actions/upload-artifact@master
+        with:
+          name: logs.tgz
+          path: ./logs.tgz
 
       - name: Parse tests results
         run: |
@@ -79,14 +87,6 @@ jobs:
           else
             echo "Tests completed successfully";
           fi
-
-      - name: Tar logs
-        run: tar cvzf ./logs.tgz ./logs
-      - name: Upload logs to GitHub
-        uses: actions/upload-artifact@master
-        with:
-          name: logs.tgz
-          path: ./logs.tgz
 
       - name: Down docker-compose
         run: docker-compose -f docker-compose-test.yml down --rmi all -v
