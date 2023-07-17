@@ -15,7 +15,7 @@ use neon_cli_lib::{
     commands::{
         get_storage_at::GetStorageAtReturn,
         get_ether_account_data::GetEtherAccountDataReturn,
-        emulate::EmulateReturn,
+        emulate_tracer::EmulateReturn,
         // trace::TraceReturn,
     },
     types::{
