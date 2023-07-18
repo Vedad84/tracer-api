@@ -6,10 +6,7 @@ pub struct StopHandle {
 }
 
 impl StopHandle {
-    pub fn new(
-        join_handle: JoinHandle<()>,
-        stop_snd: tokio::sync::mpsc::Sender<()>,
-    ) -> Self {
+    pub fn new(join_handle: JoinHandle<()>, stop_snd: tokio::sync::mpsc::Sender<()>) -> Self {
         Self {
             join_handle,
             stop_snd,
