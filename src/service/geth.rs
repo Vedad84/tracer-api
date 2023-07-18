@@ -56,7 +56,7 @@ impl GethTraceServer for DataSource {
         let started = metrics::report_incoming_request("debug_traceCall");
 
         let data = a.input.map(|v| v.0);
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!(
             "id {:?}: debug_traceCall(from={:?}, to={:?}, data={:?}, value={:?}, gas={:?}, gasprice={:?}, config={:?})",
             id,
@@ -70,7 +70,7 @@ impl GethTraceServer for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let result = self
             .neon_api
             .trace(a.from, a.to, a.value, data, a.gas, slot, o.clone(), &tout, id)
@@ -94,8 +94,12 @@ impl GethTraceServer for DataSource {
     ) -> Result<Trace> {
         let started = metrics::report_incoming_request("debug_traceTransaction");
 
-        let id = rand::random::<u16>();
-        info!("id {id}: debug_traceTransaction (hash={hash})");
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
+        info!(
+            "id {:?}: debug_traceTransaction (hash={:?})",
+            id,
+            hash.to_string()
+        );
 
         let tout = std::time::Duration::new(10, 0);
         let h = hash.to_be_bytes();

@@ -7,7 +7,6 @@ use {
         Bytes,
     },
     serde::{self, Deserialize, Serialize},
-    evm_loader::types::Address,
     ethnum::U256,
 };
 
@@ -42,12 +41,12 @@ pub struct TransactionArgs {
     pub chain_id: Option<U256>,
 }
 
-#[derive(Serialize, Debug)]
-#[serde(untagged, rename_all = "camelCase")]
-pub enum Trace {
-    Logs(ExecutionResult),
-    // JsTrace(serde_json::Value),
-}
+// #[derive(Serialize, Debug)]
+// #[serde(untagged, rename_all = "camelCase")]
+// pub enum Trace {
+//     Logs(ExecutionResult),
+//     // JsTrace(serde_json::Value),
+// // }
 
 /// ExecutionResult groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction

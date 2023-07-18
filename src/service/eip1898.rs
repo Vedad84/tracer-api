@@ -7,9 +7,10 @@ use {
     },
     async_trait::async_trait,
     ethnum::U256,
-    evm_loader::types::Address,
+    neon_cli_lib::types::Address,
     jsonrpsee::proc_macros::rpc,
     log::info,
+    std::sync::atomic::Ordering,
 };
 
 #[rpc(server)]
@@ -38,7 +39,7 @@ impl EIP1898Server for DataSource {
         let started = metrics::report_incoming_request("eth_call");
 
         let data = o.input.map(|a| a.0);
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!(
             "id {:?}: eth_call(caller={:?}, contract={:?}, gas={:?}, gasPrice={:?}, data={:?}, value={:?})",
             id,
@@ -51,7 +52,7 @@ impl EIP1898Server for DataSource {
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let result = self
             .neon_api
             .emulate(o.from, o.to, o.value, data, slot, &tout, id)
@@ -70,14 +71,14 @@ impl EIP1898Server for DataSource {
     ) -> Result<U256> {
         let started = metrics::report_incoming_request("eth_getStorageAt");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!(
             "id {:?}: eth_getStorageAt({:?}, {:?}, {:?})",
             id, address, index, tag
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let value = self
             .neon_api
             .get_storage_at(address, index, slot, &tout, id)
@@ -91,11 +92,11 @@ impl EIP1898Server for DataSource {
     async fn eth_get_balance(&self, address: Address, tag: BlockNumber) -> Result<U256> {
         let started = metrics::report_incoming_request("eth_getBalance");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!("id {:?}: eth_getBalance({:?}, {:?})", id, address, tag);
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let balance = self.neon_api.get_balance(address, slot, &tout, id).await;
         info!("id {:?}: eth_getBalance => {:?}", id, balance);
         metrics::report_request_finished(started, "eth_getBalance", balance.is_ok());
@@ -106,11 +107,11 @@ impl EIP1898Server for DataSource {
     async fn eth_get_code(&self, address: Address, tag: BlockNumber) -> Result<String> {
         let started = metrics::report_incoming_request("eth_getCode");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!("id {:?}: eth_getCode({:?}, {:?})", id, address, tag);
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let code = self.neon_api.get_code(address, slot, &tout, id).await;
         info!("id {:?}, eth_getCode => {:?}", id, code);
         metrics::report_request_finished(started, "eth_getCode", code.is_ok());
@@ -121,14 +122,14 @@ impl EIP1898Server for DataSource {
     async fn eth_get_transaction_count(&self, address: Address, tag: BlockNumber) -> Result<U256> {
         let started = metrics::report_incoming_request("eth_getTransactionCount");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!(
             "id {:?}: eth_getTransactionCount({:?}, {:?})",
             id, address, tag
         );
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         let count = self.neon_api.get_trx_count(address, slot, &tout, id).await;
         info!("id {:?}: eth_getTransactionCount => {:?}", id, count);
         metrics::report_request_finished(started, "eth_getTransactionCount", count.is_ok());

@@ -38,7 +38,7 @@ impl NeonAPIDataSource {
         data: Option<Vec<u8>>,
         slot: u64,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<String> {
         let sender = from.unwrap_or_default();
         let contract = to;
@@ -202,7 +202,7 @@ impl NeonAPIDataSource {
         index: U256,
         slot: u64,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<U256> {
         let response = self
             .api_client
@@ -211,44 +211,8 @@ impl NeonAPIDataSource {
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
-        if response.result != "success" {
-            info!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Ok(U256::default());
-        }
-
-        match response.value {
-            Value::String(value) => U256::from_str_hex(&format!("0x{}", &value))
-                .map_err(|_| ERR("cast neon-api json.value->U256", id)),
-            _ => Err(ERR("cast neon-api json.value->String", id))?,
-        }
-    }
-
-    #[allow(unused)]
-    async fn get_ether_account_data<F, D>(
-        &self,
-        address: Address,
-        slot: u64,
-        tout: &Duration,
-        f: F,
-        id: u16,
-    ) -> Result<D>
-    where
-        F: FnOnce(serde_json::Value) -> Result<D>,
-        D: std::default::Default,
-    {
-        let response = self
-            .api_client
-            .clone()
-            .get_ether_account_data(address, Some(slot), id)
-            .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-
-        if response.result != "success" {
-            info!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Ok(Default::default());
-        }
-
-        f(response.value)
+        U256::from_str_hex(&format!("0x{}", &response))
+            .map_err(|e| ERR(&format!("U256::from_str_hex() error: {:?}", e.to_string()), id))
     }
 
     #[allow(unused)]
@@ -257,26 +221,20 @@ impl NeonAPIDataSource {
         address: Address,
         slot: u64,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<U256> {
-        let f = |value| -> Result<U256> {
-            if let serde_json::Value::Object(map) = value {
-                if let serde_json::Value::String(balance) = map
-                    .get("balance")
-                    .ok_or_else(|| ERR("get neon-api json.value.balance", id))?
-                {
-                    U256::from_str_prefixed(balance)
-                        .map_err(|_| ERR("cast neon-api json.value.balance->U256", id))
-                } else {
-                    Err(ERR("cast neon-api json.value.balance->String", id))
-                }
-            } else {
-                Err(ERR("cast neon-api json.value->{}", id))
-            }
-        };
+        let response = self
+            .api_client
+            .clone()
+            .get_ether_account_data(address, Some(slot), id)
+            .await;
 
-        self.get_ether_account_data(address, slot, tout, f, id)
-            .await
+        if response.is_err() {
+            Ok(U256::default())
+        } else {
+            U256::from_str_prefixed(&response.unwrap().balance)
+                .map_err(|_| ERR("cast GetEtherAccountDataReturn.balance->U256", id))
+        }
     }
 
     #[allow(unused)]
@@ -285,28 +243,20 @@ impl NeonAPIDataSource {
         address: Address,
         slot: u64,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<U256> {
-        let f = |value| -> Result<U256> {
-            if let serde_json::Value::Object(map) = value {
-                if let serde_json::Value::Number(trx_count) = map
-                    .get("trx_count")
-                    .ok_or_else(|| ERR("get neon-api json.value.trx_count", id))?
-                {
-                    let trx_count = trx_count
-                        .as_u64()
-                        .ok_or_else(|| ERR("cast neon-api json.value.trx_count->u64", id))?;
-                    Ok(U256::new(trx_count.into()))
-                } else {
-                    Err(ERR("cast neon-api json.value.trx_count->Number", id))
-                }
-            } else {
-                Err(ERR("cast neon-api json.value->{}", id))
-            }
-        };
 
-        self.get_ether_account_data(address, slot, tout, f, id)
-            .await
+        let response = self
+            .api_client
+            .clone()
+            .get_ether_account_data(address, Some(slot), id)
+            .await;
+
+        if response.is_err() {
+            Ok(U256::default())
+        } else {
+            Ok(U256::new(response.unwrap().trx_count.into()))
+        }
     }
 
     #[allow(unused)]
@@ -315,25 +265,19 @@ impl NeonAPIDataSource {
         address: Address,
         slot: u64,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<String> {
-        let f = |value| -> Result<String> {
-            if let serde_json::Value::Object(map) = value {
-                if let serde_json::Value::String(code) = map
-                    .get("code")
-                    .ok_or_else(|| ERR("get neon-api json.value.code", id))?
-                {
-                    Ok(code.clone())
-                } else {
-                    Err(ERR("cast neon-api json.value.code->String", id))
-                }
-            } else {
-                Err(ERR("cast neon-api json.value->{}", id))
-            }
-        };
 
-        self.get_ether_account_data(address, slot, tout, f, id)
-            .await
-            .map(|code| format!("0x{}", &code))
+        let response = self
+            .api_client
+            .clone()
+            .get_ether_account_data(address, Some(slot), id)
+            .await;
+
+        if response.is_err() {
+            Ok(String::default())
+        } else {
+            Ok(response.unwrap().code)
+        }
     }
 }

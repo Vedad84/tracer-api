@@ -14,22 +14,24 @@ class TestEthCall(TestCase):
     def setUpClass(cls):
         cls.storage_contract, cls.deploy_block_num = deploy_contract(proxy, eth_account, STORAGE_SOLIDITY_SOURCE)
         # wait for a while in order to deployment to be done
-        sleep(10)
+        sleep(30)
 
     def store_value(self, value):
         right_nonce = proxy.eth.get_transaction_count(proxy.eth.default_account)
 
         trx_store = self.storage_contract.functions.store(value).buildTransaction({'nonce': right_nonce})
-        print('trx_store:', trx_store)
+        # print('trx_store:', trx_store)
 
         trx_store_signed = proxy.eth.account.sign_transaction(trx_store, eth_account.key)
-        print('trx_store_signed:', trx_store_signed)
+        # print('trx_store_signed:', trx_store_signed)
 
         trx_store_hash = proxy.eth.send_raw_transaction(trx_store_signed.rawTransaction)
-        print('trx_store_hash:', trx_store_hash.hex())
+        # print('trx_store_hash:', trx_store_hash.hex())
 
         trx_store_receipt = proxy.eth.wait_for_transaction_receipt(trx_store_hash)
-        print('trx_store_receipt:', trx_store_receipt)
+        # print('trx_store_receipt:', trx_store_receipt)
+        print("test_eth_call store_value() is done")
+        sleep(30)
 
     def eth_call_ex(self, address, block_number):
         abi_data = self.storage_contract.encodeABI('retrieve')
@@ -46,18 +48,13 @@ class TestEthCall(TestCase):
         blockhash0 = proxy.eth.get_block('latest')['hash']
         self.store_value(block0)
 
-        # wait for a while in order to changes to be applied
-        sleep(10)
-
         block1 = proxy.eth.block_number
         blockhash1 = proxy.eth.get_block('latest')['hash']
         self.store_value(block1)
 
-        # wait for a while in order to changes to be applied
-        sleep(10)
-
         block2 = proxy.eth.block_number
         blockhash2 = proxy.eth.get_block('latest')['hash']
+        sleep(30)
 
         self.assertEqual(self.eth_call(block0), 0)
         self.assertEqual(self.eth_call(block1), block0)
@@ -81,16 +78,12 @@ class TestEthCall(TestCase):
         self.assertIsNone(self.eth_call(self.deploy_block_num - 1))
 
     def test_eth_call_incorrect_address(self):
-        self.store_value(proxy.eth.block_number)
+        block = proxy.eth.block_number
+        self.store_value(block)
 
-        # wait for a while in order to changes to be applied
-        sleep(10)
-
-        self.assertIsNone(self.eth_call_ex('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', proxy.eth.block_number))
+        self.assertIsNone(self.eth_call_ex('0x71C7656EC7ab88b098defB751B7401B5f6d8976F', block))
 
         # revert value in order to not break other tests
         self.store_value(0)
 
-        # wait for a while in order to changes to be applied
-        sleep(10)
 
