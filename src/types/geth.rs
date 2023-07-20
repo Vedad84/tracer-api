@@ -1,14 +1,16 @@
 use neon_cli_lib::types::trace::TraceConfig;
 use {
+    super::Bytes,
+    ethnum::U256,
     crate::opcodes::opcode_name,
     std::{collections::BTreeMap, iter},
     neon_cli_lib::types::{
-        trace::{TracedCall, VMTrace, VMOperation},
+        trace::{TracedCall, VMOperation, VMTrace},
         Address,
         Bytes,
     },
     serde::{self, Deserialize, Serialize},
-    ethnum::U256,
+    std::{collections::BTreeMap, iter},
 };
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
@@ -42,6 +44,22 @@ pub struct TransactionArgs {
     pub chain_id: Option<U256>,
 }
 
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TraceTransactionOptions {
+    #[serde(default)]
+    pub enable_memory: bool,
+    #[serde(default)]
+    pub disable_storage: bool,
+    #[serde(default)]
+    pub disable_stack: bool,
+    #[serde(default)]
+    pub tracer: Option<String>,
+    #[serde(default)]
+    pub timeout: Option<String>,
+}
+
+
 #[derive(Serialize, Debug)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Trace {
@@ -64,7 +82,6 @@ pub struct ExecutionResult {
     /// Logs emitted during execution
     pub struct_logs: Vec<StructLog>,
 }
-
 
 impl From<TracedCall> for ExecutionResult {
     // TODO: move to trace_call with merging
@@ -131,11 +148,9 @@ impl ExecutionResult {
     }
 }
 
-
-
 /// StructLog stores a structured log emitted by the EVM while replaying a
 /// transaction in debug mode
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct StructLog {
     /// Program counter.
@@ -168,10 +183,7 @@ pub struct StructLog {
 
 impl StructLog {
     // use boxing bc of the recursive opaque type
-    fn from_trace_with_depth(
-        vm_trace: VMTrace,
-        depth: usize,
-    ) -> Box<dyn Iterator<Item = Self>> {
+    fn from_trace_with_depth(vm_trace: VMTrace, depth: usize) -> Box<dyn Iterator<Item = Self>> {
         let operations = vm_trace.operations;
         let mut subs = vm_trace.subs.into_iter().peekable();
 
@@ -195,7 +207,6 @@ impl StructLog {
         )
     }
 }
-
 
 impl From<(usize, VMOperation)> for StructLog {
     fn from((depth, vm_operation): (usize, VMOperation)) -> Self {

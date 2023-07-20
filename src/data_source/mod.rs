@@ -9,16 +9,18 @@ use {
         types::BlockNumber,
     },
     arrayref::array_ref,
+    jsonrpsee::types::error::ErrorCode,
     log::{info, warn},
     neon_cli_lib::types::{IndexerDb, TracerDb},
-    std::sync::{Arc, atomic::AtomicU64},
+    std::sync::{atomic::AtomicU64, Arc},
     tracer_db::TracerDbExtention,
     web3::{transports::Http, types::BlockId, Web3},
 };
 
 pub const ERR: fn(&str, id: u64) -> Error = |e: &str, id: u64| -> Error {
-    warn!("id {:?}: error: {}", id, e);
-    Error::Custom("Internal server error".to_string())
+    warn!("id {id:?}: error: {e}");
+    let code = ErrorCode::InternalError;
+    Error::owned(code.code(), code.message(), None::<()>)
 };
 
 #[derive(Clone)]
@@ -51,7 +53,6 @@ impl DataSource {
         match tag {
             BlockNumber::Num(num) => Ok(num),
             BlockNumber::Hash { hash, .. } => {
-
                 let hash = hash.to_be_bytes();
 
                 let hash_str = format!("0x{}", hex::encode(hash));
@@ -60,50 +61,50 @@ impl DataSource {
                 let bytes = array_ref![hash, 0, 32];
                 let hash_web3 = web3::types::H256::from(bytes);
 
-                let result = self.web3
+                let block = self
+                    .web3
                     .eth()
-                    .block(BlockId::Hash(hash_web3)).await;
-
-                let result = result.map_err(|e| {
-                    warn!{"id {:?}: failed to send eth_getBlockByHash to proxy, {:?}", id, e};
-                    Error::Custom(format!("failed to send eth_getBlockByHash to proxy: {:?}", e))
-                })?;
-
-                match result {
-                    None => {
-                        warn!("id {:?}: failed to obtain Block for BlockHash {:?}", id, &hash_str);
-                        Err(Error::Custom(format!("failed to obtain Block for BlockHash: {}", &hash_str)))
-                    }
-                    Some(block) => {
-                        if let Some(blocknumber) = block.number{
-                            info!("id {:?}: BlockNumber: {:?}", id, blocknumber);
-                            Ok(blocknumber.as_u64())
-                        } else {
-                            warn!("id {:?}: BlockNumber is None for BlockHash {:?}", id, &hash_str);
-                            Err(Error::Custom(format!("BlockNumber is None for BlockHash: {}", &hash_str)))
-                        }
-                    }
+                    .block(BlockId::Hash(hash_web3))
+                    .await
+                    .map_err(|e| {
+                        let e =
+                            format!("id {id:?}: failed to send eth_getBlockByHash to proxy, {e:?}");
+                        warn!("{e}");
+                        Error::owned(ErrorCode::InternalError.code(), e, None::<()>)
+                    })?
+                    .ok_or_else(|| {
+                        let e =
+                            format!("id {id:?}: failed to obtain Block for BlockHash {hash_str:?}");
+                        warn!("{e}");
+                        Error::owned(ErrorCode::InternalError.code(), e, None::<()>)
+                    })?;
+                if let Some(blocknumber) = block.number {
+                    info!("id {id:?}: BlockNumber: {blocknumber:?}");
+                    Ok(blocknumber.as_u64())
+                } else {
+                    let e = format!("id {id:?}: BlockNumber is None for BlockHash {hash_str:?}");
+                    warn!("{e}");
+                    Err(Error::owned(ErrorCode::InternalError.code(), e, None::<()>))
                 }
-            },
-            BlockNumber::Earliest => {
-                self.tracer_db.get_earliest_slot().map_err(
-                    |e| {
-                        warn!("id {:?}: Failed to retrieve earliest block {:?}", id, e);
-                        Error::Custom(format!("Failed to retrieve earliest block: {:?}", e))
-                    }
+            }
+            BlockNumber::Earliest => self.tracer_db.get_earliest_slot().map_err(|err| {
+                Error::owned(
+                    ErrorCode::InternalError.code(),
+                    format!("Failed to retrieve earliest block: {err:?}"),
+                    None::<()>,
                 )
-            },
-            BlockNumber::Latest => {
-                self.tracer_db.get_latest_block().await.map_err(
-                    |e| {
-                        warn!("id {:?}: Failed to retrieve latest block {:?}", id, e);
-                        Error::Custom(format!("Failed to retrieve latest block: {:?}", e))
-                    }
+            }),
+            BlockNumber::Latest => self.tracer_db.get_latest_block().await.map_err(|err| {
+                Error::owned(
+                    ErrorCode::InternalError.code(),
+                    format!("Failed to retrieve latest block: {err:?}"),
+                    None::<()>,
                 )
-            },
+            }),
             _ => {
-                warn!("id {:?}: Unsupported block tag {:?}", id, tag);
-                Err(Error::Custom(format!("Unsupported block tag: {:?}", tag)))
+                let e = format!("id {id:?}: Unsupported block tag {tag:?}");
+                warn!("{e}");
+                Err(Error::owned(ErrorCode::InternalError.code(), e, None::<()>))
             }
         }
     }

@@ -17,7 +17,6 @@ use {
 };
 
 #[rpc(server)]
-#[async_trait]
 pub trait GethTrace {
     #[method(name = "debug_traceCall")]
     async fn trace_call(

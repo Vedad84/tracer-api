@@ -7,9 +7,9 @@ use {
         metrics::start_monitoring,
         service::{eip1898::EIP1898Server/*, geth::GethTraceServer*/},
     },
-    jsonrpsee::http_server::{HttpServerBuilder, RpcModule},
+    jsonrpsee::server::{RpcModule, ServerBuilder},
     neon_cli_lib::types::{IndexerDb, TracerDb},
-    std::sync::Arc,
+    std::{net::SocketAddr, sync::Arc},
     tokio::signal,
     tracing::{info, warn},
     tracing_subscriber::{fmt, EnvFilter},
@@ -43,8 +43,9 @@ async fn run() {
 
     info!(?options, "starting");
 
-    let server = HttpServerBuilder::default()
-        .build(options.addr.parse().unwrap())
+    let server = ServerBuilder::default()
+        .build(options.addr.parse::<SocketAddr>().unwrap())
+        .await
         .unwrap();
 
     let tracer_db = TracerDb::new(&options.db_config);
@@ -63,7 +64,8 @@ async fn run() {
 
     let neon_client_config = Arc::new(api_client::config::read_api_client_config_from_enviroment());
     let neon_api_url = neon_client_config.neon_api_url.clone();
-    let neon_client = api_client::client::Client::new(Arc::clone(&neon_client_config), neon_api_url.as_str());
+    let neon_client =
+        api_client::client::Client::new(Arc::clone(&neon_client_config), neon_api_url.as_str());
 
     let source = DataSource::new(
         tracer_db.clone(),
@@ -101,14 +103,13 @@ async fn run() {
         _ = sigint.recv() => {}
     }
 
-    let handles = vec![
-        server_handle
-            .stop()
-            .expect("Failed to stop JSON RPC Server"),
-        monitor_handle.stop().expect("Failed to stop Monitoring"),
-    ];
-
-    futures::future::join_all(handles).await;
+    server_handle
+        .stop()
+        .expect("Failed to stop JSON RPC Server");
+    let _ = monitor_handle
+        .stop()
+        .expect("Failed to stop Monitoring")
+        .await;
 }
 
 #[tokio::main]
