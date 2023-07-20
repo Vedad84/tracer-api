@@ -1,6 +1,5 @@
 use neon_cli_lib::types::trace::TraceConfig;
 use {
-    super::Bytes,
     ethnum::U256,
     crate::opcodes::opcode_name,
     std::{collections::BTreeMap, iter},
@@ -10,7 +9,6 @@ use {
         Bytes,
     },
     serde::{self, Deserialize, Serialize},
-    std::{collections::BTreeMap, iter},
 };
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
@@ -60,7 +58,7 @@ pub struct TraceTransactionOptions {
 }
 
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Trace {
     Logs(ExecutionResult),
@@ -70,7 +68,7 @@ pub enum Trace {
 /// ExecutionResult groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction
 /// execution status, the amount of gas used and the return value
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionResult {
     /// Is execution failed or not

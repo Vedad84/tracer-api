@@ -105,7 +105,9 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
     }
 
     #[allow(unused)]
@@ -132,7 +134,9 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
     }
 
     #[allow(unused)]
@@ -155,7 +159,9 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
     }
 
     #[allow(unused)]
