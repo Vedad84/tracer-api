@@ -48,7 +48,7 @@ async fn run() {
         .unwrap();
 
     let tracer_db = TracerDb::new(&options.db_config);
-    let indexer_db = IndexerDb::new(&options.db_config);
+    let indexer_db = IndexerDb::new(&options.db_config).await;
 
     let transport = web3::transports::Http::new(&options.web3_proxy)
         .map_err(|e| {

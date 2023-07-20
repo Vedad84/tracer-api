@@ -3,10 +3,10 @@ use std::{sync::Arc, time::Duration};
 use crate::api_client::{client::Client, config::Config};
 use crate::service::Result;
 use ethnum::U256;
-use evm_loader::types::Address;
-use log::{debug, info};
-use neon_cli_lib::types::trace::{TraceCallConfig, TraceConfig, TracedCall};
-use serde_json::Value;
+use neon_cli_lib::types::{
+    Address,
+    trace::{TraceCallConfig, TraceConfig, TracedCall},
+};
 
 use super::ERR;
 
@@ -68,23 +68,7 @@ impl NeonAPIDataSource {
             .await
             .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
 
-        if response.result != "success" {
-            info!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
-        }
-
-        if let serde_json::Value::Object(map) = response.value {
-            if let serde_json::Value::String(result) = map
-                .get("result")
-                .ok_or_else(|| ERR("get neon-api json.value.result", id))?
-            {
-                Ok(format!("0x{result}"))
-            } else {
-                Err(ERR("cast neon-api json.value.result->String", id))
-            }
-        } else {
-            Err(ERR("cast neon-api json.value->{}", id))
-        }
+        Ok(format!("0x{}", hex::encode(&response.emulation_result.result)))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -99,9 +83,9 @@ impl NeonAPIDataSource {
         slot: u64,
         trace_call_config: Option<TraceCallConfig>,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<TracedCall> {
-        let response = self
+        self
             .api_client
             .clone()
             .trace(
@@ -118,15 +102,7 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-
-        if response.result != "success" {
-            info!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
-        }
-
-        serde_json::from_value(response.value)
-            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
+            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
     }
 
     #[allow(unused)]
@@ -136,12 +112,12 @@ impl NeonAPIDataSource {
         slot: u64,
         trace_config: Option<TraceConfig>,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<TracedCall> {
         let hash = hash.to_be_bytes();
         let hash = format!("0x{}", hex::encode(hash));
 
-        let response = self
+        self
             .api_client
             .clone()
             .trace_hash(
@@ -153,15 +129,7 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-
-        if response.result != "success" {
-            debug!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
-        }
-
-        serde_json::from_value(response.value)
-            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
+            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
     }
 
     #[allow(unused)]
@@ -170,9 +138,9 @@ impl NeonAPIDataSource {
         slot: u64,
         trace_config: Option<TraceConfig>,
         tout: &Duration,
-        id: u16,
+        id: u64,
     ) -> Result<Vec<TracedCall>> {
-        let response = self
+        self
             .api_client
             .clone()
             .trace_next_block(
@@ -184,15 +152,7 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-
-        if response.result != "success" {
-            info!("id {:?}: neon_api ERR: {}", id, response.value);
-            return Err(ERR("result != success", id));
-        }
-
-        serde_json::from_value(response.value)
-            .map_err(|_| ERR("deserialize neon-api json.value to TracedCall", id))
+            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
     }
 
     #[allow(unused)]
@@ -204,15 +164,13 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<U256> {
-        let response = self
+        self
             .api_client
             .clone()
             .get_storage_at(to, index, Some(slot), id)
             .await
-            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-
-        U256::from_str_hex(&format!("0x{}", &response))
-            .map_err(|e| ERR(&format!("U256::from_str_hex() error: {:?}", e.to_string()), id))
+            .map(|arr| U256::from_be_bytes(arr))
+            .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))
     }
 
     #[allow(unused)]

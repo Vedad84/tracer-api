@@ -1,3 +1,4 @@
+use std::sync::atomic::Ordering;
 use {
     async_trait::async_trait,
     jsonrpsee::proc_macros::rpc,
@@ -105,7 +106,7 @@ impl GethTraceServer for DataSource {
         let h = hash.to_be_bytes();
         let slot = self
             .indexer_db
-            .get_slot(&h)
+            .get_slot(&h).await
             .map_err(|e| ERR(&format!("get_slot error: {e}"), id))?;
 
         let result = self.neon_api.trace_hash(hash, slot, o.clone(), &tout, id).await;
@@ -124,11 +125,11 @@ impl GethTraceServer for DataSource {
     async fn trace_block_by_number(&self, tag: BlockNumber, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByNumber");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!("id {id}: debug_traceBlockByNumber (tag={tag:?}, config={o:?})");
 
         let tout = std::time::Duration::new(10, 0);
-        let slot = self.get_block_number(tag, id)?;
+        let slot = self.get_block_number(tag, id).await?;
         if slot == 0 {
             return Err(ERR("Genesis block is not traceable", id));
         }
@@ -151,12 +152,12 @@ impl GethTraceServer for DataSource {
     async fn trace_block_by_hash(&self, hash: U256, o: Option<TraceConfig>) -> Result<Vec<Trace>> {
         let started = metrics::report_incoming_request("debug_traceBlockByHash");
 
-        let id = rand::random::<u16>();
+        let id = self.request_id.fetch_add(1, Ordering::SeqCst);
         info!("id {id}: debug_traceBlockByHash (hash={hash}, config={o:?})");
 
         let tout = std::time::Duration::new(10, 0);
         let hash = hash.to_be_bytes();
-        let slot = self.indexer_db.get_slot_by_block_hash(&hash)
+        let slot = self.indexer_db.get_slot_by_block_hash(&hash).await
             .map_err(|e | ERR(&format!("get_slot_by_block_hash error: {}", e), id))?;
         if slot == 0 {
             return Err(ERR("Genesis block is not traceable", id));

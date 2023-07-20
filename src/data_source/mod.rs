@@ -94,7 +94,7 @@ impl DataSource {
                 )
             },
             BlockNumber::Latest => {
-                self.tracer_db.get_latest_block().map_err(
+                self.tracer_db.get_latest_block().await.map_err(
                     |e| {
                         warn!("id {:?}: Failed to retrieve latest block {:?}", id, e);
                         Error::Custom(format!("Failed to retrieve latest block: {:?}", e))

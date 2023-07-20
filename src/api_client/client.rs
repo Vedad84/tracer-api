@@ -2,17 +2,25 @@ use std::{sync::Arc, time::{Instant, Duration}};
 
 use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
-use evm_loader::types::Address;
-use log::{debug, info};
+use log::{info, warn};
 
-use neon_cli_lib::types::{
-    request_models::{
-        EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
-        GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
-        TraceNextBlockRequestModel,
+use neon_cli_lib::{
+    commands::{
+        get_ether_account_data::GetEtherAccountDataReturn,
     },
-    trace::{TraceCallConfig, TraceConfig},
+    types::{
+        request_models::{
+            EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
+            GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
+            TraceNextBlockRequestModel,
+        },
+        trace::{TraceCallConfig, TraceConfig},
+        Address,
+    }
 };
+use neon_cli_lib::commands::emulate::EmulationResultWithAccounts;
+use neon_cli_lib::commands::get_storage_at::GetStorageAtReturn;
+use neon_cli_lib::types::trace::TracedCall;
 
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
@@ -48,7 +56,7 @@ impl Client {
     ) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
-        R: DeserializeOwned + std::fmt::Display,
+        R: DeserializeOwned + std::fmt::Debug,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
         info!("id {:?}: post_request: {:?}, parameters: {:?}", id, full_url, req_body);
@@ -64,7 +72,6 @@ impl Client {
             .send()
             .await?;
         let duration = start.elapsed();
-
         self.process_response(response, &duration, &full_url, id).await
     }
 
@@ -76,7 +83,7 @@ impl Client {
     ) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
-        R: DeserializeOwned + std::fmt::Display,
+        R: DeserializeOwned + std::fmt::Debug,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
         info!("id {:?}: get_request: {:?}, parameters: {:?}", id, full_url, query);
@@ -91,26 +98,14 @@ impl Client {
             .query(&query)
             .send()
             .await?;
-
-        self.process_response(&full_url, response, &start, id).await
-    }
-
-    async fn process_response(
-        &self,
-        full_url: &str,
-        response: Response,
-        start: &Instant,
-        id: u16,
-    ) -> Result<NeonApiResponse> {
         let duration = start.elapsed();
         self.process_response(response, &duration, &full_url, id).await
     }
 
     async fn process_response<T>(&self, response: Response, duration: &Duration, full_url: &String, id: u64) -> Result<T>
     where
-        T: DeserializeOwned + std::fmt::Display,
+        T: DeserializeOwned + std::fmt::Debug,
     {
-
         info!(
             "id {:?}: found response for request {} (duration {} ms)",
             id,
@@ -128,13 +123,13 @@ impl Client {
                             warn!("id {:?}: NeonApiResponse.result != success", id);
                             Err(NeonAPIClientError::NeonApiError(format!("result != success")))
                         } else {
-                            info!("id {:?}: NeonApiResponse.value: {}", id, response.value);
+                            info!("id {:?}: NeonApiResponse.value: {:?}", id, response.value);
                             Ok(response.value)
                         }
                     },
                     Err(e) => {
                         warn!("id {:?}: error to deserialize response.json to NeonApiResponse: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string()))
+                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                     }
                 }
             },
@@ -147,7 +142,7 @@ impl Client {
                     },
                     Err(e) => {
                         warn!("id {:?}: error to deserialize response.json to NeonApiError: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string()))
+                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                     },
                 }
             },
@@ -204,7 +199,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
         id: u64,
-    ) -> Result<EmulateReturn> {
+    ) -> Result<EmulationResultWithAccounts> {
         let tx_params = TxParamsRequestModel {
             sender,
             contract,
@@ -240,7 +235,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
         id: u64,
-    ) -> Result<EmulateReturn> {
+    ) -> Result<EmulationResultWithAccounts> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
             Some(self.config.chain_id),
@@ -271,8 +266,8 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
         trace_call_config: Option<TraceCallConfig>,
-        id: u16,
-    ) -> Result<NeonApiResponse> {
+        id: u64,
+    ) -> Result<TracedCall> {
         let tx_params = TxParamsRequestModel {
             sender,
             contract,
@@ -311,8 +306,8 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
         trace_config: Option<TraceConfig>,
-        id: u16,
-    ) -> Result<NeonApiResponse> {
+        id: u64,
+    ) -> Result<TracedCall> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
             Some(self.config.chain_id),
@@ -343,8 +338,8 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: u64,
         trace_config: Option<TraceConfig>,
-        id: u16,
-    ) -> Result<NeonApiResponse> {
+        id: u64,
+    ) -> Result<Vec<TracedCall>> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
             Some(self.config.chain_id),

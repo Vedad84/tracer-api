@@ -4,6 +4,7 @@ use {
     std::{collections::BTreeMap, iter},
     neon_cli_lib::types::{
         trace::{TracedCall, VMTrace, VMOperation},
+        Address,
         Bytes,
     },
     serde::{self, Deserialize, Serialize},
@@ -41,12 +42,12 @@ pub struct TransactionArgs {
     pub chain_id: Option<U256>,
 }
 
-// #[derive(Serialize, Debug)]
-// #[serde(untagged, rename_all = "camelCase")]
-// pub enum Trace {
-//     Logs(ExecutionResult),
-//     // JsTrace(serde_json::Value),
-// // }
+#[derive(Serialize, Debug)]
+#[serde(untagged, rename_all = "camelCase")]
+pub enum Trace {
+    Logs(ExecutionResult),
+    // JsTrace(serde_json::Value),
+}
 
 /// ExecutionResult groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction
