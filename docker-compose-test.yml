@@ -55,7 +55,7 @@ services:
       NEON_DB_INDEXER_PASSWORD: ${INDEXER_DB_PASSWORD}
       KEYPAIR: /opt/id.json
       FEEPAIR: /opt/id.json
-    image: neonlabsorg/evm_loader:1e37c4059ea4e1735f3ad4ee52b5bdc550bc7de0
+    image: neonlabsorg/evm_loader:2577f4274b17d1a27327bcedc5325f021293d69f
     expose:
       - "8080:8080"
     ports:
