@@ -5,7 +5,7 @@ use {
     crate::{
         data_source::DataSource,
         metrics::start_monitoring,
-        service::{eip1898::EIP1898Server/*, geth::GethTraceServer*/},
+        service::{eip1898::EIP1898Server, geth::GethTraceServer},
     },
     jsonrpsee::server::{RpcModule, ServerBuilder},
     neon_cli_lib::types::{IndexerDb, TracerDb},
@@ -79,9 +79,9 @@ async fn run() {
     module
         .merge(EIP1898Server::into_rpc(source.clone()))
         .expect("EIP1898Server error");
-    // module
-    //     .merge(GethTraceServer::into_rpc(source.clone()))
-    //     .expect("GethTraceServer error");
+    module
+        .merge(GethTraceServer::into_rpc(source.clone()))
+        .expect("GethTraceServer error");
 
     let monitor_handle = start_monitoring(
         tracer_db.clone(),
