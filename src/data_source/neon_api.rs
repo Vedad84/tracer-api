@@ -3,9 +3,15 @@ use std::{sync::Arc, time::Duration};
 use crate::api_client::{client::Client, config::Config};
 use crate::service::{Error, Result};
 use ethnum::U256;
-use neon_cli_lib::types::{
-    Address,
-    trace::{TraceCallConfig, TraceConfig, TracedCall},
+use neon_cli_lib::{
+    commands::{
+        get_storage_at::GetStorageAtReturn,
+        trace::TraceBlockReturn,
+    },
+    types::{
+        Address,
+        trace::{TraceCallConfig, TraceConfig, TracedCall},
+    },
 };
 use jsonrpsee::types::error::ErrorCode;
 
@@ -146,7 +152,7 @@ impl NeonAPIDataSource {
         trace_config: Option<TraceConfig>,
         tout: &Duration,
         id: u64,
-    ) -> Result<Vec<TracedCall>> {
+    ) -> Result<TraceBlockReturn> {
         self
             .api_client
             .clone()
@@ -178,7 +184,7 @@ impl NeonAPIDataSource {
             .clone()
             .get_storage_at(to, index, Some(slot), id)
             .await
-            .map(|arr| U256::from_be_bytes(arr))
+            .map(|GetStorageAtReturn(arr)| U256::from_be_bytes(arr))
             .map_err(|e| Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>))
     }
 

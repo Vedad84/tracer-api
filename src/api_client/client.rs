@@ -6,7 +6,10 @@ use log::{info, warn};
 
 use neon_cli_lib::{
     commands::{
+        emulate::EmulationResultWithAccounts,
         get_ether_account_data::GetEtherAccountDataReturn,
+        get_storage_at::GetStorageAtReturn,
+        trace::TraceBlockReturn,
     },
     types::{
         request_models::{
@@ -14,13 +17,10 @@ use neon_cli_lib::{
             GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
             TraceNextBlockRequestModel,
         },
-        trace::{TraceCallConfig, TraceConfig},
+        trace::{TracedCall, TraceCallConfig, TraceConfig},
         Address,
     }
 };
-use neon_cli_lib::commands::emulate::EmulationResultWithAccounts;
-use neon_cli_lib::commands::get_storage_at::GetStorageAtReturn;
-use neon_cli_lib::types::trace::TracedCall;
 
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
@@ -56,7 +56,7 @@ impl Client {
     ) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
-        R: DeserializeOwned + std::fmt::Debug,
+        R: DeserializeOwned + std::fmt::Display,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
         info!("id {:?}: post_request: {:?}, parameters: {:?}", id, full_url, req_body);
@@ -83,7 +83,7 @@ impl Client {
     ) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
-        R: DeserializeOwned + std::fmt::Debug,
+        R: DeserializeOwned + std::fmt::Display,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
         info!("id {:?}: get_request: {:?}, parameters: {:?}", id, full_url, query);
@@ -104,7 +104,7 @@ impl Client {
 
     async fn process_response<T>(&self, response: Response, duration: &Duration, full_url: &String, id: u64) -> Result<T>
     where
-        T: DeserializeOwned + std::fmt::Debug,
+        T: DeserializeOwned + std::fmt::Display,
     {
         info!(
             "id {:?}: found response for request {} (duration {} ms)",
@@ -123,7 +123,7 @@ impl Client {
                             warn!("id {:?}: NeonApiResponse.result != success", id);
                             Err(NeonAPIClientError::NeonApiError(format!("result != success")))
                         } else {
-                            info!("id {:?}: NeonApiResponse.value: {:?}", id, response.value);
+                            info!("id {:?}: NeonApiResponse.value: {}", id, response.value);
                             Ok(response.value)
                         }
                     },
@@ -339,7 +339,7 @@ impl Client {
         slot: u64,
         trace_config: Option<TraceConfig>,
         id: u64,
-    ) -> Result<Vec<TracedCall>> {
+    ) -> Result<TraceBlockReturn> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
             Some(self.config.chain_id),

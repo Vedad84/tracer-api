@@ -4,7 +4,7 @@ use std::fmt;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NeonApiResponse<T>
-where T: fmt::Debug
+where T: fmt::Display
 {
     pub result: String,
     pub value: T,

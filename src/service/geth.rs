@@ -137,7 +137,7 @@ impl GethTraceServer for DataSource {
 
         let result = result.map(|trace_calls| {
             let o = o.unwrap_or_default();
-            let response = trace_calls.into_iter()
+            let response = trace_calls.0.into_iter()
                 .map(|trace_call| Trace::Logs(ExecutionResult::new(trace_call,&o)))
                 .collect();
             info!("debug_traceBlockByNumber => {:?}", response);
@@ -165,7 +165,7 @@ impl GethTraceServer for DataSource {
 
         let result = result.map(|trace_calls| {
             let o = o.unwrap_or_default();
-            let response = trace_calls.into_iter()
+            let response = trace_calls.0.into_iter()
                 .map(|trace_call| Trace::Logs(ExecutionResult::new(trace_call,&o)))
                 .collect();
             info!("debug_traceBlockByHash => {:?}", response);
