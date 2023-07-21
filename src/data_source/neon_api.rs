@@ -3,8 +3,17 @@ use std::{sync::Arc, time::Duration};
 use crate::api_client::{client::Client, config::Config};
 use crate::service::{Error, Result};
 use ethnum::U256;
+use neon_cli_lib::{
+    commands::{
+        get_storage_at::GetStorageAtReturn,
+        trace::TraceBlockReturn,
+    },
+    types::{
+        Address,
+        trace::{TraceCallConfig, TraceConfig, TracedCall},
+    },
+};
 use jsonrpsee::types::error::ErrorCode;
-use neon_cli_lib::types::Address;
 
 use super::ERR;
 
@@ -68,70 +77,98 @@ impl NeonAPIDataSource {
                 Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
             })?;
 
-        Ok(format!("0x{}", response.result))
+        Ok(format!("0x{}", hex::encode(&response.emulation_result.result)))
     }
 
-    // #[allow(clippy::too_many_arguments)]
-    // #[allow(unused)]
-    // pub async fn trace(
-    //     &self,
-    //     from: Option<Address>,
-    //     to: Option<Address>,
-    //     value: Option<U256>,
-    //     data: Option<Vec<u8>>,
-    //     gas_limit: Option<U256>,
-    //     slot: u64,
-    //     tout: &Duration,
-    //     id: u64,
-    // ) -> Result<TracedCall> {
-    //     let response = self
-    //         .api_client
-    //         .clone()
-    //         .trace(
-    //             from.unwrap_or_default(),
-    //             to,
-    //             data,
-    //             value,
-    //             gas_limit,
-    //             self.steps_to_execute,
-    //             None,
-    //             None,
-    //             Some(slot),
-    //             id,
-    //         )
-    //         .await
-    //         .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-    //
-    //     Ok(response)
-    // }
+    #[allow(clippy::too_many_arguments)]
+    #[allow(unused)]
+    pub async fn trace(
+        &self,
+        from: Option<Address>,
+        to: Option<Address>,
+        value: Option<U256>,
+        data: Option<Vec<u8>>,
+        gas_limit: Option<U256>,
+        slot: u64,
+        trace_call_config: Option<TraceCallConfig>,
+        tout: &Duration,
+        id: u64,
+    ) -> Result<TracedCall> {
+        self
+            .api_client
+            .clone()
+            .trace(
+                from.unwrap_or_default(),
+                to,
+                data,
+                value,
+                gas_limit,
+                self.steps_to_execute,
+                None,
+                None,
+                Some(slot),
+                trace_call_config,
+                id,
+            )
+            .await
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
+    }
 
-    // #[allow(clippy::too_many_arguments)]
-    // #[allow(unused)]
-    // pub async fn trace_hash(
-    //     &self,
-    //     hash: U256,
-    //     slot: u64,
-    //     tout: &Duration,
-    //     id: u64,
-    // ) -> Result<TracedCall> {
-    //     let hash = hash.to_be_bytes();
-    //     let hash = format!("0x{}", hex::encode(hash));
-    //
-    //     let response = self
-    //         .api_client
-    //         .clone()
-    //         .trace_hash(
-    //             self.steps_to_execute,
-    //             None,
-    //             None,
-    //             hash,
-    //             id,
-    //         )
-    //         .await
-    //         .map_err(|e| jsonrpsee::types::error::Error::Custom(e.to_string()))?;
-    //
-    //     Ok(response)
-    // }
+    #[allow(unused)]
+    pub async fn trace_hash(
+        &self,
+        hash: U256,
+        slot: u64,
+        trace_config: Option<TraceConfig>,
+        tout: &Duration,
+        id: u64,
+    ) -> Result<TracedCall> {
+        let hash = hash.to_be_bytes();
+        let hash = format!("0x{}", hex::encode(hash));
+
+        self
+            .api_client
+            .clone()
+            .trace_hash(
+                self.steps_to_execute,
+                None,
+                None,
+                hash,
+                trace_config,
+                id,
+            )
+            .await
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
+    }
+
+    #[allow(unused)]
+    pub async fn trace_next_block(
+        &self,
+        slot: u64,
+        trace_config: Option<TraceConfig>,
+        tout: &Duration,
+        id: u64,
+    ) -> Result<TraceBlockReturn> {
+        self
+            .api_client
+            .clone()
+            .trace_next_block(
+                self.steps_to_execute,
+                None,
+                None,
+                slot,
+                trace_config,
+                id,
+            )
+            .await
+            .map_err(|e| {
+                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
+            })
+    }
 
     #[allow(unused)]
     pub async fn get_storage_at(
@@ -142,17 +179,13 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<U256> {
-        let response = self
+        self
             .api_client
             .clone()
             .get_storage_at(to, index, Some(slot), id)
             .await
-            .map_err(|e| {
-                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
-            })?;
-
-        U256::from_str_hex(&format!("0x{}", &response))
-            .map_err(|e| ERR(&format!("U256::from_str_hex() error: {e:?}"), id))
+            .map(|GetStorageAtReturn(arr)| U256::from_be_bytes(arr))
+            .map_err(|e| Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>))
     }
 
     #[allow(unused)]

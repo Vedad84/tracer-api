@@ -1196,6 +1196,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "environmental"
+version = "1.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e48c92028aaa870e83d51c64e5d4e0b6981b360c522198c23959f219a4e1b15b"
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1281,14 +1287,15 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "evm-loader"
-version = "0.16.0-dev"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=hot_fix_eth_call#b3c20192400a10bed95c49969762123fdc25365c"
+version = "1.1.0-dev"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#75710ca9c4da14e42c0cb2090f967f2e33a1b3ba"
 dependencies = [
  "arrayref",
  "bincode",
  "borsh",
  "cfg-if 1.0.0",
  "const_format",
+ "environmental",
  "ethnum",
  "evm-loader-macro",
  "hex",
@@ -1309,7 +1316,7 @@ dependencies = [
 [[package]]
 name = "evm-loader-macro"
 version = "1.0.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=hot_fix_eth_call#b3c20192400a10bed95c49969762123fdc25365c"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#75710ca9c4da14e42c0cb2090f967f2e33a1b3ba"
 dependencies = [
  "bs58",
  "itertools",
@@ -2515,8 +2522,9 @@ dependencies = [
 [[package]]
 name = "neon-lib"
 version = "0.1.0"
-source = "git+https://github.com/neonlabsorg/neon-evm?branch=hot_fix_eth_call#b3c20192400a10bed95c49969762123fdc25365c"
+source = "git+https://github.com/neonlabsorg/neon-evm?branch=NDEV-1511-debug-traces-fixes#75710ca9c4da14e42c0cb2090f967f2e33a1b3ba"
 dependencies = [
+ "async-trait",
  "axum",
  "bincode",
  "bs58",

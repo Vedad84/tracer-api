@@ -63,7 +63,7 @@ pub fn read_config() -> Options {
         addr,
         db_config,
         web3_proxy,
-        metrics_ip: metrics_ip,
+        metrics_ip,
         metrics_port,
     }
 }

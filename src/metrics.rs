@@ -121,15 +121,18 @@ pub async fn run_monitoring(
     interval.tick().await;
     loop {
         tokio::select! {
-            _ = interval.tick() => {
-            let _ = proxy.eth().block_number().await
-                    .map(|proxy_block_number|{
-                        tracer_db.get_latest_block().map(|db_slot| {
+            _ = interval.tick() =>
+                match proxy.eth().block_number().await {
+                    Ok(proxy_block_number) => {
+                        tracer_db.get_latest_block().await.map(|db_slot| {
                             SLOT_DIFFERENCE.observe((proxy_block_number.as_u64() - db_slot) as f64);
                         })
-                    })
-                    .map_err(|err| warn!("Failed to submit neon_tracer_slot_difference: {:?}", err));
-            }
+                            .map_err(|err| warn!("Failed to submit neon_tracer_slot_difference: {:?}", err))
+                            .ok();
+                    }
+                    Err(err) => warn!("Failed to submit neon_tracer_slot_difference: {:?}", err),
+                },
+
             _ = stop_rcv.recv() => {
                 break;
             }

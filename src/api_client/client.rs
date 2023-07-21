@@ -3,6 +3,25 @@ use std::{sync::Arc, time::{Instant, Duration}};
 use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
 use log::{info, warn};
+
+use neon_cli_lib::{
+    commands::{
+        emulate::EmulationResultWithAccounts,
+        get_ether_account_data::GetEtherAccountDataReturn,
+        get_storage_at::GetStorageAtReturn,
+        trace::TraceBlockReturn,
+    },
+    types::{
+        request_models::{
+            EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
+            GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
+            TraceNextBlockRequestModel,
+        },
+        trace::{TracedCall, TraceCallConfig, TraceConfig},
+        Address,
+    }
+};
+
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
     Client as ReqwestClient, Response,
@@ -11,21 +30,6 @@ use serde::{Serialize, de::DeserializeOwned};
 use solana_sdk::pubkey::Pubkey;
 
 use super::errors::NeonAPIClientError;
-use neon_cli_lib::{
-    commands::{
-        get_storage_at::GetStorageAtReturn,
-        get_ether_account_data::GetEtherAccountDataReturn,
-        emulate_tracer::EmulateReturn,
-        // trace::TraceReturn,
-    },
-    types::{
-        request_models::{
-            EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
-            GetStorageAtRequest, /*TraceHashRequestModel, TraceRequestModel,*/ TxParamsRequestModel,
-        },
-        Address,
-    }
-};
 
 #[derive(Clone)]
 pub struct Client {
@@ -68,7 +72,6 @@ impl Client {
             .send()
             .await?;
         let duration = start.elapsed();
-
         self.process_response(response, &duration, &full_url, id).await
     }
 
@@ -103,7 +106,6 @@ impl Client {
     where
         T: DeserializeOwned + std::fmt::Display,
     {
-
         info!(
             "id {:?}: found response for request {} (duration {} ms)",
             id,
@@ -127,7 +129,7 @@ impl Client {
                     },
                     Err(e) => {
                         warn!("id {:?}: error to deserialize response.json to NeonApiResponse: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string()))
+                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                     }
                 }
             },
@@ -140,7 +142,7 @@ impl Client {
                     },
                     Err(e) => {
                         warn!("id {:?}: error to deserialize response.json to NeonApiError: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string()))
+                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
                     },
                 }
             },
@@ -197,7 +199,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         slot: Option<u64>,
         id: u64,
-    ) -> Result<EmulateReturn> {
+    ) -> Result<EmulationResultWithAccounts> {
         let tx_params = TxParamsRequestModel {
             sender,
             contract,
@@ -233,7 +235,7 @@ impl Client {
         solana_accounts: Option<Vec<Pubkey>>,
         hash: String,
         id: u64,
-    ) -> Result<EmulateReturn> {
+    ) -> Result<EmulationResultWithAccounts> {
         let emulation_params = EmulationParamsRequestModel::new(
             Some(self.config.token_mint),
             Some(self.config.chain_id),
@@ -247,81 +249,112 @@ impl Client {
             hash,
         };
 
-        self.post_request("/api/emulate_hash", params, id)
+        self.post_request("/api/emulate-hash", params, id)
             .await
     }
 
-    // #[allow(clippy::too_many_arguments)]
-    // pub async fn trace(
-    //     &self,
-    //     sender: Address,
-    //     contract: Option<Address>,
-    //     data: Option<Vec<u8>>,
-    //     value: Option<U256>,
-    //     gas_limit: Option<U256>,
-    //     max_steps_to_execute: u64,
-    //     cached_accounts: Option<Vec<Address>>,
-    //     solana_accounts: Option<Vec<Pubkey>>,
-    //     slot: Option<u64>,
-    //     id: u64,
-    // ) -> Result<TraceReturn> {
-    //     let tx_params = TxParamsRequestModel {
-    //         sender,
-    //         contract,
-    //         data,
-    //         value,
-    //         gas_limit,
-    //     };
-    //
-    //     let emulation_params = EmulationParamsRequestModel::new(
-    //         Some(self.config.token_mint),
-    //         Some(self.config.chain_id),
-    //         max_steps_to_execute,
-    //         cached_accounts,
-    //         solana_accounts,
-    //     );
-    //
-    //     let emulate_request = EmulateRequestModel {
-    //         tx_params,
-    //         emulation_params,
-    //         slot,
-    //     };
-    //
-    //     let params = TraceRequestModel {
-    //         emulate_request,
-    //     };
-    //
-    //     self.post_request("/api/trace", params, id)
-    //         .await
-    // }
+    #[allow(clippy::too_many_arguments)]
+    pub async fn trace(
+        &self,
+        sender: Address,
+        contract: Option<Address>,
+        data: Option<Vec<u8>>,
+        value: Option<U256>,
+        gas_limit: Option<U256>,
+        max_steps_to_execute: u64,
+        cached_accounts: Option<Vec<Address>>,
+        solana_accounts: Option<Vec<Pubkey>>,
+        slot: Option<u64>,
+        trace_call_config: Option<TraceCallConfig>,
+        id: u64,
+    ) -> Result<TracedCall> {
+        let tx_params = TxParamsRequestModel {
+            sender,
+            contract,
+            data,
+            value,
+            gas_limit,
+        };
 
-    // #[allow(clippy::too_many_arguments)]
-    // pub async fn trace_hash(
-    //     &self,
-    //     max_steps_to_execute: u64,
-    //     cached_accounts: Option<Vec<Address>>,
-    //     solana_accounts: Option<Vec<Pubkey>>,
-    //     hash: String,
-    //     id: u64,
-    // ) -> Result<TraceReturn> {
-    //     let emulation_params = EmulationParamsRequestModel::new(
-    //         Some(self.config.token_mint),
-    //         Some(self.config.chain_id),
-    //         max_steps_to_execute,
-    //         cached_accounts,
-    //         solana_accounts,
-    //     );
-    //
-    //     let emulate_hash_request = EmulateHashRequestModel {
-    //         emulation_params,
-    //         hash,
-    //     };
-    //
-    //     let params = TraceHashRequestModel {
-    //         emulate_hash_request,
-    //     };
-    //
-    //     self.post_request("/api/trace_hash", params, id)
-    //         .await
-    // }
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
+            max_steps_to_execute,
+            cached_accounts,
+            solana_accounts,
+        );
+
+        let emulate_request = EmulateRequestModel {
+            tx_params,
+            emulation_params,
+            slot,
+        };
+
+        let params = TraceRequestModel {
+            emulate_request,
+            trace_call_config,
+        };
+
+        self.post_request("/api/trace", params, id)
+            .await
+    }
+
+    pub async fn trace_hash(
+        &self,
+        max_steps_to_execute: u64,
+        cached_accounts: Option<Vec<Address>>,
+        solana_accounts: Option<Vec<Pubkey>>,
+        hash: String,
+        trace_config: Option<TraceConfig>,
+        id: u64,
+    ) -> Result<TracedCall> {
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
+            max_steps_to_execute,
+            cached_accounts,
+            solana_accounts,
+        );
+
+        let emulate_hash_request = EmulateHashRequestModel {
+            emulation_params,
+            hash,
+        };
+
+        let params = TraceHashRequestModel {
+            emulate_hash_request,
+            trace_config,
+        };
+
+        self.post_request("/api/trace-hash", params, id)
+            .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub async fn trace_next_block(
+        &self,
+        max_steps_to_execute: u64,
+        cached_accounts: Option<Vec<Address>>,
+        solana_accounts: Option<Vec<Pubkey>>,
+        slot: u64,
+        trace_config: Option<TraceConfig>,
+        id: u64,
+    ) -> Result<TraceBlockReturn> {
+        let emulation_params = EmulationParamsRequestModel::new(
+            Some(self.config.token_mint),
+            Some(self.config.chain_id),
+            max_steps_to_execute,
+            cached_accounts,
+            solana_accounts,
+        );
+
+        let params = TraceNextBlockRequestModel {
+            emulation_params,
+            slot,
+            trace_config,
+        };
+
+        self.post_request("/api/trace-next-block", params, id)
+            .await
+    }
 }

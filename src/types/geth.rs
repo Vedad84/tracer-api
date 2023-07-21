@@ -1,12 +1,14 @@
+use neon_cli_lib::types::trace::TraceConfig;
 use {
-    super::Bytes,
     ethnum::U256,
+    crate::opcodes::opcode_name,
+    std::{collections::BTreeMap, iter},
     neon_cli_lib::types::{
         trace::{TracedCall, VMOperation, VMTrace},
         Address,
+        Bytes,
     },
     serde::{self, Deserialize, Serialize},
-    std::{collections::BTreeMap, iter},
 };
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
@@ -55,17 +57,18 @@ pub struct TraceTransactionOptions {
     pub timeout: Option<String>,
 }
 
-// #[derive(Serialize, Debug)]
-// #[serde(untagged, rename_all = "camelCase")]
-// pub enum Trace {
-//     Logs(ExecutionResult),
-//     JsTrace(serde_json::Value),
-// }
+
+#[derive(Serialize, Debug, Clone)]
+#[serde(untagged, rename_all = "camelCase")]
+pub enum Trace {
+    Logs(ExecutionResult),
+    // JsTrace(serde_json::Value),
+}
 
 /// ExecutionResult groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction
 /// execution status, the amount of gas used and the return value
-#[derive(Serialize, Debug)]
+#[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct ExecutionResult {
     /// Is execution failed or not
@@ -100,11 +103,8 @@ impl From<TracedCall> for ExecutionResult {
 }
 
 impl ExecutionResult {
-    #[allow(unused)]
-    pub fn new(traced_call: TracedCall, options: &TraceTransactionOptions) -> Self {
-        let failed = false; // TODO: NDEV-1206, NDEV-1207
+    pub fn new(traced_call: TracedCall, options: &TraceConfig) -> Self {
         let gas = traced_call.used_gas;
-        let return_value = String::new(); // TODO NDEV-1206, NDEV-1207
 
         let mut logs: Vec<StructLog> = match traced_call.vm_trace {
             Some(vm_trace) => StructLog::from_trace_with_depth(vm_trace, 1).collect(),
@@ -116,12 +116,7 @@ impl ExecutionResult {
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
             if !options.disable_stack {
-                l.stack = Some(
-                    d.stack
-                        .iter()
-                        .map(|entry| U256::from_le_bytes(*entry))
-                        .collect(),
-                );
+                l.stack = Some(d.stack.iter().map(|entry|{ U256::from_be_bytes(*entry) }).collect());
             }
 
             if options.enable_memory && !d.memory.is_empty() {
@@ -133,20 +128,19 @@ impl ExecutionResult {
                 );
             }
 
-            if !options.disable_storage {
-                l.storage = Some(
-                    d.storage
-                        .into_iter()
-                        .map(|(k, v)| (k, U256::from_le_bytes(v)))
-                        .collect(),
-                );
+            if !options.disable_storage  {
+                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_be_bytes(v)) }).collect());
+            }
+
+            if options.enable_return_data {
+                l.return_data = d.return_data;
             }
         });
 
         Self {
-            failed,
+            failed: traced_call.exit_status.to_ascii_lowercase() != "succeed",
             gas,
-            return_value,
+            return_value: hex::encode(traced_call.result),
             struct_logs: logs,
         }
     }
@@ -175,6 +169,8 @@ pub struct StructLog {
     #[serde(skip_serializing_if = "Option::is_none")]
     // pub stack: Option<Vec<[u8; 32]>>,
     pub stack: Option<Vec<U256>>,
+    /// Result of the step
+    pub return_data: Option<Vec<u8>>,
     /// Snapshot of the current storage
     #[serde(skip_serializing_if = "Option::is_none")]
     // pub storage: Option<BTreeMap<U256, [u8; 32]>>,
@@ -213,15 +209,16 @@ impl StructLog {
 impl From<(usize, VMOperation)> for StructLog {
     fn from((depth, vm_operation): (usize, VMOperation)) -> Self {
         let pc = vm_operation.pc as u64;
-        let op_name = "";
+        let op_name = opcode_name(vm_operation.instruction);
         let gas = vm_operation
             .executed
             .as_ref()
-            .map(|e| e.gas_used.as_u128() as u64);
-        let gas_cost = vm_operation.gas_cost.as_u128() as u64;
+            .map(|e| e.gas_used.as_u64());
+        let gas_cost = vm_operation.gas_cost.as_u64();
         let depth = depth as u32;
         let memory = None;
         let stack = None;
+        let return_data = None;
         let storage = None;
         let error = None;
 
@@ -233,6 +230,7 @@ impl From<(usize, VMOperation)> for StructLog {
             depth,
             memory,
             stack,
+            return_data,
             storage,
             error,
         }
