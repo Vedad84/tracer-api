@@ -1,38 +1,21 @@
-[package]
-name = "neon-tracer"
-version = "0.2.0-dev"
-edition = "2018"
+[workspace]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+members = [
+    "neon-tracer",
+    "test-framework",
+]
 
-[dependencies]
-jsonrpsee = { version = "0.20.0", features = ["server", "macros"] }
+[workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
-serde = { version = "1.0", features = ["derive", "rc"] }
-rustc-hex = "2.1"
-log = "0.4"
+serde = { version = "1", features = ["derive", "rc"] }
+serde_json = "1.0.99"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-tracing-log = "0.1"
-neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib"}
 evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "evm-loader"}
-solana-sdk = "=1.14"
-solana-cli-config = "=1.14"
-hex = "0.4.3"
-arrayref = "0.3.7"
-serde_json = "1.0.104"
-serde_yaml = "0.9.25"
-lazy_static = "1.4"
-thiserror = "1.0"
-warp = "0.3.5"
-web3 = "0.19.0"
-prometheus = { version = "0.9", features = ["process"] }
-futures = "0.3.28"
-futures-util = "0.3.28"
-async-trait = "0.1.73"
-ethnum = { version = "1", default_features = false, features = [ "serde" ] }
 rand = "0.8.5"
+web3 = "0.19"
+hex = "0.4.2"
 reqwest = { version = "0.11", features = ["json"] }
-
+neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib"}
 # for evm-loader
 mpl-token-auth-rules = "=1.4.1"

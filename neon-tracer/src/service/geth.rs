@@ -12,7 +12,7 @@ use {
         },
     },
     ethnum::U256,
-    log::info,
+    tracing::info,
 };
 use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig};
 

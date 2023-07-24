@@ -9,7 +9,7 @@ use {
     ethnum::U256,
     neon_cli_lib::types::Address,
     jsonrpsee::proc_macros::rpc,
-    log::info,
+    tracing::info,
     std::sync::atomic::Ordering,
 };
 
