@@ -13,5 +13,5 @@ async fn transfer_transaction() {
     assert!(!tf.is_known_transaction(tx.transaction_hash).await);
 
     tf.send_raw_transaction(tx.raw_transaction).await;
-    assert!(tf.wait_for_transaction(tx.transaction_hash).await);
+    assert!(tf.wait_for_transaction_default(tx.transaction_hash,).await);
 }

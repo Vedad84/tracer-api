@@ -1,12 +1,16 @@
 //! Provides utilities for testing.
 
-use std::{env, time::Duration};
+use std::{
+    env,
+    time::{Duration, Instant},
+};
 
-use neon_cli_lib::types::{ChDbConfig, IndexerDb, PgError};
+use neon_cli_lib::types::{ChDbConfig, IndexerDb};
 use rand::rngs::ThreadRng;
 use secp256k1::Secp256k1;
 use serde_json::json;
 use time::OffsetDateTime;
+use tracing::trace;
 use web3::{
     signing::{Key, SecretKey},
     transports::Http,
@@ -78,7 +82,9 @@ impl TestFramework {
     }
 
     /// Creates a new wallet with the given balance.
-    pub async fn make_wallet(&mut self, balance: u32) -> (SecretKey, Address) {
+    pub async fn make_wallet(&mut self, balance: usize) -> (SecretKey, Address) {
+        trace!("Creating a wallet with {balance} balance");
+
         let secp = Secp256k1::new();
         let (secret_key, _public_key) = secp.generate_keypair(&mut self.rng);
         let address = (&secret_key).address();
@@ -104,10 +110,7 @@ impl TestFramework {
             .eth()
             .balance(address, Some(BlockNumber::Pending))
             .await
-            .expect(&format!(
-                "Failed to get balance for {}",
-                hex::encode(address)
-            ))
+            .unwrap_or_else(|_| panic!("Failed to get balance for {}", hex::encode(address)))
     }
 
     pub async fn make_transfer_transaction(
@@ -166,12 +169,9 @@ impl TestFramework {
     /// Returns true if an __Ethereum__ transaction with the given hash is present in the
     /// ClickHouse database.
     pub async fn is_known_transaction(&self, hash: H256) -> bool {
-        let signature = match self.indexer.get_sol_sig(hash.as_fixed_bytes()).await {
-            Ok(s) => s,
-            // It would be better to check the error kind (RowCount::RowCount), but it is
-            // unfortunately private.
-            Err(PgError::Db(_)) => return false,
-            Err(e) => panic!("Indexer::get_sol_sig failed: {e:?}"),
+        let signature = match self.solana_signature(hash).await {
+            Some(s) => s,
+            None => return false,
         };
         1 == self
             .clickhouse
@@ -183,14 +183,76 @@ impl TestFramework {
     }
 
     /// Waits for the transaction to appear in the ClickHouse database. Returns false if isn't
-    /// found even after the timeout.
-    pub async fn wait_for_transaction(&self, hash: H256) -> bool {
-        for _ in 0..50 {
-            if self.is_known_transaction(hash).await {
-                return true;
+    /// found even after the timeout. Performs a busy wait loop if no sleep value is specified.
+    pub async fn wait_for_transaction(
+        &self,
+        hash: H256,
+        timeout: Duration,
+        sleep: Option<Duration>,
+    ) -> bool {
+        let mut now = Instant::now();
+        let timeout = now + timeout;
+
+        let signature = loop {
+            now = Instant::now();
+
+            if now > timeout {
+                return false;
             }
-            tokio::time::sleep(Duration::from_millis(200)).await;
+
+            if let Some(s) = self.solana_signature(hash).await {
+                break s;
+            } else if let Some(t) = sleep {
+                tokio::time::sleep(t).await;
+            }
+        };
+
+        while now < timeout {
+            now = Instant::now();
+
+            if 1 == self
+                .clickhouse
+                .query("SELECT COUNT(1) FROM events.notify_transaction_distributed WHERE signature = ?")
+                .bind(signature.as_slice())
+                .fetch_one::<usize>()
+                .await
+                .expect("Failed to check transaction") {
+                return true;
+            } else if let Some(t) = sleep {
+                tokio::time::sleep(t).await;
+            }
         }
+
         false
+    }
+
+    /// Same as `wait_for_transaction`, but with default values for sleep (200 milliseconds) and
+    /// timeout (10 seconds).
+    pub async fn wait_for_transaction_default(&self, hash: H256) -> bool {
+        self.wait_for_transaction(
+            hash,
+            Duration::from_secs(10),
+            Some(Duration::from_millis(200)),
+        )
+        .await
+    }
+
+    pub async fn transaction_retrieved_time(&self, hash: H256) -> OffsetDateTime {
+        let signature = self
+            .solana_signature(hash)
+            .await
+            .unwrap_or_else(|| panic!("Unable to get solana signature for '{hash:?}' transaction"));
+        self.clickhouse
+            .query("SELECT retrieved_time FROM events.notify_transaction_distributed WHERE signature = ?")
+            .bind(signature.as_slice())
+            .fetch_one::<RetrievedTime>()
+            .await
+            .unwrap_or_else(|_| panic!("Failed to get retrieved_time for '{hash:?}' transaction"))
+            .into()
+    }
+
+    /// Returns the solana signature from the given Ethereum transaction hash.
+    async fn solana_signature(&self, hash: H256) -> Option<[u8; 64]> {
+        self.indexer.get_sol_sig(hash.as_fixed_bytes()).await.ok()
     }
 }
