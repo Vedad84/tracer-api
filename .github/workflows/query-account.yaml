@@ -16,7 +16,7 @@ env:
 
 jobs:
   test-testnet:
-    name: Run transactions latency benchmark
+    name: Run query accounts performance benchmark
     runs-on: tracert-ci
     steps:
       - run: sudo apt-get update && sudo apt install -y libudev-dev
@@ -29,4 +29,4 @@ jobs:
       - run: |
           ssh -fN -L 8123:localhost:8123 ubuntu@${{ vars.TESTNET_CLICKHOUSE_HOST }}
           cargo build --release -p neon-load-tests
-          cargo run --release -p neon-load-tests transaction-latency 100
+          cargo run --release -p neon-load-tests query-account 100

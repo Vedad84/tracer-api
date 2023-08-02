@@ -21,13 +21,14 @@ use web3::{
     Web3,
 };
 
-use crate::db_types::RetrievedTime;
+use crate::db_types::{AccountInfo, RetrievedTime};
 
 pub struct TestFramework {
     rng: ThreadRng,
     web3: Web3<Http>,
     faucet_url: String,
     clickhouse: clickhouse::Client,
+    // TODO: Make indexer optional?
     indexer: IndexerDb,
 }
 
@@ -157,15 +158,6 @@ impl TestFramework {
             .expect("Failed to send raw transaction");
     }
 
-    pub async fn update_account_max_retrieved_time(&self) -> OffsetDateTime {
-        self.clickhouse
-            .query("SELECT max(retrieved_time) FROM events.update_account_distributed FINAL")
-            .fetch_one::<RetrievedTime>()
-            .await
-            .expect("Failed to get max retrieved_time for accounts")
-            .into()
-    }
-
     /// Returns true if an __Ethereum__ transaction with the given hash is present in the
     /// ClickHouse database.
     pub async fn is_known_transaction(&self, hash: H256) -> bool {
@@ -254,5 +246,32 @@ impl TestFramework {
     /// Returns the solana signature from the given Ethereum transaction hash.
     async fn solana_signature(&self, hash: H256) -> Option<[u8; 64]> {
         self.indexer.get_sol_sig(hash.as_fixed_bytes()).await.ok()
+    }
+
+    /// Returns a number of accounts in the `events.update_account_distributed` table.
+    pub async fn count_accounts(&self) -> usize {
+        self.clickhouse
+            .query("SELECT COUNT(*) FROM events.update_account_distributed FINAL")
+            .fetch_one()
+            .await
+            .expect("Failed to count update_account_distributed")
+    }
+
+    pub async fn account_pubkey(&self, offset: usize) -> Vec<u8> {
+        self.clickhouse
+            .query("SELECT pubkey FROM events.update_account_distributed FINAL LIMIT 1 OFFSET ?")
+            .bind(offset)
+            .fetch_one()
+            .await
+            .expect("Failed to get account pubkey")
+    }
+
+    pub async fn account(&self, key: &[u8]) -> AccountInfo {
+        self.clickhouse
+            .query("SELECT owner, lamports, executable, rent_epoch, data FROM events.update_account_distributed WHERE pubkey = ?")
+            .bind(key)
+            .fetch_one()
+            .await
+            .expect("Failed to get account information")
     }
 }

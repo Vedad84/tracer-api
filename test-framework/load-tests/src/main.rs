@@ -2,6 +2,7 @@ mod log;
 mod params;
 mod query_account;
 mod transaction_latency;
+mod utils;
 
 use crate::params::{Command, Params};
 
@@ -15,6 +16,6 @@ async fn main() {
             num_transactions,
             timeout,
         } => transaction_latency::measure(num_transactions, timeout).await,
-        Command::QueryAccount { num_queries } => query_account::measure(num_queries),
+        Command::QueryAccount { num_queries } => query_account::measure(num_queries).await,
     }
 }

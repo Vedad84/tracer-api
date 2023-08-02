@@ -9,6 +9,15 @@ pub struct RetrievedTime {
     time: OffsetDateTime,
 }
 
+#[derive(Debug, Deserialize, Row)]
+pub struct AccountInfo {
+    pub owner: Vec<u8>,
+    pub lamports: u64,
+    pub executable: bool,
+    pub rent_epoch: u64,
+    pub data: Vec<u8>,
+}
+
 impl From<RetrievedTime> for OffsetDateTime {
     fn from(value: RetrievedTime) -> Self {
         value.time

@@ -5,17 +5,21 @@ use tracing::{info, warn};
 
 use neon_test_framework::TestFramework;
 
+use crate::utils::median;
+
 pub async fn measure(num_transactions: usize, timeout: Duration) {
     assert!(num_transactions < u32::MAX as usize);
     info!("Measuring transactions latency...");
 
     let mut tf = TestFramework::new().await;
 
+    info!("Creating wallets...");
     let (secret_key_1, address_1) = tf.make_wallet(10 * num_transactions).await;
     let (_secret_key_2, address_2) = tf.make_wallet(0).await;
 
+    info!("Starting benchmark...");
     let mut timeouts = 0;
-    let mut values = Vec::with_capacity(num_transactions);
+    let mut times = Vec::with_capacity(num_transactions);
 
     for _ in 0..num_transactions {
         let tx = tf
@@ -36,33 +40,23 @@ pub async fn measure(num_transactions: usize, timeout: Duration) {
             .transaction_retrieved_time(tx.transaction_hash)
             .await
             .to_offset(UtcOffset::UTC);
-        values.push(now - retrieved_time);
+        times.push(now - retrieved_time);
     }
 
     // TODO: Better report.
-    values.sort_unstable();
+    times.sort_unstable();
+    let times: Vec<_> = times.into_iter().map(|t| t.unsigned_abs()).collect();
     eprintln!(
         "Measured ({}/{num_transactions}) transactions ({timeouts} timeouts)",
-        values.len(),
+        times.len(),
     );
-    if values.len() > 0 {
-        eprintln!("Min = {}", values.first().expect("Empty latency vec"));
-        eprintln!("Max = {}", values.last().expect("Empty latency vec"));
+    if times.len() > 0 {
+        eprintln!("Min = {:?}", times.first().expect("Empty times vec"));
+        eprintln!("Max = {:?}", times.last().expect("Empty times vec"));
         eprintln!(
-            "Average = {}",
-            values.iter().sum::<time::Duration>() / values.len() as u32
+            "Average = {:?}",
+            times.iter().sum::<Duration>() / times.len() as u32
         );
-        eprintln!("Median = {}", median(&values));
-    }
-}
-
-fn median(values: &[time::Duration]) -> time::Duration {
-    assert!(values.len() > 0);
-
-    let middle = values.len() / 2;
-    if values.len() % 2 == 1 {
-        values[middle]
-    } else {
-        (values[middle - 1] + values[middle]) / 2
+        eprintln!("Median = {:?}", median(&times));
     }
 }
