@@ -17,6 +17,7 @@ rand = "0.8.5"
 web3 = "0.19"
 hex = "0.4.2"
 reqwest = { version = "0.11", features = ["json"] }
+async-trait = "0.1.59"
 neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib"}
 # for evm-loader
 mpl-token-auth-rules = "=1.4.1"

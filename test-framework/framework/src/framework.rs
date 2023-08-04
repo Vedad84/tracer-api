@@ -21,36 +21,35 @@ use web3::{
     Web3,
 };
 
-use crate::db_types::{AccountInfo, RetrievedTime};
+use crate::{
+    db_types::{AccountInfo, RetrievedTime},
+    indexer::Indexer,
+};
 
-pub struct TestFramework {
+pub struct TestFramework<I> {
     rng: ThreadRng,
     web3: Web3<Http>,
     faucet_url: String,
     clickhouse: clickhouse::Client,
-    // TODO: Make indexer optional?
-    indexer: IndexerDb,
+    indexer: I,
 }
 
-impl TestFramework {
-    /// Creates a new test framework instance.
+impl TestFramework<()> {
+    /// Creates a new test framework instance __without__ connecting to the Indexer database.
     ///
     /// # Panics
     ///
     /// Panics if the required environment variables aren't set.
-    pub async fn new() -> Self {
-        let rng = rand::thread_rng();
+    pub fn new() -> Self {
+        Self::create(())
+    }
 
-        let proxy_url =
-            env::var("PROXY_URL").expect("Failed to read the PROXY_URL environment variable");
-        let web3 = Web3::new(Http::new(&proxy_url).expect("Failed to create Web3 transport"));
-
-        let faucet_url =
-            env::var("FAUCET_URL").expect("Failed to read the FAUCET_URL environment variable");
-
-        let db_url = env::var("DB_URL").expect("Failed to read the DB_URL environment variable");
-        let clickhouse = clickhouse::Client::default().with_url(&db_url);
-
+    /// Creates a new test framework instance __with__ connection to the Indexer database.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the required environment variables aren't set.
+    pub async fn with_indexer() -> TestFramework<IndexerDb> {
         let indexer_host = env::var("DB_INDEXER_HOST")
             .expect("Failed to read DB_INDEXER_HOST environment variable");
         let indexer_port = env::var("DB_INDEXER_PORT")
@@ -73,7 +72,25 @@ impl TestFramework {
         };
         let indexer = IndexerDb::new(&indexer_config).await;
 
-        Self {
+        TestFramework::create(indexer)
+    }
+}
+
+impl<I> TestFramework<I> {
+    fn create(indexer: I) -> Self {
+        let rng = rand::thread_rng();
+
+        let proxy_url =
+            env::var("PROXY_URL").expect("Failed to read the PROXY_URL environment variable");
+        let web3 = Web3::new(Http::new(&proxy_url).expect("Failed to create Web3 transport"));
+
+        let faucet_url =
+            env::var("FAUCET_URL").expect("Failed to read the FAUCET_URL environment variable");
+
+        let db_url = env::var("DB_URL").expect("Failed to read the DB_URL environment variable");
+        let clickhouse = clickhouse::Client::default().with_url(&db_url);
+
+        TestFramework {
             rng,
             web3,
             faucet_url,
@@ -106,6 +123,7 @@ impl TestFramework {
         (secret_key, address)
     }
 
+    /// Returns a balance of the given wallet.
     pub async fn balance(&self, address: Address) -> U256 {
         self.web3
             .eth()
@@ -114,6 +132,7 @@ impl TestFramework {
             .unwrap_or_else(|_| panic!("Failed to get balance for {}", hex::encode(address)))
     }
 
+    /// Creates a signed __Ethereum__ transfer transaction.
     pub async fn make_transfer_transaction(
         &self,
         from: Address,
@@ -150,6 +169,7 @@ impl TestFramework {
             .expect("Failed to sign transaction")
     }
 
+    /// Sends the given bytes as a transaction.
     pub async fn send_raw_transaction(&self, bytes: Bytes) {
         self.web3
             .eth()
@@ -158,10 +178,41 @@ impl TestFramework {
             .expect("Failed to send raw transaction");
     }
 
+    /// Returns a number of accounts in the `events.update_account_distributed` table.
+    pub async fn count_accounts(&self) -> usize {
+        self.clickhouse
+            .query("SELECT COUNT(*) FROM events.update_account_distributed FINAL")
+            .fetch_one()
+            .await
+            .expect("Failed to count update_account_distributed")
+    }
+
+    /// Reads a public key with the given offset from the database.
+    pub async fn account_pubkey(&self, offset: usize) -> Vec<u8> {
+        self.clickhouse
+            .query("SELECT pubkey FROM events.update_account_distributed FINAL LIMIT 1 OFFSET ?")
+            .bind(offset)
+            .fetch_one()
+            .await
+            .expect("Failed to get account pubkey")
+    }
+
+    /// Returns an account information with the given key.
+    pub async fn account(&self, key: &[u8]) -> AccountInfo {
+        self.clickhouse
+            .query("SELECT owner, lamports, executable, rent_epoch, data FROM events.update_account_distributed WHERE pubkey = ?")
+            .bind(key)
+            .fetch_one()
+            .await
+            .expect("Failed to get account information")
+    }
+}
+
+impl<I: Indexer> TestFramework<I> {
     /// Returns true if an __Ethereum__ transaction with the given hash is present in the
     /// ClickHouse database.
     pub async fn is_known_transaction(&self, hash: H256) -> bool {
-        let signature = match self.solana_signature(hash).await {
+        let signature = match self.indexer.solana_signature(hash).await {
             Some(s) => s,
             None => return false,
         };
@@ -192,7 +243,7 @@ impl TestFramework {
                 return false;
             }
 
-            if let Some(s) = self.solana_signature(hash).await {
+            if let Some(s) = self.indexer.solana_signature(hash).await {
                 break s;
             } else if let Some(t) = sleep {
                 tokio::time::sleep(t).await;
@@ -229,8 +280,10 @@ impl TestFramework {
         .await
     }
 
+    /// Returns the retrieved time of the transaction.
     pub async fn transaction_retrieved_time(&self, hash: H256) -> OffsetDateTime {
         let signature = self
+            .indexer
             .solana_signature(hash)
             .await
             .unwrap_or_else(|| panic!("Unable to get solana signature for '{hash:?}' transaction"));
@@ -241,37 +294,5 @@ impl TestFramework {
             .await
             .unwrap_or_else(|_| panic!("Failed to get retrieved_time for '{hash:?}' transaction"))
             .into()
-    }
-
-    /// Returns the solana signature from the given Ethereum transaction hash.
-    async fn solana_signature(&self, hash: H256) -> Option<[u8; 64]> {
-        self.indexer.get_sol_sig(hash.as_fixed_bytes()).await.ok()
-    }
-
-    /// Returns a number of accounts in the `events.update_account_distributed` table.
-    pub async fn count_accounts(&self) -> usize {
-        self.clickhouse
-            .query("SELECT COUNT(*) FROM events.update_account_distributed FINAL")
-            .fetch_one()
-            .await
-            .expect("Failed to count update_account_distributed")
-    }
-
-    pub async fn account_pubkey(&self, offset: usize) -> Vec<u8> {
-        self.clickhouse
-            .query("SELECT pubkey FROM events.update_account_distributed FINAL LIMIT 1 OFFSET ?")
-            .bind(offset)
-            .fetch_one()
-            .await
-            .expect("Failed to get account pubkey")
-    }
-
-    pub async fn account(&self, key: &[u8]) -> AccountInfo {
-        self.clickhouse
-            .query("SELECT owner, lamports, executable, rent_epoch, data FROM events.update_account_distributed WHERE pubkey = ?")
-            .bind(key)
-            .fetch_one()
-            .await
-            .expect("Failed to get account information")
     }
 }

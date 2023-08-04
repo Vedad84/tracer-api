@@ -9,7 +9,7 @@ use crate::utils::median;
 pub async fn measure(num_queries: usize) {
     info!("Measuring query account performance ({num_queries} tries)...");
 
-    let tf = TestFramework::new().await;
+    let tf = TestFramework::new();
 
     let keys = prepare_keys(&tf, num_queries).await;
 
@@ -28,7 +28,6 @@ pub async fn measure(num_queries: usize) {
         times.push(now.elapsed());
     }
 
-    // TODO: Better report.
     times.sort_unstable();
     eprintln!("Measured {num_queries} queries");
     if times.len() > 0 {
@@ -43,7 +42,7 @@ pub async fn measure(num_queries: usize) {
 }
 
 /// Prepares a list of public keys that will be used in the benchmark.
-async fn prepare_keys(tf: &TestFramework, num_queries: usize) -> Vec<Vec<u8>> {
+async fn prepare_keys(tf: &TestFramework<()>, num_queries: usize) -> Vec<Vec<u8>> {
     info!("Preparing keys...");
 
     let num_accounts = tf.count_accounts().await;

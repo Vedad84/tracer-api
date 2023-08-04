@@ -2644,6 +2644,7 @@ dependencies = [
 name = "neon-test-framework"
 version = "0.2.0-dev"
 dependencies = [
+ "async-trait",
  "clickhouse",
  "hex",
  "neon-lib",

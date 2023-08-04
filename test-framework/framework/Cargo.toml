@@ -14,5 +14,6 @@ serde_json.workspace = true
 tracing.workspace = true
 secp256k1 = { version = "0.27", features = ["rand"] }
 clickhouse = { version = "0.11", features = ["time"] }
+async-trait.workspace = true
 time = "0.3"
 neon-cli-lib.workspace = true
