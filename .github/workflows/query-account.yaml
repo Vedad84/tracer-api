@@ -5,11 +5,6 @@ on:
 
 env:
   NEON_REVISION: 2c02d4a56a4509a17493e189a410d689cca805c8
-  DB_INDEXER_HOST: common.c9fdygf2jhef.eu-central-1.rds.amazonaws.com
-  DB_INDEXER_PORT: 5432
-  DB_INDEXER_DATABASE: indexer
-  DB_INDEXER_USER: postgres
-  INDEXER_DB_PASSWORD: ${{secrets.INDEXER_DB_PASSWORD}}
   PROXY_URL: ${{ vars.TESTNET_PROXY_URL }}
   FAUCET_URL: ${{ vars.TESTNET_FAUCET_URL }}
   DB_URL: http://localhost:8123
