@@ -1,41 +1,40 @@
 use {
     crate::stop_handle::StopHandle,
     lazy_static::lazy_static,
-    prometheus::{ Encoder, gather, Histogram, HistogramVec, HistogramOpts, TextEncoder,
-                  Registry, IntCounterVec, Opts },
-    std::{ net::Ipv4Addr, sync::Arc },
-    tokio::{ self, sync::mpsc::Receiver, time::Instant },
-    tracing::{info, warn},
-    warp::{ Filter, Reply, Rejection },
     neon_cli_lib::types::TracerDb,
+    prometheus::{
+        gather, Encoder, Histogram, HistogramOpts, HistogramVec, IntCounterVec, Opts, Registry,
+        TextEncoder,
+    },
+    std::{net::Ipv4Addr, sync::Arc},
+    tokio::{self, sync::mpsc::Receiver, time::Instant},
+    tracing::{info, warn},
+    warp::{Filter, Rejection, Reply},
 };
 
-lazy_static!(
+lazy_static! {
     pub static ref REGISTRY: Registry = Registry::new();
-
     pub static ref INCOMING_REQUESTS: IntCounterVec = IntCounterVec::new(
         Opts::new("neon_tracer_incoming_requests", "Incoming Requests"),
         &["req_type"]
     )
     .expect("Failed create metric: neon_tracer_incoming_requests");
-
     pub static ref FAILED_REQUESTS: IntCounterVec = IntCounterVec::new(
         Opts::new("neon_tracer_failed_requests", "Failed Requests"),
         &["req_types"]
     )
     .expect("Failed create metric: neon_tracer_failed_requests");
-
     pub static ref RESPONSE_TIME_COLLECTOR: HistogramVec = HistogramVec::new(
         HistogramOpts::new("neon_tracer_response_time", "Response Times"),
         &["req_type"]
     )
     .expect("Failed create metric: neon_tracer_response_time");
-
-    pub static ref SLOT_DIFFERENCE: Histogram = Histogram::with_opts(
-        HistogramOpts::new("neon_tracer_slot_difference", "Difference between DB and Web3 slot number"),
-    )
+    pub static ref SLOT_DIFFERENCE: Histogram = Histogram::with_opts(HistogramOpts::new(
+        "neon_tracer_slot_difference",
+        "Difference between DB and Web3 slot number"
+    ),)
     .expect("Failed create metric: neon_tracer_slot_difference");
-);
+}
 
 async fn metrics_handler() -> Result<impl Reply, Rejection> {
     let encoder = TextEncoder::new();
@@ -75,9 +74,7 @@ async fn metrics_handler() -> Result<impl Reply, Rejection> {
 async fn start_metrics_server(ip: Ipv4Addr, port: u16) {
     let metrics_route = warp::path!("metrics").and_then(metrics_handler);
     info!("Metrics server started on port {}", port);
-    warp::serve(metrics_route)
-        .run((ip, port))
-        .await;
+    warp::serve(metrics_route).run((ip, port)).await;
 }
 
 static MONITORING_INTERVAL_SEC: &str = "MONITORING_INTERVAL_SEC";
@@ -86,16 +83,20 @@ static MONITORING_INTERVAL_SEC_DEFAULT: &str = "60";
 fn register_metrics() {
     info!("Registering metrics...");
 
-    REGISTRY.register(Box::new(INCOMING_REQUESTS.clone()))
+    REGISTRY
+        .register(Box::new(INCOMING_REQUESTS.clone()))
         .expect("neon_tracer_incoming_request metric not registered");
 
-    REGISTRY.register(Box::new(FAILED_REQUESTS.clone()))
+    REGISTRY
+        .register(Box::new(FAILED_REQUESTS.clone()))
         .expect("neon_tracer_failed_request metric not registered");
 
-    REGISTRY.register(Box::new(RESPONSE_TIME_COLLECTOR.clone()))
+    REGISTRY
+        .register(Box::new(RESPONSE_TIME_COLLECTOR.clone()))
         .expect("neon_tracer_response_time metric not registered");
 
-    REGISTRY.register(Box::new(SLOT_DIFFERENCE.clone()))
+    REGISTRY
+        .register(Box::new(SLOT_DIFFERENCE.clone()))
         .expect("neon_tracer_slot_difference metric not registered");
 }
 
@@ -110,8 +111,10 @@ pub async fn run_monitoring(
     let monitoring_interval_sec = std::env::var(MONITORING_INTERVAL_SEC)
         .unwrap_or_else(|_| MONITORING_INTERVAL_SEC_DEFAULT.to_string());
 
-    let monitoring_interval_sec = monitoring_interval_sec.parse::<u64>()
-        .map_err(|err| warn!("Failed to parse MONITORING_INTERVAL_SEC = {:?}", err)).unwrap();
+    let monitoring_interval_sec = monitoring_interval_sec
+        .parse::<u64>()
+        .map_err(|err| warn!("Failed to parse MONITORING_INTERVAL_SEC = {:?}", err))
+        .unwrap();
 
     register_metrics();
     tokio::spawn(start_metrics_server(metrics_ip, metrics_port));
@@ -150,7 +153,13 @@ pub fn start_monitoring(
 ) -> StopHandle {
     let (stop_snd, stop_rcv) = tokio::sync::mpsc::channel::<()>(1);
     StopHandle::new(
-        tokio::spawn( run_monitoring(tracer_db, proxy, metrics_ip, metrics_port, stop_rcv)),
+        tokio::spawn(run_monitoring(
+            tracer_db,
+            proxy,
+            metrics_ip,
+            metrics_port,
+            stop_rcv,
+        )),
         stop_snd,
     )
 }
@@ -166,7 +175,7 @@ pub fn report_request_finished(started: Instant, req_tag: &str, success: bool) {
     }
 
     let elapsed = started.elapsed();
-    let elapsed = elapsed.as_secs() as f64 + elapsed.subsec_micros() as f64 / 1_000_000.0;
+    let elapsed = elapsed.as_secs() as f64 + f64::from(elapsed.subsec_micros()) / 1_000_000.0;
     RESPONSE_TIME_COLLECTOR
         .with_label_values(&[req_tag])
         .observe(elapsed);

@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 pub fn median(times: &[Duration]) -> Duration {
-    assert!(times.len() > 0);
+    assert!(!times.is_empty());
 
     let middle = times.len() / 2;
     if times.len() % 2 == 1 {

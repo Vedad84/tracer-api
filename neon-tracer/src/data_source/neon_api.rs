@@ -3,17 +3,12 @@ use std::{sync::Arc, time::Duration};
 use crate::api_client::{client::Client, config::Config};
 use crate::service::{Error, Result};
 use ethnum::U256;
-use neon_cli_lib::{
-    commands::{
-        get_storage_at::GetStorageAtReturn,
-        trace::TraceBlockReturn,
-    },
-    types::{
-        Address,
-    },
-};
 use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig, TracedCall};
 use jsonrpsee::types::error::ErrorCode;
+use neon_cli_lib::{
+    commands::{get_storage_at::GetStorageAtReturn, trace::TraceBlockReturn},
+    types::Address,
+};
 
 use super::ERR;
 
@@ -77,7 +72,10 @@ impl NeonAPIDataSource {
                 Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
             })?;
 
-        Ok(format!("0x{}", hex::encode(&response.emulation_result.result)))
+        Ok(format!(
+            "0x{}",
+            hex::encode(response.emulation_result.result)
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -94,8 +92,7 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<TracedCall> {
-        self
-            .api_client
+        self.api_client
             .clone()
             .trace(
                 from.unwrap_or_default(),
@@ -111,9 +108,7 @@ impl NeonAPIDataSource {
                 id,
             )
             .await
-            .map_err(|e| {
-                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
-            })
+            .map_err(|e| Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>))
     }
 
     #[allow(unused)]
@@ -128,21 +123,11 @@ impl NeonAPIDataSource {
         let hash = hash.to_be_bytes();
         let hash = format!("0x{}", hex::encode(hash));
 
-        self
-            .api_client
+        self.api_client
             .clone()
-            .trace_hash(
-                self.steps_to_execute,
-                None,
-                None,
-                hash,
-                trace_config,
-                id,
-            )
+            .trace_hash(self.steps_to_execute, None, None, hash, trace_config, id)
             .await
-            .map_err(|e| {
-                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
-            })
+            .map_err(|e| Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>))
     }
 
     #[allow(unused)]
@@ -153,21 +138,11 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<TraceBlockReturn> {
-        self
-            .api_client
+        self.api_client
             .clone()
-            .trace_next_block(
-                self.steps_to_execute,
-                None,
-                None,
-                slot,
-                trace_config,
-                id,
-            )
+            .trace_next_block(self.steps_to_execute, None, None, slot, trace_config, id)
             .await
-            .map_err(|e| {
-                Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>)
-            })
+            .map_err(|e| Error::owned(ErrorCode::InternalError.code(), e.to_string(), None::<()>))
     }
 
     #[allow(unused)]
@@ -179,8 +154,7 @@ impl NeonAPIDataSource {
         tout: &Duration,
         id: u64,
     ) -> Result<U256> {
-        self
-            .api_client
+        self.api_client
             .clone()
             .get_storage_at(to, index, Some(slot), id)
             .await
@@ -252,4 +226,3 @@ impl NeonAPIDataSource {
         }
     }
 }
-

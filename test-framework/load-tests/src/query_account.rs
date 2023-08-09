@@ -9,7 +9,7 @@ use crate::utils::median;
 pub async fn measure(num_queries: usize) {
     info!("Measuring query account performance ({num_queries} tries)...");
 
-    let tf = TestFramework::new();
+    let tf = TestFramework::basic();
 
     let keys = prepare_keys(&tf, num_queries).await;
 
@@ -30,7 +30,7 @@ pub async fn measure(num_queries: usize) {
 
     times.sort_unstable();
     eprintln!("Measured {num_queries} queries");
-    if times.len() > 0 {
+    if !times.is_empty() {
         eprintln!("Min = {:?}", times.first().expect("Empty latency vec"));
         eprintln!("Max = {:?}", times.last().expect("Empty latency vec"));
         eprintln!(

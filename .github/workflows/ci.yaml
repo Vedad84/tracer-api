@@ -46,7 +46,7 @@ jobs:
           components: clippy
       - run: cargo clippy -- -D warnings
 
-  test-testnet:
+  test-devnet:
     name: Run tests for devnet
     runs-on: tracert-ci
     steps:
@@ -66,7 +66,7 @@ jobs:
           DB_URL: http://localhost:8123
 
   build-docker-image:
-    needs: [check, fmt, clippy, test-testnet]
+    needs: [check, fmt, clippy, test-devnet]
     runs-on: tracert-ci
     steps:
       - uses: actions/checkout@v3

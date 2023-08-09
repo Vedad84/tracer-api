@@ -1,14 +1,11 @@
-use serde::{
-    de::Error, de::MapAccess, de::Visitor,
-    Deserialize, Deserializer, Serialize, Serializer,
-};
-use std::{
-    fmt
-};
 use ethnum::U256;
+use serde::{
+    de::Error, de::MapAccess, de::Visitor, Deserialize, Deserializer, Serialize, Serializer,
+};
+use std::fmt;
 
 /// Represents rpc api block number param.
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Default, Debug, PartialEq, Eq)]
 pub enum BlockNumber {
     /// Hash
     Hash {
@@ -20,6 +17,7 @@ pub enum BlockNumber {
     /// Number
     Num(u64),
     /// Latest block
+    #[default]
     Latest,
     /// Earliest block (genesis)
     Earliest,
@@ -27,16 +25,10 @@ pub enum BlockNumber {
     Pending,
 }
 
-impl Default for BlockNumber {
-    fn default() -> Self {
-        BlockNumber::Latest
-    }
-}
-
 impl<'a> Deserialize<'a> for BlockNumber {
     fn deserialize<D>(deserializer: D) -> Result<BlockNumber, D::Error>
-        where
-            D: Deserializer<'a>,
+    where
+        D: Deserializer<'a>,
     {
         deserializer.deserialize_any(BlockNumberVisitor)
     }
@@ -44,18 +36,17 @@ impl<'a> Deserialize<'a> for BlockNumber {
 
 impl Serialize for BlockNumber {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
-        match &*self {
+        match self {
             BlockNumber::Hash {
                 hash,
                 require_canonical,
             } => serializer.serialize_str(&format!(
-                "{{ 'hash': '{}', 'requireCanonical': '{}'  }}",
-                hash.to_string(), require_canonical
+                "{{ 'hash': '{hash}', 'requireCanonical': '{require_canonical}'  }}"
             )),
-            BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{:x}", x)),
+            BlockNumber::Num(ref x) => serializer.serialize_str(&format!("0x{x:x}")),
             BlockNumber::Latest => serializer.serialize_str("latest"),
             BlockNumber::Earliest => serializer.serialize_str("earliest"),
             BlockNumber::Pending => serializer.serialize_str("pending"),
@@ -76,8 +67,8 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
     }
 
     fn visit_map<V>(self, mut visitor: V) -> Result<Self::Value, V::Error>
-        where
-            V: MapAccess<'a>,
+    where
+        V: MapAccess<'a>,
     {
         let (mut require_canonical, mut block_number, mut block_hash) =
             (false, None::<u64>, None::<U256>);
@@ -89,10 +80,9 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
                 Some(key) => match key.as_str() {
                     "blockNumber" => {
                         let value: String = visitor.next_value()?;
-                        if value.starts_with("0x") {
-                            let number = u64::from_str_radix(&value[2..], 16).map_err(|e| {
-                                Error::custom(format!("Invalid block number: {}", e))
-                            })?;
+                        if let Some(value) = value.strip_prefix("0x") {
+                            let number = u64::from_str_radix(value, 16)
+                                .map_err(|e| Error::custom(format!("Invalid block number: {e}")))?;
 
                             block_number = Some(number);
                             break;
@@ -107,7 +97,7 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
                     "requireCanonical" => {
                         require_canonical = visitor.next_value()?;
                     }
-                    key => return Err(Error::custom(format!("Unknown key: {}", key))),
+                    key => return Err(Error::custom(format!("Unknown key: {key}"))),
                 },
                 None => break,
             };
@@ -124,12 +114,12 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
             });
         }
 
-        return Err(Error::custom("Invalid input"));
+        Err(Error::custom("Invalid input"))
     }
 
     fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
-        where
-            E: Error,
+    where
+        E: Error,
     {
         match value {
             "latest" => Ok(BlockNumber::Latest),
@@ -137,7 +127,7 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
             "pending" => Ok(BlockNumber::Pending),
             _ if value.starts_with("0x") => u64::from_str_radix(&value[2..], 16)
                 .map(BlockNumber::Num)
-                .map_err(|e| Error::custom(format!("Invalid block number: {}", e))),
+                .map_err(|e| Error::custom(format!("Invalid block number: {e}"))),
             _ => Err(Error::custom(
                 "Invalid block number: missing 0x prefix".to_string(),
             )),
@@ -145,11 +135,9 @@ impl<'a> Visitor<'a> for BlockNumberVisitor {
     }
 
     fn visit_string<E>(self, value: String) -> Result<Self::Value, E>
-        where
-            E: Error,
+    where
+        E: Error,
     {
         self.visit_str(value.as_ref())
     }
 }
-
-

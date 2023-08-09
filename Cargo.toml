@@ -9,15 +9,16 @@ members = [
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
 serde = { version = "1", features = ["derive", "rc"] }
-serde_json = "1.0.99"
+serde_json = "1.0.104"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 tracing-log = "0.1"
 rand = "0.8.5"
 web3 = "0.19"
-hex = "0.4.2"
+hex = "0.4.3"
 reqwest = { version = "0.11", features = ["json"] }
-async-trait = "0.1.59"
-neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib"}
+async-trait = "0.1.73"
+neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib" }
+
 # for evm-loader
 mpl-token-auth-rules = "=1.4.1"

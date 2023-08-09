@@ -1,14 +1,14 @@
-use {
-    ethnum::U256,
-    crate::opcodes::opcode_name,
-    std::{collections::BTreeMap, iter},
-    neon_cli_lib::types::{
-        Address,
-    },
-    serde::{self, Deserialize, Serialize},
+use std::{collections::BTreeMap, iter};
+
+use ethnum::U256;
+use evm_loader::evm::tracing::event_listener::trace::{
+    TraceConfig, TracedCall, VMOperation, VMTrace,
 };
-use evm_loader::evm::tracing::event_listener::trace::{TraceConfig, TracedCall, VMOperation, VMTrace};
 use evm_loader::types::hexbytes::HexBytes;
+use neon_cli_lib::types::Address;
+use serde::{self, Deserialize, Serialize};
+
+use crate::opcodes::opcode_name;
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
 #[serde(deny_unknown_fields)]
@@ -56,7 +56,6 @@ pub struct TraceTransactionOptions {
     pub timeout: Option<String>,
 }
 
-
 #[derive(Serialize, Debug, Clone)]
 #[serde(untagged, rename_all = "camelCase")]
 pub enum Trace {
@@ -64,7 +63,7 @@ pub enum Trace {
     // JsTrace(serde_json::Value),
 }
 
-/// ExecutionResult groups all structured logs emitted by the EVM
+/// `ExecutionResult` groups all structured logs emitted by the EVM
 /// while replaying a transaction in debug mode as well as transaction
 /// execution status, the amount of gas used and the return value
 #[derive(Serialize, Debug, Clone)]
@@ -115,7 +114,12 @@ impl ExecutionResult {
 
         logs.iter_mut().zip(data.into_iter()).for_each(|(l, d)| {
             if !options.disable_stack {
-                l.stack = Some(d.stack.iter().map(|entry|{ U256::from_be_bytes(*entry) }).collect());
+                l.stack = Some(
+                    d.stack
+                        .iter()
+                        .map(|entry| U256::from_be_bytes(*entry))
+                        .collect(),
+                );
             }
 
             if options.enable_memory && !d.memory.is_empty() {
@@ -127,8 +131,13 @@ impl ExecutionResult {
                 );
             }
 
-            if !options.disable_storage  {
-                l.storage = Some(d.storage.into_iter().map(|(k, v)| { (k, U256::from_be_bytes(v)) }).collect());
+            if !options.disable_storage {
+                l.storage = Some(
+                    d.storage
+                        .into_iter()
+                        .map(|(k, v)| (k, U256::from_be_bytes(v)))
+                        .collect(),
+                );
             }
 
             if options.enable_return_data {
@@ -145,7 +154,7 @@ impl ExecutionResult {
     }
 }
 
-/// StructLog stores a structured log emitted by the EVM while replaying a
+/// `StructLog` stores a structured log emitted by the EVM while replaying a
 /// transaction in debug mode
 #[derive(Serialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -188,7 +197,7 @@ impl StructLog {
             operations
                 .into_iter()
                 .enumerate()
-                .map(move |(idx, operation)| {
+                .flat_map(move |(idx, operation)| {
                     let main_op = iter::once((depth, operation).into());
                     let mut subtrace_iter = None;
                     if subs
@@ -199,8 +208,7 @@ impl StructLog {
                         subtrace_iter = Some(Self::from_trace_with_depth(subtrace, depth + 1));
                     }
                     main_op.chain(subtrace_iter.into_iter().flatten())
-                })
-                .flatten(),
+                }),
         )
     }
 }
@@ -209,10 +217,7 @@ impl From<(usize, VMOperation)> for StructLog {
     fn from((depth, vm_operation): (usize, VMOperation)) -> Self {
         let pc = vm_operation.pc as u64;
         let op_name = opcode_name(vm_operation.instruction);
-        let gas = vm_operation
-            .executed
-            .as_ref()
-            .map(|e| e.gas_used.as_u64());
+        let gas = vm_operation.executed.as_ref().map(|e| e.gas_used.as_u64());
         let gas_cost = vm_operation.gas_cost.as_u64();
         let depth = depth as u32;
         let memory = None;

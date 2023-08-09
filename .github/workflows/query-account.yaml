@@ -24,4 +24,4 @@ jobs:
       - run: |
           ssh -fN -L 8123:localhost:8123 ubuntu@${{ vars.TESTNET_CLICKHOUSE_HOST }}
           cargo build --release -p neon-load-tests
-          cargo run --release -p neon-load-tests query-account 100
+          cargo run --release -p neon-load-tests query-account 1000

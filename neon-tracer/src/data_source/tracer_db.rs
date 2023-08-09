@@ -1,10 +1,8 @@
-use {
-    neon_cli_lib::types::{TracerDb, block, ChResult},
-};
+use neon_cli_lib::types::{block, ChResult, TracerDb};
 
-pub trait TracerDbExtention{
+pub trait TracerDbExtention {
     fn get_earliest_slot(&self) -> ChResult<u64>;
- }
+}
 
 impl TracerDbExtention for TracerDb {
     fn get_earliest_slot(&self) -> ChResult<u64> {
@@ -18,4 +16,3 @@ impl TracerDbExtention for TracerDb {
         })
     }
 }
-

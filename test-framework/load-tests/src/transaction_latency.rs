@@ -11,7 +11,7 @@ pub async fn measure(num_transactions: usize, timeout: Duration) {
     assert!(num_transactions < u32::MAX as usize);
     info!("Measuring transactions latency...");
 
-    let mut tf = TestFramework::with_indexer().await;
+    let mut tf = TestFramework::extended().await;
 
     info!("Creating wallets...");
     let (secret_key_1, address_1) = tf.make_wallet(10 * num_transactions).await;
@@ -49,7 +49,7 @@ pub async fn measure(num_transactions: usize, timeout: Duration) {
         "Measured ({}/{num_transactions}) transactions ({timeouts} timeouts)",
         times.len(),
     );
-    if times.len() > 0 {
+    if !times.is_empty() {
         eprintln!("Min = {:?}", times.first().expect("Empty times vec"));
         eprintln!("Max = {:?}", times.last().expect("Empty times vec"));
         eprintln!(

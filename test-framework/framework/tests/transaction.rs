@@ -3,7 +3,7 @@ use neon_test_framework::TestFramework;
 // Submit a single transaction and check that it is present in the ClickHouse database.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn transfer_transaction() {
-    let mut tf = TestFramework::with_indexer().await;
+    let mut tf = TestFramework::extended().await;
 
     let (secret_key_1, address_1) = tf.make_wallet(1).await;
     let (_secret_key_2, address_2) = tf.make_wallet(0).await;

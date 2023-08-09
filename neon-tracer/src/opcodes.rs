@@ -149,7 +149,7 @@ lazy_static::lazy_static! {
 }
 
 pub fn opcode_name(instruction: u8) -> &'static str {
-    OPCODES.get(&instruction)
-        .map(|v| *v)
-        .unwrap_or_else(|| "<invalid>")
+    OPCODES
+        .get(&instruction)
+        .map_or_else(|| "<invalid>", |v| *v)
 }

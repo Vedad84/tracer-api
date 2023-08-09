@@ -1,7 +1,7 @@
 //! Provides utilities for testing.
 
 mod db_types;
+mod extension;
 mod framework;
-mod indexer;
 
 pub use framework::TestFramework;

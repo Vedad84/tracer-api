@@ -1,33 +1,37 @@
-use std::{sync::Arc, time::{Instant, Duration}};
+use std::{
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
-use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
 use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig, TracedCall};
-use log::{info, warn};
-
 use neon_cli_lib::{
     commands::{
-        emulate::EmulationResultWithAccounts,
-        get_ether_account_data::GetEtherAccountDataReturn,
-        get_storage_at::GetStorageAtReturn,
-        trace::TraceBlockReturn,
+        emulate::EmulationResultWithAccounts, get_ether_account_data::GetEtherAccountDataReturn,
+        get_storage_at::GetStorageAtReturn, trace::TraceBlockReturn,
     },
     types::{
         request_models::{
-            EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel, GetEtherRequest,
-            GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
-            TraceNextBlockRequestModel,
+            EmulateHashRequestModel, EmulateRequestModel, EmulationParamsRequestModel,
+            GetEtherRequest, GetStorageAtRequest, TraceHashRequestModel,
+            TraceNextBlockRequestModel, TraceRequestModel, TxParamsRequestModel,
         },
         Address,
-    }
+    },
 };
-
 use reqwest::{
     header::{ACCEPT, CONTENT_TYPE},
     Client as ReqwestClient, Response,
 };
-use serde::{Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Serialize};
 use solana_sdk::pubkey::Pubkey;
+use tracing::{info, warn};
+
+use crate::api_client::{
+    config::Config,
+    models::{NeonApiError, NeonApiResponse},
+    Result,
+};
 
 use super::errors::NeonAPIClientError;
 
@@ -48,18 +52,13 @@ impl Client {
         }
     }
 
-    async fn post_request<T, R>(
-        &self,
-        uri: &str,
-        req_body: T,
-        id: u64,
-    ) -> Result<R>
+    async fn post_request<T, R>(&self, uri: &str, req_body: T, id: u64) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
         R: DeserializeOwned + std::fmt::Display,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        info!("id {:?}: post_request: {:?}, parameters: {:?}", id, full_url, req_body);
+        info!("id {id:?}: post_request: {full_url:?}, parameters: {req_body:?}");
 
         let start = Instant::now();
         let response = self
@@ -72,21 +71,17 @@ impl Client {
             .send()
             .await?;
         let duration = start.elapsed();
-        self.process_response(response, &duration, &full_url, id).await
+        self.process_response(response, &duration, &full_url, id)
+            .await
     }
 
-    async fn get_request<T, R> (
-        &self,
-        uri: &str,
-        query: T,
-        id: u64,
-    ) -> Result<R>
+    async fn get_request<T, R>(&self, uri: &str, query: T, id: u64) -> Result<R>
     where
         T: Serialize + Sized + std::fmt::Debug,
         R: DeserializeOwned + std::fmt::Display,
     {
         let full_url = format!("{0}{1}", self.neon_api_url, uri);
-        info!("id {:?}: get_request: {:?}, parameters: {:?}", id, full_url, query);
+        info!("id {id:?}: get_request: {full_url:?}, parameters: {query:?}");
 
         let start = Instant::now();
         let response = self
@@ -99,10 +94,17 @@ impl Client {
             .send()
             .await?;
         let duration = start.elapsed();
-        self.process_response(response, &duration, &full_url, id).await
+        self.process_response(response, &duration, &full_url, id)
+            .await
     }
 
-    async fn process_response<T>(&self, response: Response, duration: &Duration, full_url: &String, id: u64) -> Result<T>
+    async fn process_response<T>(
+        &self,
+        response: Response,
+        duration: &Duration,
+        full_url: &String,
+        id: u64,
+    ) -> Result<T>
     where
         T: DeserializeOwned + std::fmt::Display,
     {
@@ -119,38 +121,59 @@ impl Client {
             reqwest::StatusCode::OK => {
                 match serde_json::from_str::<NeonApiResponse<T>>(&response_str) {
                     Ok(response) => {
-                        if response.result != "success" {
-                            warn!("id {:?}: NeonApiResponse.result != success", id);
-                            Err(NeonAPIClientError::NeonApiError(format!("result != success")))
-                        } else {
+                        if response.result == "success" {
                             info!("id {:?}: NeonApiResponse.value: {}", id, response.value);
                             Ok(response.value)
+                        } else {
+                            warn!("id {:?}: NeonApiResponse.result != success", id);
+                            Err(NeonAPIClientError::NeonApiError("result != success".into()))
                         }
-                    },
+                    }
                     Err(e) => {
-                        warn!("id {:?}: error to deserialize response.json to NeonApiResponse: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
+                        warn!(
+                            "id {:?}: error to deserialize response.json to NeonApiResponse: {:?}",
+                            id,
+                            e.to_string()
+                        );
+                        Err(NeonAPIClientError::ParseResponseError(
+                            e.to_string(),
+                            response_str,
+                        ))
                     }
                 }
-            },
+            }
             reqwest::StatusCode::BAD_REQUEST | reqwest::StatusCode::INTERNAL_SERVER_ERROR => {
-                warn!("id {:?}: neon-api response.status() is BAD_REQUEST or INTERNAL_SERVER_ERROR", id);
+                warn!(
+                    "id {:?}: neon-api response.status() is BAD_REQUEST or INTERNAL_SERVER_ERROR",
+                    id
+                );
                 match serde_json::from_str::<NeonApiError>(&response_str) {
                     Ok(body) => {
                         warn!("id {:?}: response.json: {:?}", id, body);
-                        Err(NeonAPIClientError::NeonApiError(serde_json::json!(body).to_string()))
-                    },
+                        Err(NeonAPIClientError::NeonApiError(
+                            serde_json::json!(body).to_string(),
+                        ))
+                    }
                     Err(e) => {
-                        warn!("id {:?}: error to deserialize response.json to NeonApiError: {:?}", id, e.to_string());
-                        Err(NeonAPIClientError::ParseResponseError(e.to_string(), response_str))
-                    },
+                        warn!(
+                            "id {:?}: error to deserialize response.json to NeonApiError: {:?}",
+                            id,
+                            e.to_string()
+                        );
+                        Err(NeonAPIClientError::ParseResponseError(
+                            e.to_string(),
+                            response_str,
+                        ))
+                    }
                 }
-            },
+            }
             other => {
-                warn!("id {:?}: unknown neon-api response.status(): {:?}", id, status
+                warn!(
+                    "id {:?}: unknown neon-api response.status(): {:?}",
+                    id, status
                 );
                 Err(NeonAPIClientError::OtherResponseStatusError(other))
-            },
+            }
         }
     }
 
@@ -182,8 +205,7 @@ impl Client {
             slot,
         };
 
-        self.get_request("/api/get-storage-at", params, id)
-            .await
+        self.get_request("/api/get-storage-at", params, id).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -222,8 +244,7 @@ impl Client {
             slot,
         };
 
-        self.post_request("/api/emulate", params, id)
-            .await
+        self.post_request("/api/emulate", params, id).await
     }
 
     #[allow(unused)]
@@ -249,8 +270,7 @@ impl Client {
             hash,
         };
 
-        self.post_request("/api/emulate-hash", params, id)
-            .await
+        self.post_request("/api/emulate-hash", params, id).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -295,8 +315,7 @@ impl Client {
             trace_call_config,
         };
 
-        self.post_request("/api/trace", params, id)
-            .await
+        self.post_request("/api/trace", params, id).await
     }
 
     pub async fn trace_hash(
@@ -326,8 +345,7 @@ impl Client {
             trace_config,
         };
 
-        self.post_request("/api/trace-hash", params, id)
-            .await
+        self.post_request("/api/trace-hash", params, id).await
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -354,8 +372,6 @@ impl Client {
             trace_config,
         };
 
-        self.post_request("/api/trace-next-block", params, id)
-            .await
+        self.post_request("/api/trace-next-block", params, id).await
     }
 }
-
