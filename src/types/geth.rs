@@ -1,15 +1,14 @@
-use neon_cli_lib::types::trace::TraceConfig;
 use {
     ethnum::U256,
     crate::opcodes::opcode_name,
     std::{collections::BTreeMap, iter},
     neon_cli_lib::types::{
-        trace::{TracedCall, VMOperation, VMTrace},
         Address,
-        Bytes,
     },
     serde::{self, Deserialize, Serialize},
 };
+use evm_loader::evm::tracing::event_listener::trace::{TraceConfig, TracedCall, VMOperation, VMTrace};
+use evm_loader::types::hexbytes::HexBytes;
 
 #[derive(Deserialize, Default, PartialEq, Debug)]
 #[serde(deny_unknown_fields)]
@@ -34,7 +33,7 @@ pub struct TransactionArgs {
     pub nonce: Option<U256>,
     /// Input
     #[serde(alias = "data")]
-    pub input: Option<Bytes>,
+    pub input: Option<HexBytes>,
     /// Access list
     //#[serde(skip_serializing_if = "Option::is_none")]
     //pub access_list: Option<AccessList>,
@@ -164,7 +163,7 @@ pub struct StructLog {
     pub depth: u32,
     /// Snapshot of the current memory sate
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub memory: Option<Vec<Bytes>>, // U256 sized chunks
+    pub memory: Option<Vec<HexBytes>>, // U256 sized chunks
     /// Snapshot of the current stack sate
     #[serde(skip_serializing_if = "Option::is_none")]
     // pub stack: Option<Vec<[u8; 32]>>,

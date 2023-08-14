@@ -10,9 +10,9 @@ use neon_cli_lib::{
     },
     types::{
         Address,
-        trace::{TraceCallConfig, TraceConfig, TracedCall},
     },
 };
+use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig, TracedCall};
 use jsonrpsee::types::error::ErrorCode;
 
 use super::ERR;

@@ -2,6 +2,7 @@ use std::{sync::Arc, time::{Instant, Duration}};
 
 use crate::api_client::{config::Config, models::{NeonApiResponse, NeonApiError}, Result};
 use ethnum::U256;
+use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig, TracedCall};
 use log::{info, warn};
 
 use neon_cli_lib::{
@@ -17,7 +18,6 @@ use neon_cli_lib::{
             GetStorageAtRequest, TraceHashRequestModel, TraceRequestModel, TxParamsRequestModel,
             TraceNextBlockRequestModel,
         },
-        trace::{TracedCall, TraceCallConfig, TraceConfig},
         Address,
     }
 };

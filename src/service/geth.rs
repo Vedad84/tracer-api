@@ -2,7 +2,6 @@ use std::sync::atomic::Ordering;
 use {
     async_trait::async_trait,
     jsonrpsee::proc_macros::rpc,
-    neon_cli_lib::types::trace::{TraceCallConfig, TraceConfig},
     crate::{
         data_source::{DataSource, ERR},
         metrics,
@@ -15,6 +14,7 @@ use {
     ethnum::U256,
     log::info,
 };
+use evm_loader::evm::tracing::event_listener::trace::{TraceCallConfig, TraceConfig};
 
 #[rpc(server)]
 pub trait GethTrace {
@@ -176,4 +176,3 @@ impl GethTraceServer for DataSource {
         result
     }
 }
-
