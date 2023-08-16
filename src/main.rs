@@ -91,8 +91,7 @@ async fn run() {
     );
 
     let server_handle = server
-        .start(module)
-        .expect("Failed to start JSON RPC Server");
+        .start(module);
 
     let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
         .expect("Failed to initialize SIGTERM handler");
