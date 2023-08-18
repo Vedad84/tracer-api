@@ -1,4 +1,4 @@
-name: transactions_latency_pipeline
+name: query_account
 
 on:
   workflow_dispatch:
