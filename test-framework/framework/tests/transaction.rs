@@ -1,6 +1,8 @@
 use neon_test_framework::TestFramework;
 
 // Submit a single transaction and check that it is present in the ClickHouse database.
+// TODO: Enable the test when the issue with Solana is resolved.
+#[ignore]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn transfer_transaction() {
     let mut tf = TestFramework::extended().await;
