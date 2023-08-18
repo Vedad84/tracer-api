@@ -4,7 +4,6 @@ on:
   push:
   workflow_dispatch:
 
-
 env:
   NEON_REVISION: 2c02d4a56a4509a17493e189a410d689cca805c8
   BUILDKITE_COMMIT: ${{github.sha}}
@@ -15,12 +14,60 @@ env:
   DB_INDEXER_USER: postgres
   INDEXER_DB_PASSWORD: ${{secrets.INDEXER_DB_PASSWORD}}
   SOLANA_URL: ${{ secrets.SOLANA_URL }}
+
 jobs:
-
-  build:
-
+  check:
+    name: Check
     runs-on: tracert-ci
+    steps:
+      - run: sudo apt-get update && sudo apt install -y libudev-dev
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo check
 
+  fmt:
+    name: Rustfmt
+    runs-on: tracert-ci
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    runs-on: tracert-ci
+    steps:
+      - run: sudo apt-get update && sudo apt install -y libudev-dev
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - run: cargo clippy -- -D warnings
+
+  test-devnet:
+    name: Run tests for devnet
+    runs-on: tracert-ci
+    steps:
+      - run: sudo apt-get update && sudo apt install -y libudev-dev
+      - uses: actions/checkout@v3
+      - uses: MrSquaare/ssh-setup-action@v2
+        with:
+          host: ${{ vars.TESTNET_CLICKHOUSE_HOST }}
+          private-key: ${{ secrets.TESTNET_SSH_KEY }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          ssh -fN -L 8123:localhost:8123 ubuntu@${{ vars.TESTNET_CLICKHOUSE_HOST }}
+          cargo test -p neon-test-framework
+        env:
+          PROXY_URL: ${{ vars.TESTNET_PROXY_URL }}
+          FAUCET_URL: ${{ vars.TESTNET_FAUCET_URL }}
+          DB_URL: http://localhost:8123
+
+  build-docker-image:
+    needs: [check, fmt, clippy, test-devnet]
+    runs-on: tracert-ci
     steps:
       - uses: actions/checkout@v3
 

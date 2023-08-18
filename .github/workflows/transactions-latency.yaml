@@ -1,0 +1,32 @@
+name: transactions_latency_pipeline
+
+on:
+  workflow_dispatch:
+
+env:
+  NEON_REVISION: 2c02d4a56a4509a17493e189a410d689cca805c8
+  DB_INDEXER_HOST: common.c9fdygf2jhef.eu-central-1.rds.amazonaws.com
+  DB_INDEXER_PORT: 5432
+  DB_INDEXER_DATABASE: indexer
+  DB_INDEXER_USER: postgres
+  INDEXER_DB_PASSWORD: ${{secrets.INDEXER_DB_PASSWORD}}
+  PROXY_URL: ${{ vars.TESTNET_PROXY_URL }}
+  FAUCET_URL: ${{ vars.TESTNET_FAUCET_URL }}
+  DB_URL: http://localhost:8123
+
+jobs:
+  test-testnet:
+    name: Run transactions latency benchmark
+    runs-on: tracert-ci
+    steps:
+      - run: sudo apt-get update && sudo apt install -y libudev-dev
+      - uses: actions/checkout@v3
+      - uses: MrSquaare/ssh-setup-action@v2
+        with:
+          host: ${{ vars.TESTNET_CLICKHOUSE_HOST }}
+          private-key: ${{ secrets.TESTNET_SSH_KEY }}
+      - uses: dtolnay/rust-toolchain@stable
+      - run: |
+          ssh -fN -L 8123:localhost:8123 ubuntu@${{ vars.TESTNET_CLICKHOUSE_HOST }}
+          cargo build --release -p neon-load-tests
+          cargo run --release -p neon-load-tests transaction-latency 1000

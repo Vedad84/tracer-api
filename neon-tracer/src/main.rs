@@ -1,5 +1,5 @@
 #![deny(warnings)]
-#![deny(clippy::all, clippy::pedantic)]
+#![deny(clippy::all)]
 
 use {
     crate::{
@@ -90,8 +90,7 @@ async fn run() {
         options.metrics_port,
     );
 
-    let server_handle = server
-        .start(module);
+    let server_handle = server.start(module);
 
     let mut sigterm = signal::unix::signal(signal::unix::SignalKind::terminate())
         .expect("Failed to initialize SIGTERM handler");

@@ -14,7 +14,7 @@ pub struct Options {
 
 pub fn read_config() -> Options {
     let read_env = |var_name: &str| {
-        std::env::var(var_name).unwrap_or_else(|_| panic!("Failed to read env var {}", var_name))
+        std::env::var(var_name).unwrap_or_else(|_| panic!("Failed to read env var {var_name}"))
     };
 
     let clickhouse_url = std::env::var("NEON_DB_CLICKHOUSE_URLS")
@@ -47,17 +47,17 @@ pub fn read_config() -> Options {
         indexer_port,
         indexer_database,
         indexer_user,
-        indexer_password
+        indexer_password,
     };
     let addr = read_env("LISTEN_ADDR");
     let web3_proxy = read_env("WEB3_PROXY");
     let metrics_ip = read_env("METRICS_IP");
     let metrics_ip = Ipv4Addr::from_str(metrics_ip.as_str())
-        .unwrap_or_else(|_| panic!("Failed to parse METRICS_IP {}", metrics_ip));
+        .unwrap_or_else(|_| panic!("Failed to parse METRICS_IP {metrics_ip}"));
     let metrics_port = read_env("METRICS_PORT");
     let metrics_port = metrics_port
         .parse::<u16>()
-        .unwrap_or_else(|_| panic!("Failed to parse metrics port {}", metrics_port));
+        .unwrap_or_else(|_| panic!("Failed to parse metrics port {metrics_port}"));
 
     Options {
         addr,

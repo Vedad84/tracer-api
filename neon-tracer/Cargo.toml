@@ -1,0 +1,35 @@
+[package]
+name = "neon-tracer"
+version = "0.2.0-dev"
+edition = "2021"
+
+[dependencies]
+jsonrpsee = { version = "0.20", features = ["server", "macros"] }
+tokio.workspace = true
+serde.workspace = true
+rustc-hex = "2.1"
+tracing.workspace = true
+tracing-subscriber.workspace = true
+tracing-log.workspace = true
+evm-loader = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "evm-loader" }
+neon-cli-lib.workspace = true
+solana-sdk = "=1.14"
+solana-cli-config = "=1.14"
+hex.workspace = true
+arrayref = "0.3.7"
+serde_json.workspace = true
+serde_yaml = "0.9.25"
+lazy_static = "1.4"
+thiserror = "1.0"
+warp = "0.3.5"
+web3.workspace = true
+prometheus = { version = "0.9", features = ["process"] }
+futures = "0.3.28"
+futures-util = "0.3.28"
+async-trait.workspace = true
+ethnum = { version = "1", default_features = false, features = [ "serde" ] }
+rand.workspace = true
+reqwest.workspace = true
+
+# for evm-loader
+mpl-token-auth-rules = "=1.4.1"

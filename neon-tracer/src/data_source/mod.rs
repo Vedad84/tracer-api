@@ -10,10 +10,10 @@ use {
     },
     arrayref::array_ref,
     jsonrpsee::types::error::ErrorCode,
-    log::{info, warn},
     neon_cli_lib::types::{IndexerDb, TracerDb},
     std::sync::{atomic::AtomicU64, Arc},
     tracer_db::TracerDbExtention,
+    tracing::{info, warn},
     web3::{transports::Http, types::BlockId, Web3},
 };
 
@@ -101,7 +101,7 @@ impl DataSource {
                     None::<()>,
                 )
             }),
-            _ => {
+            BlockNumber::Pending => {
                 let e = format!("id {id:?}: Unsupported block tag {tag:?}");
                 warn!("{e}");
                 Err(Error::owned(ErrorCode::InternalError.code(), e, None::<()>))

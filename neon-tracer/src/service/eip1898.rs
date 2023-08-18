@@ -7,10 +7,10 @@ use {
     },
     async_trait::async_trait,
     ethnum::U256,
-    neon_cli_lib::types::Address,
     jsonrpsee::proc_macros::rpc,
-    log::info,
+    neon_cli_lib::types::Address,
     std::sync::atomic::Ordering,
+    tracing::info,
 };
 
 #[rpc(server)]

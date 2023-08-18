@@ -11,7 +11,7 @@ pub struct Config {
 
 pub fn read_api_client_config_from_enviroment() -> Config {
     let read_env = |var_name: &str| {
-        std::env::var(var_name).unwrap_or_else(|_| panic!("Failed to read env var {}", var_name))
+        std::env::var(var_name).unwrap_or_else(|_| panic!("Failed to read env var {var_name}"))
     };
 
     let neon_api_url =
@@ -19,7 +19,7 @@ pub fn read_api_client_config_from_enviroment() -> Config {
 
     let token_mint = read_env("NEON_TOKEN_MINT");
     let token_mint = Pubkey::from_str(token_mint.as_str())
-        .unwrap_or_else(|_| panic!("Failed to parse NEON_TOKEN_MINT {}", token_mint));
+        .unwrap_or_else(|_| panic!("Failed to parse NEON_TOKEN_MINT {token_mint}"));
     let chain_id = read_env("NEON_CHAIN_ID");
     let chain_id = chain_id
         .parse::<u64>()
