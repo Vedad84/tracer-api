@@ -1198,6 +1198,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "dumping-delay-meter"
+version = "0.1.0"
+dependencies = [
+ "arrayref",
+ "async-trait",
+ "futures",
+ "postgres-types",
+ "rand 0.8.5",
+ "secp256k1",
+ "serde_json",
+ "tokio",
+ "tokio-postgres",
+ "tracing",
+ "tracing-log",
+ "tracing-subscriber",
+ "web3",
+]
+
+[[package]]
 name = "eager"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

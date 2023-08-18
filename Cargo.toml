@@ -1,6 +1,7 @@
 [workspace]
 
 members = [
+    "dumping-delay-meter",
     "neon-tracer",
     "test-framework/framework",
     "test-framework/load-tests",
@@ -8,6 +9,7 @@ members = [
 
 [workspace.dependencies]
 tokio = { version = "1", features = ["full"] }
+futures = "0.3.28"
 serde = { version = "1", features = ["derive", "rc"] }
 serde_json = "1.0.104"
 tracing = "0.1"
@@ -18,6 +20,8 @@ web3 = "0.19"
 hex = "0.4.3"
 reqwest = { version = "0.11", features = ["json"] }
 async-trait = "0.1.73"
+arrayref = "0.3.7"
+secp256k1 = { version = "0.27", features = ["rand"] }
 neon-cli-lib = { git = "https://github.com/neonlabsorg/neon-evm", branch = "develop", default_features = false, package = "neon-lib" }
 
 # for evm-loader
