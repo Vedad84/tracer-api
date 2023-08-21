@@ -5,6 +5,8 @@ ENV NEON_REVISION $NEON_REVISION
 
 COPY . /opt
 WORKDIR /opt
+RUN cargo fmt --check
+RUN cargo clippy --release
 RUN cargo build -p neon-tracer --release
 RUN cargo test -p neon-tracer --release
 
